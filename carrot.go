@@ -72,23 +72,14 @@ func InitCarrot(db *gorm.DB, r *gin.Engine) (err error) {
 	//
 	// Check default SITE_*
 	//
-	CheckValue(db, KEY_SITE_NAME, "Restsend")
-	CheckValue(db, KEY_SITE_ADMIN, "hello@restsend.com")
-	CheckValue(db, KEY_SITE_URL, "https://restsend.com")
-	CheckValue(db, KEY_SITE_KEYWORDS, "transactional email service, restsend transactional emails")
-	CheckValue(db, KEY_SITE_DESCRIPTION, `Transactional messaging service designed for everyone. Send mass emails with Gmail or Amazon SES, save cost and time.`)
-	CheckValue(db, KEY_SITE_GA, "")
-	CheckValue(db, KEY_SITE_COPYRIGHT, "2022 Restsend.com")
-
 	CheckValue(db, KEY_SITE_LOGO_URL, "/static/img/carrot.svg")
 	CheckValue(db, KEY_SITE_FAVICON_URL, "/static/img/favicon.png")
 	CheckValue(db, KEY_SITE_SIGNIN_URL, "/auth/login")
 	CheckValue(db, KEY_SITE_SIGNUP_URL, "/auth/register")
 	CheckValue(db, KEY_SITE_RESET_PASSWORD_URL, "/auth/reset_password")
 	CheckValue(db, KEY_SITE_LOGIN_NEXT, "/")
-	CheckValue(db, KEY_SITE_SLOGAN, "Save time sending emails.")
 
-	as := NewPongoAssets()
+	as := NewStaticAssets()
 	as.InitStaticAssets(r)
 
 	r.HTMLRender = as
