@@ -178,7 +178,7 @@ func (as *StaticAssets) Open(name string) (http.File, error) {
 func (as *StaticAssets) Instance(name string, ctx any) render.Render {
 	vals := ctx.(map[string]interface{})
 	r := &PongoRender{
-		as:       as,
+		sets:     as.sets,
 		fileName: as.Locate(filepath.Join(as.TemplateDir, name)),
 		ctx:      vals,
 	}

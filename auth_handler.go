@@ -89,7 +89,12 @@ func handleUserSignupPage(c *gin.Context) {
 }
 
 func handleUserSigninPage(c *gin.Context) {
-	c.HTML(http.StatusOK, "signin.html", GetRenderPageContext(c))
+	ctx := GetRenderPageContext(c)
+	loginNext := c.Query("next")
+	if loginNext != "" {
+		ctx["login_next"] = loginNext
+	}
+	c.HTML(http.StatusOK, "signin.html", ctx)
 }
 func handleUserResetPasswordPage(c *gin.Context) {
 	c.HTML(http.StatusOK, "reset_password.html", GetRenderPageContext(c))

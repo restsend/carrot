@@ -2,10 +2,12 @@ package carrot
 
 import (
 	"net/http"
+
+	"github.com/flosch/pongo2/v6"
 )
 
 type PongoRender struct {
-	as       *StaticAssets
+	sets     *pongo2.TemplateSet
 	fileName string
 	ctx      map[string]interface{}
 }
@@ -13,7 +15,7 @@ type PongoRender struct {
 // Render implements render.Render
 func (r *PongoRender) Render(w http.ResponseWriter) error {
 	r.WriteContentType(w)
-	t, err := r.as.sets.FromFile(r.fileName)
+	t, err := r.sets.FromFile(r.fileName)
 	if err != nil {
 		return err
 	}
