@@ -8,7 +8,7 @@
     <h2 class="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">Sign in to your account</h2>
     <p class="mt-2 text-center text-sm text-gray-600">
       Or
-      <a href="{{signup_url}}" class="font-medium text-indigo-600 hover:text-indigo-500">
+      <a href="{{signup_url}}?next={{login_next}}" class="font-medium text-indigo-600 hover:text-indigo-500">
         {{signuptext|default:'Start your 14-day free trial'}}
       </a>
     </p>
@@ -161,35 +161,53 @@
     document.querySelector(`#${sel}-reason`).classList.add('hidden')
   }
 
-  form.addEventListener("submit", (e) => {
+  var auth_token = window.localStorage.getItem('_fast_auth_token')
+  if (auth_token) {
+    doAuth(auth_token)
+  }
+
+  function doAuth(token) {
     hideError('password')
     hideError('email')
-
-    e.preventDefault();
     var password = document.querySelector('#password').value
-    if (password.length <= 5) {
+    console.log(password, token)
+    if (!token && password.length <= 5) {
       showError('password')
       return
     }
+    var remember = document.querySelector('#remember-me').checked
 
     toggleLoading();
+    window.localStorage.removeItem('_fast_auth_token')
 
     fetch('/auth/login', {
       method: 'POST',
       body: JSON.stringify({
         'email': document.querySelector('#email').value,
         'password': password,
+        'remember': remember,
+        token,
       })
     }).then((resp) => {
       toggleLoading();
       if (resp.status == 200) {
-        window.location = '{{login_next}}';
+        resp.json().then((data) => {
+          if (remember) {
+            window.localStorage.setItem('_fast_auth_token', data.token)
+          }
+          window.location = '{{login_next}}';
+        })
       } else {
         resp.json().then((data) => {
           showError('email', data.error)
         })
       }
     })
+  }
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    doAuth();
   });
 </script>
 

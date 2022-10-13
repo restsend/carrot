@@ -67,7 +67,7 @@ func TestAuthHandler(t *testing.T) {
 	{
 		form := LoginForm{}
 		err = client.Call("/auth/login", form, nil)
-		assert.Contains(t, err.Error(), "'Email' failed on the 'required'")
+		assert.Contains(t, err.Error(), "email is required")
 	}
 	{
 		form := RegisterUserForm{

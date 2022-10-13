@@ -78,7 +78,7 @@ type Order struct {
 type QueryForm struct {
 	Pos          int      `json:"pos"`
 	Limit        int      `json:"limit"`
-	Keyword      string   `json:"keyword"`
+	Keyword      string   `json:"keyword,omitempty"`
 	Filters      []Filter `json:"filters,omitempty"`
 	Orders       []Order  `json:"orders,omitempty"`
 	searchFields []string `json:"-"`
@@ -294,7 +294,7 @@ func handleDeleteObject(c *gin.Context, obj *WebObject) {
 	c.JSON(http.StatusOK, true)
 }
 
-func handleQueryObject(c *gin.Context, obj *WebObject) {
+func HandleQueryObject(c *gin.Context, obj *WebObject) {
 	var form QueryForm
 	if c.Request.ContentLength > 0 {
 		if err := c.BindJSON(&form); err != nil {
@@ -372,6 +372,45 @@ func handleQueryObject(c *gin.Context, obj *WebObject) {
 }
 
 func RegisterObject(r gin.IRoutes, obj *WebObject) {
+
+	if err := obj.Build(); err != nil {
+		log.Printf("[error] %v", err)
+		return
+	}
+
+	p := filepath.Join(obj.Group, obj.Name)
+
+	r.GET(filepath.Join(p, ":key"), func(c *gin.Context) {
+		handleGetObject(c, obj)
+	})
+
+	//Create
+	r.PUT(p, func(c *gin.Context) {
+		handleCreateObject(c, obj)
+	})
+	//Edit
+	r.PATCH(filepath.Join(p, ":key"), func(c *gin.Context) {
+		handleEditObject(c, obj)
+	})
+
+	//Delete
+	r.DELETE(filepath.Join(p, ":key"), func(c *gin.Context) {
+		handleDeleteObject(c, obj)
+	})
+	// Query
+	r.POST(filepath.Join(p, "query"), func(c *gin.Context) {
+		HandleQueryObject(c, obj)
+	})
+}
+
+func RegisterObjects(r gin.IRoutes, objs []WebObject) {
+	for idx := range objs {
+		obj := &objs[idx]
+		RegisterObject(r, obj)
+	}
+}
+
+func (obj *WebObject) Build() error {
 	obj.modelElem = reflect.TypeOf(obj.Model)
 	if obj.modelElem.Kind() == reflect.Ptr {
 		obj.modelElem = obj.modelElem.Elem()
@@ -414,40 +453,11 @@ func RegisterObject(r gin.IRoutes, obj *WebObject) {
 	}
 
 	if obj.primaryKeyName == "" {
-		log.Printf("[error] %s not primaryKey", obj.Name)
-		return
+		return fmt.Errorf("%s not primaryKey", obj.Name)
 	}
 
 	if obj.Name == "" {
 		obj.Name = strings.ToLower(obj.tableName)
 	}
-	p := filepath.Join(obj.Group, obj.Name)
-	r.GET(filepath.Join(p, ":key"), func(c *gin.Context) {
-		handleGetObject(c, obj)
-	})
-
-	//Create
-	r.PUT(p, func(c *gin.Context) {
-		handleCreateObject(c, obj)
-	})
-	//Edit
-	r.PATCH(filepath.Join(p, ":key"), func(c *gin.Context) {
-		handleEditObject(c, obj)
-	})
-
-	//Delete
-	r.DELETE(filepath.Join(p, ":key"), func(c *gin.Context) {
-		handleDeleteObject(c, obj)
-	})
-	// Query
-	r.POST(filepath.Join(p, "query"), func(c *gin.Context) {
-		handleQueryObject(c, obj)
-	})
-}
-
-func RegisterObjects(r gin.IRoutes, objs []WebObject) {
-	for idx := range objs {
-		obj := &objs[idx]
-		RegisterObject(r, obj)
-	}
+	return nil
 }

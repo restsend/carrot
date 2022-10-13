@@ -11,8 +11,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	_ "embed"
-
 	"github.com/flosch/pongo2/v6"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/render"

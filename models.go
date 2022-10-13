@@ -54,10 +54,11 @@ type User struct {
 	LastLogin   *time.Time `json:"lastLogin,omitempty"`
 	LastLoginIP string     `json:"-" gorm:"size:128"`
 
-	Source   string `json:"-" gorm:"size:64;index"`
-	Locale   string `json:"locale,omitempty" gorm:"size:20"`
-	Timezone string `json:"timezone,omitempty" gorm:"size:200"`
-	Profile  string `json:"profile,omitempty"`
+	Source    string `json:"-" gorm:"size:64;index"`
+	Locale    string `json:"locale,omitempty" gorm:"size:20"`
+	Timezone  string `json:"timezone,omitempty" gorm:"size:200"`
+	Profile   string `json:"profile,omitempty"`
+	AuthToken string `json:"token,omitempty" gorm:"-"`
 }
 
 type Group struct {

@@ -27,6 +27,51 @@ const (
 	SigUserResetpassword = "user.resetpassword"
 )
 
+func InTimezone(c *gin.Context, timezone string) {
+	tz, err := time.LoadLocation(timezone)
+	if err != nil {
+		return
+	}
+	c.Set(TzField, tz)
+
+	session := sessions.Default(c)
+	session.Set(TzField, timezone)
+	session.Save()
+}
+
+func CurrentTimezone(c *gin.Context) *time.Location {
+	if cachedObj, exists := c.Get(TzField); exists && cachedObj != nil {
+		return cachedObj.(*time.Location)
+	}
+
+	session := sessions.Default(c)
+	tzkey := session.Get(TzField)
+
+	if tzkey == nil {
+		if user := CurrentUser(c); user != nil {
+			tzkey = user.Timezone
+		}
+	}
+
+	var tz *time.Location
+	defer func() {
+		if tz == nil {
+			tz = time.UTC
+		}
+		c.Set(TzField, tz)
+	}()
+
+	if tzkey == nil {
+		return time.UTC
+	}
+
+	tz, _ = time.LoadLocation(tzkey.(string))
+	if tz == nil {
+		return time.UTC
+	}
+	return tz
+}
+
 func CurrentUser(c *gin.Context) *User {
 	if cachedObj, exists := c.Get(UserField); exists && cachedObj != nil {
 		return cachedObj.(*User)

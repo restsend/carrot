@@ -15,6 +15,7 @@ const (
 	UserField  = "_carrot_uid"
 	GroupField = "_carrot_gid"
 	DbField    = "_carrot_db"
+	TzField    = "_carrot_tz"
 )
 
 type RegisterUserForm struct {
@@ -29,8 +30,11 @@ type RegisterUserForm struct {
 }
 
 type LoginForm struct {
-	Email    string `json:"email" binding:"required"`
-	Password string `json:"password" binding:"required"`
+	Email     string `json:"email"`
+	Password  string `json:"password,omitempty"`
+	Timezone  string `json:"timezone,omitempty"`
+	Remember  bool   `json:"remember,omitempty"`
+	AuthToken string `json:"token,omitempty"`
 }
 
 type ChangePasswordForm struct {
@@ -85,7 +89,12 @@ func handleUserInfo(c *gin.Context) {
 }
 
 func handleUserSignupPage(c *gin.Context) {
-	c.HTML(http.StatusOK, "signup.html", GetRenderPageContext(c))
+	ctx := GetRenderPageContext(c)
+	loginNext := c.Query("next")
+	if loginNext != "" {
+		ctx["login_next"] = loginNext
+	}
+	c.HTML(http.StatusOK, "signup.html", ctx)
 }
 
 func handleUserSigninPage(c *gin.Context) {
@@ -96,6 +105,7 @@ func handleUserSigninPage(c *gin.Context) {
 	}
 	c.HTML(http.StatusOK, "signin.html", ctx)
 }
+
 func handleUserResetPasswordPage(c *gin.Context) {
 	c.HTML(http.StatusOK, "reset_password.html", GetRenderPageContext(c))
 }
@@ -192,6 +202,8 @@ func handleUserSignup(c *gin.Context) {
 	if !user.Actived && GetBoolValue(db, KEY_USER_ACTIVATED) {
 		sendHashMail(db, user, SigUserVerifyEmail, KEY_VERIFY_EMAIL_EXPIRED, "180d", c.ClientIP(), c.Request.UserAgent())
 		r["expired"] = "180d"
+	} else {
+		Login(c, user) //Login now
 	}
 	c.JSON(http.StatusOK, r)
 }
@@ -204,25 +216,51 @@ func handleUserSignin(c *gin.Context) {
 		})
 		return
 	}
-	db := c.MustGet(DbField).(*gorm.DB)
-	user, err := GetUserByEmail(db, form.Email)
-	if err != nil {
+
+	if form.AuthToken == "" && form.Email == "" {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": "user not exists",
+			"error": "email is required",
 		})
 		return
+	}
+
+	if form.Password == "" && form.AuthToken == "" {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": "empty password",
+		})
+		return
+	}
+
+	db := c.MustGet(DbField).(*gorm.DB)
+	var user *User
+	var err error
+	if form.Password != "" {
+		user, err = GetUserByEmail(db, form.Email)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+				"error": "user not exists",
+			})
+			return
+		}
+		if !CheckPassword(user, form.Password) {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "unauthorized",
+			})
+			return
+		}
+	} else {
+		user, err = DecodeHashToken(db, form.AuthToken)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
 	}
 
 	if !user.Enabled {
 		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
 			"error": "user not allow login",
-		})
-		return
-	}
-
-	if !CheckPassword(user, form.Password) {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": "unauthorized",
 		})
 		return
 	}
@@ -234,7 +272,18 @@ func handleUserSignin(c *gin.Context) {
 		return
 	}
 
+	if form.Timezone != "" {
+		InTimezone(c, form.Timezone)
+	}
+
 	Login(c, user)
+
+	if form.Remember {
+		// 7 days
+		n := time.Now().Add(7 * 24 * time.Hour)
+		user.AuthToken = EncodeHashToken(user, n.Unix())
+	}
+
 	c.JSON(http.StatusOK, user)
 }
 
@@ -290,6 +339,8 @@ func handleUserActivation(c *gin.Context) {
 	UpdateUserFields(db, user, map[string]interface{}{
 		"Actived": true,
 	})
+
+	InTimezone(c, user.Timezone)
 	Login(c, user)
 	c.Redirect(http.StatusFound, next)
 }
