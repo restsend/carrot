@@ -161,24 +161,15 @@
     document.querySelector(`#${sel}-reason`).classList.add('hidden')
   }
 
-  var auth_token = window.localStorage.getItem('_fast_auth_token')
-  if (auth_token) {
-    doAuth(auth_token)
-  }
-
-  function doAuth(token) {
+  function doAuth() {
     hideError('password')
     hideError('email')
     var password = document.querySelector('#password').value
-    console.log(password, token)
-    if (!token && password.length <= 5) {
+    if (password.length <= 5) {
       showError('password')
       return
     }
-    var remember = document.querySelector('#remember-me').checked
-
     toggleLoading();
-    window.localStorage.removeItem('_fast_auth_token')
 
     fetch('/auth/login', {
       method: 'POST',
@@ -186,15 +177,11 @@
         'email': document.querySelector('#email').value,
         'password': password,
         'remember': remember,
-        token,
       })
     }).then((resp) => {
       toggleLoading();
       if (resp.status == 200) {
         resp.json().then((data) => {
-          if (remember) {
-            window.localStorage.setItem('_fast_auth_token', data.token)
-          }
           window.location = '{{login_next}}';
         })
       } else {
