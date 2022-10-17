@@ -136,7 +136,7 @@
         }
 
         toggleLoading();
-
+        
         fetch('/auth/register', {
             method: 'POST',
             body: JSON.stringify({
@@ -144,6 +144,8 @@
                 'password': document.querySelector('#password').value,
                 'firstName': document.querySelector('#firstname').value,
                 'lastName': document.querySelector('#lastname').value,
+                'locale': navigator.language,
+                'timezone': Intl.DateTimeFormat().resolvedOptions().timeZone,
             })
         }).then((resp) => {
             toggleLoading();
