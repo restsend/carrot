@@ -410,24 +410,13 @@ func RegisterObjects(r gin.IRoutes, objs []WebObject) {
 	}
 }
 
-func (obj *WebObject) Build() error {
-	obj.modelElem = reflect.TypeOf(obj.Model)
-	if obj.modelElem.Kind() == reflect.Ptr {
-		obj.modelElem = obj.modelElem.Elem()
-	}
+func (obj *WebObject) parseFields(rt reflect.Type) {
+	for i := 0; i < rt.NumField(); i++ {
+		f := rt.Field(i)
 
-	obj.tableName = obj.modelElem.Name()
-	obj.jsonToFields = make(map[string]string)
-
-	if obj.GetDB == nil {
-		obj.GetDB = func(ctx *gin.Context, isCreate bool) *gorm.DB {
-			return ctx.MustGet(DbField).(*gorm.DB)
+		if f.Anonymous && f.Type.Kind() == reflect.Struct {
+			obj.parseFields(f.Type)
 		}
-	}
-
-	for i := 0; i < obj.modelElem.NumField(); i++ {
-		f := obj.modelElem.Field(i)
-
 		jsonTag := f.Tag.Get("json")
 		if jsonTag == "" {
 			obj.jsonToFields[f.Name] = f.Name
@@ -451,6 +440,24 @@ func (obj *WebObject) Build() error {
 		obj.primaryKeyName = f.Name
 		obj.primaryKeyType = f.Type
 	}
+}
+
+func (obj *WebObject) Build() error {
+	obj.modelElem = reflect.TypeOf(obj.Model)
+	if obj.modelElem.Kind() == reflect.Ptr {
+		obj.modelElem = obj.modelElem.Elem()
+	}
+
+	obj.tableName = obj.modelElem.Name()
+	obj.jsonToFields = make(map[string]string)
+
+	if obj.GetDB == nil {
+		obj.GetDB = func(ctx *gin.Context, isCreate bool) *gorm.DB {
+			return ctx.MustGet(DbField).(*gorm.DB)
+		}
+	}
+
+	obj.parseFields(obj.modelElem)
 
 	if obj.primaryKeyName == "" {
 		return fmt.Errorf("%s not primaryKey", obj.Name)
