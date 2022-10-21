@@ -190,12 +190,12 @@ func QueryObjects(db *gorm.DB, elem reflect.Type, form *QueryForm) (r QueryResul
 	if result.Error != nil {
 		return r, result.Error
 	}
+	r.TotalCount = int(c)
 	if c <= 0 {
 		return r, nil
 	}
 
 	db = db.Offset(form.Pos).Limit(limit)
-	r.TotalCount = int(c)
 	items := reflect.New(reflect.SliceOf(elem))
 	result = db.Find(items.Interface())
 	if result.Error != nil {
