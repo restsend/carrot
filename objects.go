@@ -169,7 +169,7 @@ func QueryObjects(db *gorm.DB, elem reflect.Type, form *QueryForm) (r QueryResul
 	if form.Keyword != "" && len(form.searchFields) > 0 {
 		var query []string
 		for _, v := range form.searchFields {
-			query = append(query, v+" LIKE @keyword")
+			query = append(query, fmt.Sprintf("`%s` LIKE @keyword", v))
 		}
 		searchKey := strings.Join(query, " OR ")
 		db = db.Where(searchKey, sql.Named("keyword", "%"+form.Keyword+"%"))
