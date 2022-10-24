@@ -65,9 +65,10 @@ type WebObject struct {
 }
 
 type Filter struct {
-	Name  string `json:"name"`
-	Op    string `json:"op"`
-	Value string `json:"value"`
+	Name        string      `json:"name"`
+	Op          string      `json:"op"`
+	Value       string      `json:"value"`
+	targetValue interface{} `json:"-"`
 }
 
 type Order struct {
@@ -146,6 +147,15 @@ func ConvertKey(dst reflect.Type, v interface{}) interface{} {
 		case reflect.Uint64:
 			x, _ := strconv.ParseUint(v.(string), 10, 64)
 			return x
+		case reflect.Bool:
+			if v.(string) == "true" || v.(string) == "yes" {
+				return true
+			} else {
+				return false
+			}
+		case reflect.Float32, reflect.Float64:
+			x, _ := strconv.ParseFloat(v.(string), 64)
+			return x
 		}
 	}
 	return fmt.Sprintf("%v", v)
@@ -155,7 +165,7 @@ func QueryObjects(db *gorm.DB, elem reflect.Type, form *QueryForm) (r QueryResul
 	for _, v := range form.Filters {
 		q := v.GetQuery()
 		if q != "" {
-			db = db.Where(v.GetQuery(), v.Value)
+			db = db.Where(v.GetQuery(), v.targetValue)
 		}
 	}
 
@@ -328,6 +338,8 @@ func HandleQueryObject(c *gin.Context, obj *WebObject) {
 			}
 		}
 		f.Name = namer.ColumnName(obj.tableName, f.Name)
+		fe, _ := obj.modelElem.FieldByName(n)
+		f.targetValue = ConvertKey(fe.Type, f.Value)
 		stripFilters = append(stripFilters, f)
 	}
 	form.Filters = stripFilters
