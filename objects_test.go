@@ -87,9 +87,10 @@ func TestQueryObjects(t *testing.T) {
 		Limit: 10,
 		Filters: []Filter{
 			{
-				Name:  "email",
-				Op:    FilterOpEqual,
-				Value: "bob@example.org",
+				Name:        "email",
+				Op:          FilterOpEqual,
+				Value:       "bob@example.org",
+				targetValue: "bob@example.org",
 			},
 		},
 		Orders: []Order{
@@ -100,7 +101,11 @@ func TestQueryObjects(t *testing.T) {
 		searchFields: []string{"first_name"},
 		Keyword:      "ot",
 	}
-	r, err := QueryObjects(db, reflect.TypeOf(bob).Elem(), &form)
+	obj := WebObject{
+		tableName: "users",
+		modelElem: reflect.TypeOf(bob).Elem(),
+	}
+	r, err := QueryObjects(db.Debug(), &obj, &form)
 	assert.Nil(t, err)
 	assert.Equal(t, r.TotalCount, 1)
 	data, _ := json.Marshal(r.Items)

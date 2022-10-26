@@ -44,6 +44,12 @@ const (
 
 type GetDB func(ctx *gin.Context, isCreate bool) *gorm.DB
 type PrepareModel func(ctx *gin.Context, vptr interface{})
+type PrepareQuery func(ctx *gin.Context, obj *WebObject) (*gorm.DB, *QueryForm, error)
+
+type QueryView struct {
+	Name    string
+	Prepare PrepareQuery
+}
 
 type WebObject struct {
 	Model     interface{}
@@ -55,6 +61,7 @@ type WebObject struct {
 	Searchs   []string
 	GetDB     GetDB
 	Init      PrepareModel
+	Views     []QueryView
 
 	primaryKeyType     reflect.Type
 	primaryKeyName     string
@@ -116,6 +123,13 @@ func (f *Filter) GetQuery() string {
 	return fmt.Sprintf("%s %s ?", f.Name, op)
 }
 
+func (f *Filter) GetValue() interface{} {
+	if f.targetValue == nil && f.Value != "" {
+		return f.Value
+	}
+	return f.targetValue
+}
+
 func (f *Order) GetQuery() string {
 	if f.Op == OrderOpDesc {
 		return f.Name + " DESC"
@@ -161,25 +175,26 @@ func ConvertKey(dst reflect.Type, v interface{}) interface{} {
 	return fmt.Sprintf("%v", v)
 }
 
-func QueryObjects(db *gorm.DB, elem reflect.Type, form *QueryForm) (r QueryResult, err error) {
+func QueryObjects(db *gorm.DB, obj *WebObject, form *QueryForm) (r QueryResult, err error) {
+	tblName := db.NamingStrategy.TableName(obj.tableName)
 	for _, v := range form.Filters {
 		q := v.GetQuery()
 		if q != "" {
-			db = db.Where(v.GetQuery(), v.targetValue)
+			db = db.Where(fmt.Sprintf("%s.%s", tblName, v.GetQuery()), v.GetValue())
 		}
 	}
 
 	for _, v := range form.Orders {
 		q := v.GetQuery()
 		if q != "" {
-			db = db.Order(v.GetQuery())
+			db = db.Order(fmt.Sprintf("%s.%s", tblName, v.GetQuery()))
 		}
 	}
 
 	if form.Keyword != "" && len(form.searchFields) > 0 {
 		var query []string
 		for _, v := range form.searchFields {
-			query = append(query, fmt.Sprintf("`%s` LIKE @keyword", v))
+			query = append(query, fmt.Sprintf("`%s`.`%s` LIKE @keyword", tblName, v))
 		}
 		searchKey := strings.Join(query, " OR ")
 		db = db.Where(searchKey, sql.Named("keyword", "%"+form.Keyword+"%"))
@@ -195,7 +210,7 @@ func QueryObjects(db *gorm.DB, elem reflect.Type, form *QueryForm) (r QueryResul
 	r.Keyword = form.Keyword
 
 	var c int64
-	model := reflect.New(elem).Interface()
+	model := reflect.New(obj.modelElem).Interface()
 	result := db.Model(model).Count(&c)
 	if result.Error != nil {
 		return r, result.Error
@@ -206,7 +221,7 @@ func QueryObjects(db *gorm.DB, elem reflect.Type, form *QueryForm) (r QueryResul
 	}
 
 	db = db.Offset(form.Pos).Limit(limit)
-	items := reflect.New(reflect.SliceOf(elem))
+	items := reflect.New(reflect.SliceOf(obj.modelElem))
 	result = db.Find(items.Interface())
 	if result.Error != nil {
 		return r, result.Error
@@ -304,18 +319,23 @@ func handleDeleteObject(c *gin.Context, obj *WebObject) {
 	c.JSON(http.StatusOK, true)
 }
 
-func HandleQueryObject(c *gin.Context, obj *WebObject) {
+func DefaultPrepareQuery(c *gin.Context, obj *WebObject) (*gorm.DB, *QueryForm, error) {
 	var form QueryForm
 	if c.Request.ContentLength > 0 {
 		if err := c.BindJSON(&form); err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
+			return nil, nil, err
 		}
 	}
-	//
-	// check fields
-	//
-	db := obj.GetDB(c, false)
+	return obj.GetDB(c, false), &form, nil
+}
+
+func HandleQueryObject(c *gin.Context, obj *WebObject, prepareQuery PrepareQuery) {
+	db, form, err := prepareQuery(c, obj)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
 	namer := db.NamingStrategy
 
 	var filterFields map[string]struct{} = make(map[string]struct{})
@@ -375,7 +395,7 @@ func HandleQueryObject(c *gin.Context, obj *WebObject) {
 		}
 	}
 
-	result, err := QueryObjects(db, obj.modelElem, &form)
+	result, err := QueryObjects(db, obj, form)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -411,8 +431,19 @@ func RegisterObject(r gin.IRoutes, obj *WebObject) {
 	})
 	// Query
 	r.POST(filepath.Join(p, "query"), func(c *gin.Context) {
-		HandleQueryObject(c, obj)
+		HandleQueryObject(c, obj, DefaultPrepareQuery)
 	})
+
+	for i := 0; i < len(obj.Views); i++ {
+		v := &obj.Views[i]
+		r.POST(filepath.Join(p, v.Name), func(ctx *gin.Context) {
+			f := v.Prepare
+			if f == nil {
+				f = DefaultPrepareQuery
+			}
+			HandleQueryObject(ctx, obj, v.Prepare)
+		})
+	}
 }
 
 func RegisterObjects(r gin.IRoutes, objs []WebObject) {
