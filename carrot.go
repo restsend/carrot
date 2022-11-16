@@ -50,8 +50,9 @@ const KEY_SITE_LOGIN_NEXT = "SITE_LOGIN_NEXT"
 // Cors
 const CORS_ALLOW_ALL = "*"
 const CORS_ALLOW_CREDENTIALS = "true"
-const CORS_ALLOW_HEADERS = "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With"
+const CORS_ALLOW_HEADERS = "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, X-Auth-Token"
 const CORS_ALLOW_METHODS = "POST, OPTIONS, GET, PUT, PATCH, DELETE"
+const XAuthTokenHeader = "X-Auth-Token"
 
 func InitCarrot(db *gorm.DB, r *gin.Engine) (err error) {
 	err = InitMigrate(db)

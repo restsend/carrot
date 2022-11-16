@@ -87,10 +87,9 @@ func TestQueryObjects(t *testing.T) {
 		Limit: 10,
 		Filters: []Filter{
 			{
-				Name:        "email",
-				Op:          FilterOpEqual,
-				Value:       "bob@example.org",
-				targetValue: "bob@example.org",
+				Name:  "email",
+				Op:    FilterOpEqual,
+				Value: "bob@example.org",
 			},
 		},
 		Orders: []Order{

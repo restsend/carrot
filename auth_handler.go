@@ -119,7 +119,7 @@ func handleUserResetPasswordDonePage(c *gin.Context) {
 	}
 
 	ctx := GetRenderPageContext(c)
-	user, err := DecodeHashToken(db, token)
+	user, err := DecodeHashToken(db, token, true)
 	if err != nil {
 		c.AbortWithStatus(http.StatusForbidden)
 		return
@@ -135,7 +135,7 @@ func sendHashMail(db *gorm.DB, user *User, signame, expireKey, defaultExpired, c
 		d, _ = time.ParseDuration(defaultExpired)
 	}
 	n := time.Now().Add(d)
-	hash := EncodeHashToken(user, n.Unix())
+	hash := EncodeHashToken(user, n.Unix(), true)
 	// Send Mail
 	//
 	Sig().Emit(signame, user, hash, clientIp, useragent)
@@ -249,7 +249,7 @@ func handleUserSignin(c *gin.Context) {
 			return
 		}
 	} else {
-		user, err = DecodeHashToken(db, form.AuthToken)
+		user, err = DecodeHashToken(db, form.AuthToken, false)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": err.Error(),
@@ -281,7 +281,7 @@ func handleUserSignin(c *gin.Context) {
 	if form.Remember {
 		// 7 days
 		n := time.Now().Add(7 * 24 * time.Hour)
-		user.AuthToken = EncodeHashToken(user, n.Unix())
+		user.AuthToken = EncodeHashToken(user, n.Unix(), false)
 	}
 
 	c.JSON(http.StatusOK, user)
@@ -327,7 +327,7 @@ func handleUserActivation(c *gin.Context) {
 		next = "/"
 	}
 	db := c.MustGet(DbField).(*gorm.DB)
-	user, err := DecodeHashToken(db, token)
+	user, err := DecodeHashToken(db, token, true)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
 			"error": err.Error(),
@@ -422,7 +422,7 @@ func handleUserResetPasswordDone(c *gin.Context) {
 	}
 	db := c.MustGet(DbField).(*gorm.DB)
 
-	user, err := DecodeHashToken(db, form.Token)
+	user, err := DecodeHashToken(db, form.Token, true)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),

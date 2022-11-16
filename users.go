@@ -207,11 +207,11 @@ func SetLastLogin(db *gorm.DB, user *User, lastIp string) error {
 	return db.Model(user).Updates(vals).Error
 }
 
-func EncodeHashToken(user *User, timestamp int64) (hash string) {
+func EncodeHashToken(user *User, timestamp int64, useLastlogin bool) (hash string) {
 	//
 	// ts-uid-token
 	logintimestamp := "0"
-	if user.LastLogin != nil {
+	if useLastlogin && user.LastLogin != nil {
 		logintimestamp = fmt.Sprintf("%d", user.LastLogin.Unix())
 	}
 	t := fmt.Sprintf("%s$%d", user.Email, timestamp)
@@ -221,7 +221,7 @@ func EncodeHashToken(user *User, timestamp int64) (hash string) {
 	return hash
 }
 
-func DecodeHashToken(db *gorm.DB, hash string) (user *User, err error) {
+func DecodeHashToken(db *gorm.DB, hash string, useLastLogin bool) (user *User, err error) {
 	vals := strings.Split(hash, "-")
 	if len(vals) != 2 {
 		return nil, errors.New("bad token")
@@ -249,7 +249,7 @@ func DecodeHashToken(db *gorm.DB, hash string) (user *User, err error) {
 	if err != nil {
 		return nil, errors.New("bad token")
 	}
-	token := EncodeHashToken(user, ts)
+	token := EncodeHashToken(user, ts, useLastLogin)
 	if token != hash {
 		return nil, errors.New("bad token")
 	}

@@ -233,6 +233,40 @@ func TestAuthPassword(t *testing.T) {
 	}
 }
 
+func TestAuthToken(t *testing.T) {
+	gin.DisableConsoleColor()
+	db, err := InitDatabase(nil, "", "")
+	assert.Nil(t, err)
+	r := gin.Default()
+	err = InitCarrot(db, r)
+	assert.Nil(t, err)
+	client := NewTestClient(r)
+	defer func() {
+		db.Where("email", "bob@example.org").Delete(&User{})
+	}()
+	SetValue(db, KEY_USER_ACTIVATED, "no")
+	CreateUser(db, "bob@example.org", "123456")
+
+	form := LoginForm{
+		Email:    "bob@example.org",
+		Password: "123456",
+		Remember: true,
+	}
+	var user User
+	err = client.Call("/auth/login", form, &user)
+	assert.Nil(t, err)
+	assert.NotEmpty(t, user.AuthToken)
+	{
+		form := LoginForm{
+			Email:     "bob@example.org",
+			AuthToken: user.AuthToken,
+		}
+		var user User
+		err = client.Call("/auth/login", form, &user)
+		assert.Nil(t, err)
+		assert.Empty(t, user.AuthToken)
+	}
+}
 func TestAuthActivation(t *testing.T) {
 	gin.DisableConsoleColor()
 	db, err := InitDatabase(nil, "", "")
@@ -261,7 +295,7 @@ func TestAuthActivation(t *testing.T) {
 		bob, _ := GetUserByEmail(db, "bob@example.org")
 		assert.False(t, bob.Actived)
 
-		token := EncodeHashToken(bob, time.Now().Add(-10*time.Second).Unix())
+		token := EncodeHashToken(bob, time.Now().Add(-10*time.Second).Unix(), true)
 		w := client.Get(fmt.Sprintf("/auth/activation?token=%s&next=https://bad.org", token))
 		assert.Equal(t, w.Code, http.StatusForbidden)
 	}
