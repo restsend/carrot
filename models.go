@@ -117,6 +117,7 @@ func InitMigrate(db *gorm.DB) error {
 	})
 }
 
+// GenUniqueKey generate a unique value for a field in a table.
 func GenUniqueKey(tx *gorm.DB, field string, size int) (key string) {
 	key = RandText(size)
 	for i := 0; i < 10; i++ {
