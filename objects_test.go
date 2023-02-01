@@ -25,11 +25,13 @@ func TestConvertKey(t *testing.T) {
 
 	v = ConvertKey(reflect.TypeOf(int(0)), "1234")
 	assert.Equal(t, v, int(1234))
+
 	v = ConvertKey(reflect.TypeOf("1234"), 1234)
 	assert.Equal(t, v, "1234")
 
 	v = ConvertKey(reflect.TypeOf("1234"), nil)
 	assert.Nil(t, v)
+
 	v = ConvertKey(reflect.TypeOf("1234"), "1234")
 	assert.Equal(t, v, "1234")
 }

@@ -42,9 +42,10 @@ func TestFormAsMap(t *testing.T) {
 		assert.Equal(t, uint(100), vals["ID"])
 	}
 	{
-		vals := StructAsMap(&form, []string{"ID", "Source"})
-		assert.Equal(t, 1, len(vals))
+		vals := StructAsMap(&form, []string{"ID", "Title"})
+		assert.Equal(t, 2, len(vals))
 		assert.Equal(t, uint(100), vals["ID"])
+		assert.Equal(t, title, vals["Title"])
 	}
 }
 

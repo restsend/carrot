@@ -17,6 +17,7 @@ import (
 const (
 	DefaultQueryLimit = 50
 )
+
 const (
 	FieldTypeNull     = "null"
 	FieldTypeInt      = "int"
@@ -60,7 +61,7 @@ type WebObject struct {
 	Orders    []string
 	Searchs   []string
 	GetDB     GetDB
-	Init      PrepareModel
+	Init      PrepareModel // how to create a new object
 	Views     []QueryView
 
 	primaryKeyType     reflect.Type
@@ -100,6 +101,8 @@ type QueryResult struct {
 	Items      interface{} `json:"items,omitempty"`
 }
 
+// GetQuery return the combined filter SQL statement.
+// such as "age >= ?", "name IN ?".
 func (f *Filter) GetQuery() string {
 	var op string
 	switch f.Op {
@@ -123,6 +126,7 @@ func (f *Filter) GetQuery() string {
 	return fmt.Sprintf("%s %s ?", f.Name, op)
 }
 
+// GetValue return the target value of the filter SQL statement.
 func (f *Filter) GetValue() interface{} {
 	if f.targetValue == nil && f.Value != "" {
 		return f.Value
@@ -130,6 +134,8 @@ func (f *Filter) GetValue() interface{} {
 	return f.targetValue
 }
 
+// GetQuery return the combined order SQL statement.
+// such as "id DESC".
 func (f *Order) GetQuery() string {
 	if f.Op == OrderOpDesc {
 		return f.Name + " DESC"
@@ -137,6 +143,7 @@ func (f *Order) GetQuery() string {
 	return f.Name
 }
 
+// ConverKey convert the kind of v to dst.
 func ConvertKey(dst reflect.Type, v interface{}) interface{} {
 	if v == nil {
 		return nil
@@ -175,19 +182,22 @@ func ConvertKey(dst reflect.Type, v interface{}) interface{} {
 	return fmt.Sprintf("%v", v)
 }
 
+// QueryObjects excute query and return data.
 func QueryObjects(db *gorm.DB, obj *WebObject, form *QueryForm) (r QueryResult, err error) {
+	// the real name of the db table
 	tblName := db.NamingStrategy.TableName(obj.tableName)
+
 	for _, v := range form.Filters {
 		q := v.GetQuery()
 		if q != "" {
-			db = db.Where(fmt.Sprintf("%s.%s", tblName, v.GetQuery()), v.GetValue())
+			db = db.Where(fmt.Sprintf("%s.%s", tblName, q), v.GetValue())
 		}
 	}
 
 	for _, v := range form.Orders {
 		q := v.GetQuery()
 		if q != "" {
-			db = db.Order(fmt.Sprintf("%s.%s", tblName, v.GetQuery()))
+			db = db.Order(fmt.Sprintf("%s.%s", tblName, q))
 		}
 	}
 
@@ -205,8 +215,8 @@ func QueryObjects(db *gorm.DB, obj *WebObject, form *QueryForm) (r QueryResult, 
 		limit = form.Limit
 	}
 
-	r.Pos = form.Pos
 	r.Limit = limit
+	r.Pos = form.Pos
 	r.Keyword = form.Keyword
 
 	var c int64
@@ -234,12 +244,16 @@ func QueryObjects(db *gorm.DB, obj *WebObject, form *QueryForm) (r QueryResult, 
 func handleGetObject(c *gin.Context, obj *WebObject) {
 	key := ConvertKey(obj.primaryKeyType, c.Param("key"))
 	val := reflect.New(obj.modelElem).Interface()
-	colName := obj.GetDB(c, false).NamingStrategy.ColumnName(obj.tableName, obj.primaryKeyName)
-	result := obj.GetDB(c, false).Where(colName, key).Take(&val)
+
+	db := obj.GetDB(c, false)
+	// the real name of the primaryKey column
+	pkColName := db.NamingStrategy.ColumnName(obj.tableName, obj.primaryKeyName)
+	result := db.Where(pkColName, key).Take(&val)
 	if result.Error != nil {
 		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
+
 	c.JSON(http.StatusOK, val)
 }
 
@@ -250,30 +264,34 @@ func handleCreateObject(c *gin.Context, obj *WebObject) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
 	if obj.Init != nil {
 		obj.Init(c, val)
 	}
+
 	result := obj.GetDB(c, true).Create(val)
 	if result.Error != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
 		return
 	}
+
 	c.JSON(http.StatusOK, val)
 }
 
 func handleEditObject(c *gin.Context, obj *WebObject) {
 	key := ConvertKey(obj.primaryKeyType, c.Param("key"))
+
 	var inputVals map[string]interface{}
 	err := c.BindJSON(&inputVals)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
 	db := obj.GetDB(c, false)
-	namer := db.NamingStrategy
 
 	var vals map[string]interface{} = map[string]interface{}{}
-	keyName := namer.ColumnName(obj.tableName, obj.primaryKeyName)
+	pkColName := db.NamingStrategy.ColumnName(obj.tableName, obj.primaryKeyName)
 	delete(inputVals, obj.primaryKeyJsonName) // remove primaryKey
 
 	for k, v := range inputVals {
@@ -296,29 +314,34 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "not changed"})
 		return
 	}
+
 	model := reflect.New(obj.modelElem).Interface()
-	result := db.Model(model).Where(keyName, key).UpdateColumns(vals)
+	result := db.Model(model).Where(pkColName, key).UpdateColumns(vals)
+
 	if result.Error != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": result.Error.Error()})
 		return
 	}
+
 	c.JSON(http.StatusOK, true)
 }
 
 func handleDeleteObject(c *gin.Context, obj *WebObject) {
 	key := ConvertKey(obj.primaryKeyType, c.Param("key"))
-	db := obj.GetDB(c, false)
-	keyName := db.NamingStrategy.ColumnName(obj.tableName, obj.primaryKeyName)
-
 	val := reflect.New(obj.modelElem).Interface()
-	result := db.Where(keyName, key).Delete(val)
+
+	db := obj.GetDB(c, false)
+	pkColName := db.NamingStrategy.ColumnName(obj.tableName, obj.primaryKeyName)
+	result := db.Where(pkColName, key).Delete(val)
 	if result.Error != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": result.Error.Error()})
 		return
 	}
+
 	c.JSON(http.StatusOK, true)
 }
 
+// DefaultPrepareQuery return default QueryForm.
 func DefaultPrepareQuery(c *gin.Context, obj *WebObject) (*gorm.DB, *QueryForm, error) {
 	var form QueryForm
 	if c.Request.ContentLength > 0 {
@@ -400,11 +423,11 @@ func HandleQueryObject(c *gin.Context, obj *WebObject, prepareQuery PrepareQuery
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
 	c.JSON(http.StatusOK, result)
 }
 
 func RegisterObject(r gin.IRoutes, obj *WebObject) {
-
 	if err := obj.Build(); err != nil {
 		log.Printf("[error] %v", err)
 		return
@@ -412,23 +435,26 @@ func RegisterObject(r gin.IRoutes, obj *WebObject) {
 
 	p := filepath.Join(obj.Group, obj.Name)
 
+	// Single Query
 	r.GET(filepath.Join(p, ":key"), func(c *gin.Context) {
 		handleGetObject(c, obj)
 	})
 
-	//Create
+	// Create
 	r.PUT(p, func(c *gin.Context) {
 		handleCreateObject(c, obj)
 	})
-	//Edit
+
+	// Edit
 	r.PATCH(filepath.Join(p, ":key"), func(c *gin.Context) {
 		handleEditObject(c, obj)
 	})
 
-	//Delete
+	// Delete
 	r.DELETE(filepath.Join(p, ":key"), func(c *gin.Context) {
 		handleDeleteObject(c, obj)
 	})
+
 	// Query
 	r.POST(filepath.Join(p, "query"), func(c *gin.Context) {
 		HandleQueryObject(c, obj, DefaultPrepareQuery)
@@ -453,6 +479,8 @@ func RegisterObjects(r gin.IRoutes, objs []WebObject) {
 	}
 }
 
+// parseFields parse the following properties according to struct tag:
+// - jsonToFields, primaryKeyName, primaryKeyType, primaryKeyJsonName
 func (obj *WebObject) parseFields(rt reflect.Type) {
 	for i := 0; i < rt.NumField(); i++ {
 		f := rt.Field(i)
@@ -460,6 +488,7 @@ func (obj *WebObject) parseFields(rt reflect.Type) {
 		if f.Anonymous && f.Type.Kind() == reflect.Struct {
 			obj.parseFields(f.Type)
 		}
+
 		jsonTag := f.Tag.Get("json")
 		if jsonTag == "" {
 			obj.jsonToFields[f.Name] = f.Name
@@ -475,6 +504,7 @@ func (obj *WebObject) parseFields(rt reflect.Type) {
 		if !strings.Contains(gormTag, "primarykey") {
 			continue
 		}
+
 		if jsonTag == "" || jsonTag == "-" {
 			obj.primaryKeyJsonName = f.Name
 		} else {
@@ -485,6 +515,7 @@ func (obj *WebObject) parseFields(rt reflect.Type) {
 	}
 }
 
+// Build fill the properties of obj.
 func (obj *WebObject) Build() error {
 	obj.modelElem = reflect.TypeOf(obj.Model)
 	if obj.modelElem.Kind() == reflect.Ptr {
@@ -492,6 +523,7 @@ func (obj *WebObject) Build() error {
 	}
 
 	obj.tableName = obj.modelElem.Name()
+
 	obj.jsonToFields = make(map[string]string)
 
 	if obj.GetDB == nil {
@@ -501,7 +533,6 @@ func (obj *WebObject) Build() error {
 	}
 
 	obj.parseFields(obj.modelElem)
-
 	if obj.primaryKeyName == "" {
 		return fmt.Errorf("%s not primaryKey", obj.Name)
 	}
@@ -509,5 +540,6 @@ func (obj *WebObject) Build() error {
 	if obj.Name == "" {
 		obj.Name = strings.ToLower(obj.tableName)
 	}
+
 	return nil
 }
