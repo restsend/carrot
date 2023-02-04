@@ -64,9 +64,9 @@ type WebObject struct {
 	Init      PrepareModel // how to create a new object
 	Views     []QueryView
 
-	primaryKeyType     reflect.Type
-	primaryKeyName     string
-	primaryKeyJsonName string
+	PrimaryKeyType     reflect.Type
+	PrimaryKeyName     string
+	PrimaryKeyJsonName string
 	tableName          string
 	modelElem          reflect.Type
 	jsonToFields       map[string]string
@@ -242,12 +242,12 @@ func QueryObjects(db *gorm.DB, obj *WebObject, form *QueryForm) (r QueryResult, 
 }
 
 func handleGetObject(c *gin.Context, obj *WebObject) {
-	key := ConvertKey(obj.primaryKeyType, c.Param("key"))
+	key := ConvertKey(obj.PrimaryKeyType, c.Param("key"))
 	val := reflect.New(obj.modelElem).Interface()
 
 	db := obj.GetDB(c, false)
 	// the real name of the primaryKey column
-	pkColName := db.NamingStrategy.ColumnName(obj.tableName, obj.primaryKeyName)
+	pkColName := db.NamingStrategy.ColumnName(obj.tableName, obj.PrimaryKeyName)
 	result := db.Where(pkColName, key).Take(&val)
 	if result.Error != nil {
 		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "not found"})
@@ -279,7 +279,7 @@ func handleCreateObject(c *gin.Context, obj *WebObject) {
 }
 
 func handleEditObject(c *gin.Context, obj *WebObject) {
-	key := ConvertKey(obj.primaryKeyType, c.Param("key"))
+	key := ConvertKey(obj.PrimaryKeyType, c.Param("key"))
 
 	var inputVals map[string]interface{}
 	err := c.BindJSON(&inputVals)
@@ -291,8 +291,8 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 	db := obj.GetDB(c, false)
 
 	var vals map[string]interface{} = map[string]interface{}{}
-	pkColName := db.NamingStrategy.ColumnName(obj.tableName, obj.primaryKeyName)
-	delete(inputVals, obj.primaryKeyJsonName) // remove primaryKey
+	pkColName := db.NamingStrategy.ColumnName(obj.tableName, obj.PrimaryKeyName)
+	delete(inputVals, obj.PrimaryKeyJsonName) // remove primaryKey
 
 	for k, v := range inputVals {
 		if fname, ok := obj.jsonToFields[k]; ok {
@@ -327,11 +327,11 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 }
 
 func handleDeleteObject(c *gin.Context, obj *WebObject) {
-	key := ConvertKey(obj.primaryKeyType, c.Param("key"))
+	key := ConvertKey(obj.PrimaryKeyType, c.Param("key"))
 	val := reflect.New(obj.modelElem).Interface()
 
 	db := obj.GetDB(c, false)
-	pkColName := db.NamingStrategy.ColumnName(obj.tableName, obj.primaryKeyName)
+	pkColName := db.NamingStrategy.ColumnName(obj.tableName, obj.PrimaryKeyName)
 	result := db.Where(pkColName, key).Delete(val)
 	if result.Error != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": result.Error.Error()})
@@ -427,10 +427,9 @@ func HandleQueryObject(c *gin.Context, obj *WebObject, prepareQuery PrepareQuery
 	c.JSON(http.StatusOK, result)
 }
 
-func RegisterObject(r gin.IRoutes, obj *WebObject) {
+func (obj *WebObject) RegisterObject(r gin.IRoutes) error {
 	if err := obj.Build(); err != nil {
-		log.Printf("[error] %v", err)
-		return
+		return err
 	}
 
 	p := filepath.Join(obj.Group, obj.Name)
@@ -470,12 +469,16 @@ func RegisterObject(r gin.IRoutes, obj *WebObject) {
 			HandleQueryObject(ctx, obj, v.Prepare)
 		})
 	}
+	return nil
 }
 
 func RegisterObjects(r gin.IRoutes, objs []WebObject) {
 	for idx := range objs {
 		obj := &objs[idx]
-		RegisterObject(r, obj)
+		err := obj.RegisterObject(r)
+		if err != nil {
+			log.Printf("RegisterObject [%s] fail %v\n", obj.Name, err)
+		}
 	}
 }
 
@@ -506,12 +509,12 @@ func (obj *WebObject) parseFields(rt reflect.Type) {
 		}
 
 		if jsonTag == "" || jsonTag == "-" {
-			obj.primaryKeyJsonName = f.Name
+			obj.PrimaryKeyJsonName = f.Name
 		} else {
-			obj.primaryKeyJsonName = jsonTag
+			obj.PrimaryKeyJsonName = jsonTag
 		}
-		obj.primaryKeyName = f.Name
-		obj.primaryKeyType = f.Type
+		obj.PrimaryKeyName = f.Name
+		obj.PrimaryKeyType = f.Type
 	}
 }
 
@@ -533,7 +536,7 @@ func (obj *WebObject) Build() error {
 	}
 
 	obj.parseFields(obj.modelElem)
-	if obj.primaryKeyName == "" {
+	if obj.PrimaryKeyName == "" {
 		return fmt.Errorf("%s not primaryKey", obj.Name)
 	}
 
