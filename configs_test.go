@@ -18,6 +18,7 @@ func TestEnv(t *testing.T) {
 	v = GetEnv("NOT_EXIST_ENV")
 	assert.Equal(t, v, "100")
 }
+
 func TestConfig(t *testing.T) {
 	db, err := InitDatabase(nil, "", "")
 	assert.Nil(t, err)
