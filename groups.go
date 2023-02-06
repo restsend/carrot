@@ -4,7 +4,7 @@ import "gorm.io/gorm"
 
 func GetGroupsByUser(db *gorm.DB, user *User) ([]Group, error) {
 	var members []GroupMember
-	result := db.Where("User", user).Preload("Group").Find(&members)
+	result := db.Where("user_id", user.ID).Preload("Group").Find(&members)
 	if result.Error != nil {
 		return nil, result.Error
 	}

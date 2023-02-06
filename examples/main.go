@@ -9,7 +9,11 @@ import (
 )
 
 func main() {
-	db, _ := carrot.InitDatabase(nil, "", "example.db")
+	// dsn := "root:123456@tcp(127.0.0.1:3306)/test?charset=utf8mb4&parseTime=True&loc=Local"
+	// db, _ := carrot.InitDatabase(nil, "mysql", dsn)
+
+	db, _ := carrot.InitDatabase(nil, "", "")
+
 	r := gin.Default()
 	if err := carrot.InitCarrot(db, r); err != nil {
 		panic(err)
@@ -33,6 +37,7 @@ func main() {
 		data["title"] = "Welcome"
 		ctx.HTML(http.StatusOK, "index.html", data)
 	})
+
 	// Visit:
 	//  http://localhost:8080/
 	//  http://localhost:8080/auth/login
