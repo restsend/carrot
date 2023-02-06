@@ -80,6 +80,7 @@ func TestPongoRender(t *testing.T) {
 			data["sitename"] = "MOCK_TEST"
 			ctx.HTML(http.StatusOK, "index.html", data)
 		})
+		r.HTMLRender.(*StaticAssets).Paths = []string{"assets"}
 		client := NewTestClient(r)
 		w := client.Get("/")
 		assert.Equal(t, w.Code, http.StatusOK)

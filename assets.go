@@ -2,10 +2,8 @@ package carrot
 
 import (
 	"bytes"
-	"embed"
 	"errors"
 	"io"
-	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -16,9 +14,6 @@ import (
 	"github.com/gin-gonic/gin/render"
 	"gorm.io/gorm"
 )
-
-//go:embed assets
-var embedAssets embed.FS
 
 func GetRenderPageContext(c *gin.Context) map[string]interface{} {
 	db := c.MustGet(DbField).(*gorm.DB)
@@ -55,46 +50,15 @@ func HintAssetsRoot(paths []string) string {
 	return p
 }
 
-type EmbedFile struct {
-	f fs.File
-}
-
-// Close implements http.File
-func (ef EmbedFile) Close() error {
-	return ef.f.Close()
-}
-
-// Read implements http.File
-func (ef EmbedFile) Read(p []byte) (n int, err error) {
-	return ef.f.Read(p)
-}
-
-// Seek implements http.File
-func (ef EmbedFile) Seek(offset int64, whence int) (int64, error) {
-	return offset, nil
-}
-
-// Readdir implements http.File
-func (ef EmbedFile) Readdir(count int) ([]fs.FileInfo, error) {
-	return nil, nil
-}
-
-// Stat implements http.File
-func (ef EmbedFile) Stat() (fs.FileInfo, error) {
-	return ef.f.Stat()
-}
-
 type StaticAssets struct {
-	Paths           []string
-	TemplateDir     string
-	StaticAssetsDir []string
-	sets            *pongo2.TemplateSet
+	Paths       []string
+	TemplateDir string
+	sets        *pongo2.TemplateSet
 }
 
 func NewStaticAssets() *StaticAssets {
 	r := &StaticAssets{
-		TemplateDir:     "html",
-		StaticAssetsDir: []string{"img", "css", "fonts", "js"},
+		TemplateDir: "html",
 	}
 	r.sets = pongo2.NewSet("carrot", r)
 	return r
@@ -134,11 +98,7 @@ func (as *StaticAssets) Abs(base, name string) string {
 func (as *StaticAssets) Get(path string) (io.Reader, error) {
 	buf, err := os.ReadFile(path)
 	if err != nil {
-		ef, err := embedAssets.Open(filepath.Join("assets", path))
-		if err != nil {
-			return nil, err
-		}
-		return ef, err
+		return nil, err
 	}
 	return bytes.NewReader(buf), nil
 }
@@ -149,25 +109,10 @@ func (as *StaticAssets) Open(name string) (http.File, error) {
 	if !strings.HasPrefix(dir, "/") || strings.ContainsRune(dir, '.') {
 		return nil, errors.New("http: invalid character in file path")
 	}
-	dir = dir[1:]
-	hint := false
-	for _, v := range as.StaticAssetsDir {
-		if v == dir {
-			hint = true
-			break
-		}
-	}
-	if !hint {
-		return nil, fs.ErrPermission
-	}
-	name = filepath.Join(dir, filepath.Base(name))
+	name = as.Locate(name)
 	f, err := os.Open(name)
 	if err != nil {
-		ef, err := embedAssets.Open(filepath.Join("assets", name))
-		if err != nil {
-			return nil, err
-		}
-		return EmbedFile{f: ef}, err
+		return nil, err
 	}
 	return f, err
 }

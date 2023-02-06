@@ -32,6 +32,8 @@ func TestStaticAssets(t *testing.T) {
 	db, err := InitDatabase(nil, "", "")
 	assert.Nil(t, err)
 	err = InitCarrot(db, r)
+
+	r.HTMLRender.(*StaticAssets).Paths = []string{"assets"}
 	assert.Nil(t, err)
 
 	client := NewTestClient(r)
