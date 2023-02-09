@@ -82,7 +82,7 @@ func TestPongoRender(t *testing.T) {
 		})
 		r.HTMLRender.(*StaticAssets).Paths = []string{"assets"}
 		client := NewTestClient(r)
-		w := client.Get("/")
+		w := client.GetRaw("/")
 		assert.Equal(t, w.Code, http.StatusOK)
 		assert.Contains(t, w.Body.String(), "MOCK_TEST")
 		assert.Contains(t, w.Body.String(), "Coming soon")
