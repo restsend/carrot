@@ -130,11 +130,8 @@ func TestWebObject(t *testing.T) {
 	db, err := InitDatabase(nil, "", "")
 	MakeMigrates(db, []interface{}{&MockUser{}})
 	assert.Nil(t, err)
-	u := MockUser{
-		Name: "user_1",
-		Age:  10,
-	}
-	db.Create(&u)
+	user := MockUser{Name: "user_1", Age: 10}
+	db.Create(&user)
 
 	r := gin.Default()
 	RegisterObjects(r, []WebObject{
@@ -148,20 +145,15 @@ func TestWebObject(t *testing.T) {
 			GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB {
 				return db
 			},
-			Init: func(ctx *gin.Context, vptr interface{}) {
-			},
+			Init: func(ctx *gin.Context, vptr interface{}) {},
 		},
 	})
 	client := NewTestClient(r)
 	{
-		user2 := MockUser{
-			Name: "user_2",
-			Age:  11,
-		}
-
+		// Create
+		user2 := MockUser{Name: "user_2", Age: 11}
 		body, _ := json.Marshal(&user2)
 		req, _ := http.NewRequest(http.MethodPut, "/muser", bytes.NewReader(body))
-		// Create
 		w := client.SendReq("/muser", req)
 		assert.Equal(t, w.Code, http.StatusOK)
 
@@ -171,7 +163,7 @@ func TestWebObject(t *testing.T) {
 		assert.Equal(t, u2.Name, "user_2")
 
 		// Get after create
-		w = client.Get(fmt.Sprintf("/muser/%d", u2.ID))
+		w = client.GetRaw(fmt.Sprintf("/muser/%d", u2.ID))
 		assert.Equal(t, w.Code, http.StatusOK)
 
 		err = json.Unmarshal(w.Body.Bytes(), &u2)
@@ -206,18 +198,87 @@ func TestWebObject(t *testing.T) {
 			Keyword: "_2",
 		}
 		var result QueryResult
-		err = client.Call("/muser/query", &form, &result)
+		err = client.Post("/muser/query", &form, &result)
 		assert.Nil(t, err)
 		assert.Equal(t, result.TotalCount, 1)
 		assert.Equal(t, result.Pos, 1)
 
-		//Delete
+		// Delete
 		req, _ = http.NewRequest(http.MethodDelete, fmt.Sprintf("/muser/%d", u2.ID), nil)
 		w = client.SendReq(fmt.Sprintf("/muser/%d", u2.ID), req)
 		assert.Equal(t, w.Code, http.StatusOK)
 
 		// Will not found
-		w = client.Get(fmt.Sprintf("/muser/%d", u2.ID))
+		w = client.GetRaw(fmt.Sprintf("/muser/%d", u2.ID))
 		assert.Equal(t, w.Code, http.StatusNotFound)
+	}
+}
+
+func TestRpcCall(t *testing.T) {
+	type MockUser struct {
+		ID          uint   `json:"tid" gorm:"primarykey"`
+		Name        string `gorm:"size:100"`
+		Age         int
+		DisplayName string `json:"nick" gorm:"size:100"`
+		Body        string `json:"-" gorm:"-"`
+	}
+
+	db, err := InitDatabase(nil, "", "")
+	MakeMigrates(db, []interface{}{&MockUser{}})
+	assert.Nil(t, err)
+	user := MockUser{Name: "user_1", Age: 10}
+	db.Create(&user)
+
+	r := gin.Default()
+	RegisterObjects(r, []WebObject{
+		{
+			Model:     MockUser{},
+			Name:      "muser",
+			Editables: []string{"Name", "DisplayName"},
+			Filters:   []string{"Name", "Age"},
+			Searchs:   []string{"Name"},
+			GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB {
+				return db
+			},
+			Init: func(ctx *gin.Context, vptr interface{}) {},
+		},
+	})
+
+	client := NewTestClient(r)
+	{
+		demo := MockUser{Name: "user_2", Age: 11}
+
+		// Create
+		var create MockUser
+		err := client.Put("/muser", demo, &create)
+		assert.Nil(t, err)
+		assert.Equal(t, demo.Name, create.Name)
+
+		// Single Query
+		var single MockUser
+		client.Get(fmt.Sprintf("/muser/%d", create.ID), &single)
+		assert.Equal(t, demo.Name, single.Name)
+
+		// Edit
+		single.Name = "edited_user"
+		err = client.Patch(fmt.Sprintf("/muser/%d", single.ID), single)
+		assert.Nil(t, err)
+
+		// Query
+		form := QueryForm{
+			Filters: []Filter{
+				{Name: "Age", Op: FilterOpEqual, Value: "11"},
+			},
+			Keyword: "edited",
+		}
+		var query QueryResult
+		err = client.Post("/muser/query", &form, &query)
+		assert.Nil(t, err)
+		assert.Equal(t, 1, query.TotalCount)
+		assert.Equal(t, 1, query.Pos)
+
+		// Delete
+		err = client.Delete(fmt.Sprintf("/muser/%d", create.ID))
+		assert.Nil(t, err)
 	}
 }
