@@ -118,6 +118,62 @@ func TestQueryObjects(t *testing.T) {
 	assert.Equal(t, r.Pos, 1)
 }
 
+func TestRegisterWebObject(t *testing.T) {
+	type MockUser struct {
+		ID   uint   `json:"tid" gorm:"primarykey"`
+		Name string `gorm:"size:100"`
+	}
+
+	db, err := InitDatabase(nil, "", "")
+	MakeMigrates(db, []interface{}{&MockUser{}})
+	assert.Nil(t, err)
+	user := MockUser{Name: "user_1"}
+	db.Create(&user)
+
+	r := gin.Default()
+	RegisterObjects(r, []WebObject{
+		{
+			Model: MockUser{},
+			Name:  "muser",
+			GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB {
+				return db
+			},
+			Handlers: []Handle{CREATE, DELETE}, // Only register create & delete handler.
+		},
+	})
+
+	client := NewTestClient(r)
+
+	{
+		demo := MockUser{Name: "user_2"}
+
+		// Create
+		body, _ := json.Marshal(demo)
+		w := client.PostRaw(http.MethodPut, "/muser", body)
+		assert.Equal(t, w.Code, http.StatusOK)
+		var create MockUser
+		err = json.Unmarshal(w.Body.Bytes(), &create)
+		assert.Nil(t, err)
+		assert.Equal(t, demo.Name, create.Name)
+
+		// Single Query
+		w = client.GetRaw(fmt.Sprintf("/muser/%d", create.ID))
+		assert.Equal(t, w.Code, http.StatusNotFound)
+
+		// Edit
+		w = client.PostRaw(http.MethodPost, fmt.Sprintf("/muser/%d", create.ID), nil)
+		assert.Equal(t, w.Code, http.StatusNotFound)
+
+		// Query
+		w = client.PostRaw(http.MethodPost, "/muser/query", nil)
+		assert.Equal(t, w.Code, http.StatusNotFound)
+
+		// Delete
+		w = client.PostRaw(http.MethodDelete, fmt.Sprintf("/muser/%d", create.ID), nil)
+		assert.Equal(t, w.Code, http.StatusOK)
+	}
+}
+
 func TestWebObject(t *testing.T) {
 	type MockUser struct {
 		ID          uint   `json:"tid" gorm:"primarykey"`
@@ -145,7 +201,8 @@ func TestWebObject(t *testing.T) {
 			GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB {
 				return db
 			},
-			Init: func(ctx *gin.Context, vptr interface{}) {},
+			Init:     func(ctx *gin.Context, vptr interface{}) {},
+			Handlers: []Handle{SINGLE_QUERY, CREATE, DELETE, EDIT, QUERY},
 		},
 	})
 	client := NewTestClient(r)
