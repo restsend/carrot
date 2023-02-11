@@ -43,6 +43,16 @@ const (
 	OrderOpAsc             = "asc"
 )
 
+type Handle uint8
+
+const (
+	SINGLE_QUERY Handle = iota
+	CREATE
+	DELETE
+	EDIT
+	QUERY
+)
+
 type GetDB func(ctx *gin.Context, isCreate bool) *gorm.DB
 type PrepareModel func(ctx *gin.Context, vptr interface{})
 type PrepareQuery func(ctx *gin.Context, obj *WebObject) (*gorm.DB, *QueryForm, error)
@@ -63,6 +73,11 @@ type WebObject struct {
 	GetDB     GetDB
 	Init      PrepareModel // how to create a new object
 	Views     []QueryView
+
+	// Specify the to register to the route
+	// (SINGLE_QUERY, CREATE, DELETE, EDIT, QUERY)
+	// default register all handlers.
+	Handlers []Handle
 
 	PrimaryKeyType     reflect.Type
 	PrimaryKeyName     string
@@ -434,30 +449,46 @@ func (obj *WebObject) RegisterObject(r gin.IRoutes) error {
 
 	p := filepath.Join(obj.Group, obj.Name)
 
-	// Single Query
-	r.GET(filepath.Join(p, ":key"), func(c *gin.Context) {
-		handleGetObject(c, obj)
-	})
+	handleMap := map[Handle]func(){
+		SINGLE_QUERY: func() {
+			r.GET(filepath.Join(p, ":key"), func(c *gin.Context) {
+				handleGetObject(c, obj)
+			})
+		},
+		CREATE: func() {
+			r.PUT(p, func(c *gin.Context) {
+				handleCreateObject(c, obj)
+			})
+		},
+		EDIT: func() {
+			r.PATCH(filepath.Join(p, ":key"), func(c *gin.Context) {
+				handleEditObject(c, obj)
+			})
+		},
+		DELETE: func() {
+			r.DELETE(filepath.Join(p, ":key"), func(c *gin.Context) {
+				handleDeleteObject(c, obj)
+			})
+		},
+		QUERY: func() {
+			r.POST(filepath.Join(p, "query"), func(c *gin.Context) {
+				HandleQueryObject(c, obj, DefaultPrepareQuery)
+			})
+		},
+	}
 
-	// Create
-	r.PUT(p, func(c *gin.Context) {
-		handleCreateObject(c, obj)
-	})
+	// Register all by default.
+	if len(obj.Handlers) == 0 {
+		for _, f := range handleMap {
+			f()
+		}
+	}
 
-	// Edit
-	r.PATCH(filepath.Join(p, ":key"), func(c *gin.Context) {
-		handleEditObject(c, obj)
-	})
-
-	// Delete
-	r.DELETE(filepath.Join(p, ":key"), func(c *gin.Context) {
-		handleDeleteObject(c, obj)
-	})
-
-	// Query
-	r.POST(filepath.Join(p, "query"), func(c *gin.Context) {
-		HandleQueryObject(c, obj, DefaultPrepareQuery)
-	})
+	for _, h := range obj.Handlers {
+		if f, ok := handleMap[h]; ok {
+			f()
+		}
+	}
 
 	for i := 0; i < len(obj.Views); i++ {
 		v := &obj.Views[i]

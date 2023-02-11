@@ -82,7 +82,7 @@ func (c *TestClient) Call(method, path string, form interface{}, result interfac
 	return json.Unmarshal(w.Body.Bytes(), &result)
 }
 
-/** For WebObject CRUD quic test. **/
+/** For WebObject CRUD quick test. **/
 
 // Rpc Get
 func (c *TestClient) Get(path string, result interface{}) error {
