@@ -54,7 +54,7 @@ const (
 )
 
 type GetDB func(ctx *gin.Context, isCreate bool) *gorm.DB
-type PrepareModel func(ctx *gin.Context, vptr interface{})
+type PrepareModel func(ctx *gin.Context, vptr any)
 type PrepareQuery func(ctx *gin.Context, obj *WebObject) (*gorm.DB, *QueryForm, error)
 
 type QueryView struct {
@@ -63,7 +63,7 @@ type QueryView struct {
 }
 
 type WebObject struct {
-	Model     interface{}
+	Model     any
 	Group     string
 	Name      string
 	Editables []string
@@ -71,7 +71,7 @@ type WebObject struct {
 	Orders    []string
 	Searchs   []string
 	GetDB     GetDB
-	Init      PrepareModel // how to create a new object
+	Init      PrepareModel // How to create a new object
 	Views     []QueryView
 
 	// Specify the to register to the route
@@ -79,19 +79,22 @@ type WebObject struct {
 	// default register all handlers.
 	Handlers []Handle
 
-	PrimaryKeyType     reflect.Type
 	PrimaryKeyName     string
+	PrimaryKeyType     reflect.Type
 	PrimaryKeyJsonName string
 	tableName          string
 	modelElem          reflect.Type
-	jsonToFields       map[string]string
+
+	// Map json tag to struct field name. such as:
+	// UUID `json:"id"` => {"id" : "UUID"}
+	jsonToFields map[string]string
 }
 
 type Filter struct {
-	Name        string      `json:"name"`
-	Op          string      `json:"op"`
-	Value       string      `json:"value"`
-	targetValue interface{} `json:"-"`
+	Name        string `json:"name"`
+	Op          string `json:"op"`
+	Value       string `json:"value"`
+	targetValue any    `json:"-"`
 }
 
 type Order struct {
@@ -109,11 +112,11 @@ type QueryForm struct {
 }
 
 type QueryResult struct {
-	TotalCount int         `json:"total,omitempty"`
-	Pos        int         `json:"pos,omitempty"`
-	Limit      int         `json:"limit,omitempty"`
-	Keyword    string      `json:"keyword,omitempty"`
-	Items      interface{} `json:"items,omitempty"`
+	TotalCount int    `json:"total,omitempty"`
+	Pos        int    `json:"pos,omitempty"`
+	Limit      int    `json:"limit,omitempty"`
+	Keyword    string `json:"keyword,omitempty"`
+	Items      any    `json:"items,omitempty"`
 }
 
 // GetQuery return the combined filter SQL statement.
@@ -142,7 +145,7 @@ func (f *Filter) GetQuery() string {
 }
 
 // GetValue return the target value of the filter SQL statement.
-func (f *Filter) GetValue() interface{} {
+func (f *Filter) GetValue() any {
 	if f.targetValue == nil && f.Value != "" {
 		return f.Value
 	}
@@ -159,7 +162,7 @@ func (f *Order) GetQuery() string {
 }
 
 // ConverKey convert the kind of v to dst.
-func ConvertKey(dst reflect.Type, v interface{}) interface{} {
+func ConvertKey(dst reflect.Type, v any) any {
 	if v == nil {
 		return nil
 	}
@@ -296,7 +299,7 @@ func handleCreateObject(c *gin.Context, obj *WebObject) {
 func handleEditObject(c *gin.Context, obj *WebObject) {
 	key := ConvertKey(obj.PrimaryKeyType, c.Param("key"))
 
-	var inputVals map[string]interface{}
+	var inputVals map[string]any
 	err := c.BindJSON(&inputVals)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -305,7 +308,7 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 
 	db := obj.GetDB(c, false)
 
-	var vals map[string]interface{} = map[string]interface{}{}
+	var vals map[string]any = map[string]any{}
 	pkColName := db.NamingStrategy.ColumnName(obj.tableName, obj.PrimaryKeyName)
 	delete(inputVals, obj.PrimaryKeyJsonName) // remove primaryKey
 
@@ -316,7 +319,7 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 	}
 
 	if len(obj.Editables) > 0 {
-		stripVals := make(map[string]interface{})
+		stripVals := make(map[string]any)
 		for _, k := range obj.Editables {
 			if v, ok := vals[k]; ok {
 				stripVals[k] = v
@@ -376,6 +379,7 @@ func HandleQueryObject(c *gin.Context, obj *WebObject, prepareQuery PrepareQuery
 
 	namer := db.NamingStrategy
 
+	// Use struct{} makes map like set.
 	var filterFields map[string]struct{} = make(map[string]struct{})
 	for _, k := range obj.Filters {
 		filterFields[k] = struct{}{}
@@ -487,6 +491,7 @@ func (obj *WebObject) RegisterObject(r gin.IRoutes) error {
 	for _, h := range obj.Handlers {
 		if f, ok := handleMap[h]; ok {
 			f()
+			delete(handleMap, h) // Prevent duplicate registration.
 		}
 	}
 
@@ -535,7 +540,8 @@ func (obj *WebObject) parseFields(rt reflect.Type) {
 			continue
 		}
 
-		if !strings.Contains(gormTag, "primarykey") {
+		if !strings.Contains(gormTag, "primarykey") &&
+			!strings.Contains(gormTag, "primaryKey") {
 			continue
 		}
 
@@ -557,22 +563,21 @@ func (obj *WebObject) Build() error {
 	}
 
 	obj.tableName = obj.modelElem.Name()
+	if obj.Name == "" {
+		obj.Name = strings.ToLower(obj.tableName)
+	}
 
 	obj.jsonToFields = make(map[string]string)
-
-	if obj.GetDB == nil {
-		obj.GetDB = func(ctx *gin.Context, isCreate bool) *gorm.DB {
-			return ctx.MustGet(DbField).(*gorm.DB)
-		}
-	}
 
 	obj.parseFields(obj.modelElem)
 	if obj.PrimaryKeyName == "" {
 		return fmt.Errorf("%s not primaryKey", obj.Name)
 	}
 
-	if obj.Name == "" {
-		obj.Name = strings.ToLower(obj.tableName)
+	if obj.GetDB == nil {
+		obj.GetDB = func(ctx *gin.Context, isCreate bool) *gorm.DB {
+			return ctx.MustGet(DbField).(*gorm.DB)
+		}
 	}
 
 	return nil

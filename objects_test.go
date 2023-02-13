@@ -138,7 +138,7 @@ func TestRegisterWebObject(t *testing.T) {
 			GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB {
 				return db
 			},
-			Handlers: []Handle{CREATE, DELETE}, // Only register create & delete handler.
+			Handlers: []Handle{CREATE, DELETE, CREATE}, // Only register create & delete handler.
 		},
 	})
 
