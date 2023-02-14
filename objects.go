@@ -306,6 +306,13 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 		return
 	}
 
+	rt := obj.modelElem
+	types := make(map[string]reflect.Type, 0)
+	for i := 0; i < rt.NumField(); i++ {
+		f := rt.Field(i)
+		types[f.Name] = f.Type
+	}
+
 	db := obj.GetDB(c, false)
 
 	var vals map[string]any = map[string]any{}
@@ -314,6 +321,12 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 
 	for k, v := range inputVals {
 		if fname, ok := obj.jsonToFields[k]; ok {
+			// Handle Illegal Values
+			if types[fname].Kind() == reflect.Bool {
+				if _, err := strconv.ParseBool(v.(string)); err != nil {
+					v = false
+				}
+			}
 			vals[fname] = v
 		}
 	}

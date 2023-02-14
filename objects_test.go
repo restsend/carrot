@@ -273,11 +273,9 @@ func TestWebObject(t *testing.T) {
 
 func TestRpcCall(t *testing.T) {
 	type MockUser struct {
-		ID          uint   `json:"tid" gorm:"primarykey"`
-		Name        string `gorm:"size:100"`
-		Age         int
-		DisplayName string `json:"nick" gorm:"size:100"`
-		Body        string `json:"-" gorm:"-"`
+		ID   uint   `json:"tid" gorm:"primarykey"`
+		Name string `gorm:"size:100"`
+		Age  int
 	}
 
 	db, err := InitDatabase(nil, "", "")
@@ -291,7 +289,7 @@ func TestRpcCall(t *testing.T) {
 		{
 			Model:     MockUser{},
 			Name:      "muser",
-			Editables: []string{"Name", "DisplayName"},
+			Editables: []string{"Name"},
 			Filters:   []string{"Name", "Age"},
 			Searchs:   []string{"Name"},
 			GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB {
@@ -337,5 +335,69 @@ func TestRpcCall(t *testing.T) {
 		// Delete
 		err = client.Delete(fmt.Sprintf("/muser/%d", create.ID))
 		assert.Nil(t, err)
+	}
+}
+
+func TestEditBool(t *testing.T) {
+	type MockUser struct {
+		ID      uint   `json:"tid" gorm:"primarykey"`
+		Name    string `gorm:"size:100"`
+		Enabled bool   `json:"enabled"`
+	}
+
+	db, err := InitDatabase(nil, "", "")
+	MakeMigrates(db, []interface{}{&MockUser{}})
+	assert.Nil(t, err)
+	user := MockUser{Name: "user_1", Enabled: false}
+	db.Create(&user)
+
+	r := gin.Default()
+	RegisterObjects(r, []WebObject{
+		{
+			Model:     MockUser{},
+			Name:      "muser",
+			Editables: []string{"Name", "Enabled"},
+			Filters:   []string{"Name", "Enabled"},
+			Searchs:   []string{"Name"},
+			GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB {
+				return db
+			},
+			Init: func(ctx *gin.Context, vptr interface{}) {},
+		},
+	})
+
+	client := NewTestClient(r)
+	{
+		// Mock data
+		var create MockUser
+		err := client.Put("/muser", MockUser{Name: "muser"}, &create)
+		assert.Nil(t, err)
+		assert.Equal(t, "muser", create.Name)
+
+		tests := []struct {
+			name   string
+			param  any
+			expect bool
+		}{
+			{"base case1", map[string]any{"enabled": "true"}, true},
+			{"base case2", map[string]any{"enabled": "1"}, true},
+			{"base case3", map[string]any{"enabled": "t"}, true},
+			{"base case4", map[string]any{"enabled": "f"}, false},
+			{"base case5", map[string]any{"enabled": "FALSE"}, false},
+			{"bad case1", map[string]any{"enabled": ""}, false},
+			{"bad case2", map[string]any{"enabled": "xxx"}, false},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				body, _ := json.Marshal(tt.param)
+				w := client.PostRaw(http.MethodPatch, fmt.Sprintf("/muser/%d", create.ID), body)
+				assert.Equal(t, w.Code, http.StatusOK)
+
+				var res MockUser
+				client.Get(fmt.Sprintf("/muser/%d", create.ID), &res)
+				assert.Equal(t, tt.expect, res.Enabled)
+			})
+		}
 	}
 }
