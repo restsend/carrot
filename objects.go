@@ -323,7 +323,13 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 		if fname, ok := obj.jsonToFields[k]; ok {
 			// Handle Illegal Values
 			if types[fname].Kind() == reflect.Bool {
-				if _, err := strconv.ParseBool(v.(string)); err != nil {
+				if val, ok := v.(bool); ok {
+					v = val
+				} else if val, ok := v.(string); ok {
+					if _, err := strconv.ParseBool(val); err != nil {
+						v = false
+					}
+				} else {
 					v = false
 				}
 			}
