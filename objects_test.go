@@ -384,6 +384,8 @@ func TestEditBool(t *testing.T) {
 			{"base case3", map[string]any{"enabled": "t"}, true},
 			{"base case4", map[string]any{"enabled": "f"}, false},
 			{"base case5", map[string]any{"enabled": "FALSE"}, false},
+			{"base case6", map[string]any{"enabled": true}, true},
+			{"base case7", map[string]any{"enabled": false}, false},
 			{"bad case1", map[string]any{"enabled": ""}, false},
 			{"bad case2", map[string]any{"enabled": "xxx"}, false},
 		}
