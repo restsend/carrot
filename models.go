@@ -83,7 +83,7 @@ type GroupPermission struct {
 	GroupID uint   `json:"groupId"`
 	Group   Group  `json:"-"`
 	Content string `json:"content" gorm:"size:200"`
-	Code    string `json:"code" gorm:"200"`
+	Code    string `json:"code" gorm:"size:200"`
 }
 
 func (u *User) GetVisibleName() string {

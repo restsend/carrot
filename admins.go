@@ -6,8 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type AdminObject struct {
-}
+type AdminObject struct{}
 
 func RegisterAdmin(r gin.IRoutes, objs []AdminObject) {
 	r.GET("/", func(ctx *gin.Context) {

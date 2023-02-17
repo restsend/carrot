@@ -37,8 +37,8 @@ func TestStaticAssets(t *testing.T) {
 	assert.Nil(t, err)
 
 	client := NewTestClient(r)
-	w := client.Get("/static/img/carrot.svg")
+	w := client.GetRaw("/static/img/carrot.svg")
 	assert.Equal(t, w.Code, http.StatusOK)
-	w = client.Get("/static/img/carrot-bad.svg")
+	w = client.GetRaw("/static/img/carrot-bad.svg")
 	assert.Equal(t, w.Code, http.StatusNotFound)
 }

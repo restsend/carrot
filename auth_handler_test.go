@@ -31,7 +31,7 @@ func TestCarrotInit(t *testing.T) {
 
 	r.GET("/mock_test", func(ctx *gin.Context) { ctx.JSON(http.StatusOK, gin.H{}) })
 	client := NewTestClient(r)
-	w := client.Get("/mock_test")
+	w := client.GetRaw("/mock_test")
 	checkResponse(t, w)
 	assert.Equal(t, w.Header().Get("Access-Control-Allow-Origin"), CORS_ALLOW_ALL)
 }
@@ -45,7 +45,7 @@ func TestSession(t *testing.T) {
 		s.Save()
 	})
 	client := NewTestClient(r)
-	w := client.Get("/mock")
+	w := client.GetRaw("/mock")
 	assert.Contains(t, w.Header(), "Set-Cookie")
 	assert.Contains(t, w.Header().Get("Set-Cookie"), SessionField+"=")
 }
@@ -61,12 +61,12 @@ func TestAuthHandler(t *testing.T) {
 
 	{
 		form := RegisterUserForm{}
-		err = client.Call("/auth/register", form, nil)
+		err = client.Post("/auth/register", form, nil)
 		assert.Contains(t, err.Error(), "'Email' failed on the 'required'")
 	}
 	{
 		form := LoginForm{}
-		err = client.Call("/auth/login", form, nil)
+		err = client.Post("/auth/login", form, nil)
 		assert.Contains(t, err.Error(), "email is required")
 	}
 	{
@@ -75,11 +75,11 @@ func TestAuthHandler(t *testing.T) {
 			Password: "hello12345",
 		}
 		var user User
-		err = client.Call("/auth/register", form, &user)
+		err = client.Post("/auth/register", form, &user)
 		assert.Nil(t, err)
 		assert.Equal(t, user.Email, form.Email)
 
-		err = client.Call("/auth/register", form, &user)
+		err = client.Post("/auth/register", form, &user)
 		assert.NotNil(t, err)
 		assert.Contains(t, err.Error(), "email has exists")
 	}
@@ -89,24 +89,24 @@ func TestAuthHandler(t *testing.T) {
 			Password: "hello12345",
 		}
 		var user User
-		err = client.Call("/auth/login", form, &user)
+		err = client.Post("/auth/login", form, &user)
 		assert.Nil(t, err)
 		assert.Equal(t, user.Email, form.Email)
 		assert.Empty(t, user.Password)
 		assert.Equal(t, user.LastLoginIP, "")
 	}
 	{
-		w := client.Get("/auth/info")
+		w := client.GetRaw("/auth/info")
 		vals := checkResponse(t, w)
 		assert.Contains(t, vals, "email")
 		assert.Equal(t, vals["email"], "bob@example.org")
 	}
 	{
-		w := client.Get("/auth/logout")
+		w := client.GetRaw("/auth/logout")
 		checkResponse(t, w)
 	}
 	{
-		w := client.Get("/auth/info")
+		w := client.GetRaw("/auth/info")
 		assert.Equal(t, http.StatusForbidden, w.Code)
 	}
 	{
@@ -115,7 +115,7 @@ func TestAuthHandler(t *testing.T) {
 			Password: "-",
 		}
 		var user User
-		err = client.Call("/auth/login", form, &user)
+		err = client.Post("/auth/login", form, &user)
 		assert.Contains(t, err.Error(), "user not exists")
 	}
 	{
@@ -124,7 +124,7 @@ func TestAuthHandler(t *testing.T) {
 			Password: "-",
 		}
 		var user User
-		err = client.Call("/auth/login", form, &user)
+		err = client.Post("/auth/login", form, &user)
 		assert.Contains(t, err.Error(), "unauthorized")
 	}
 	{
@@ -134,7 +134,7 @@ func TestAuthHandler(t *testing.T) {
 		}
 		SetValue(db, KEY_USER_ACTIVATED, "true")
 		var user User
-		err = client.Call("/auth/login", form, &user)
+		err = client.Post("/auth/login", form, &user)
 		assert.Contains(t, err.Error(), "waiting for activation")
 	}
 	{
@@ -149,7 +149,7 @@ func TestAuthHandler(t *testing.T) {
 			Password: "hello12345",
 		}
 		var user User
-		err = client.Call("/auth/login", form, &user)
+		err = client.Post("/auth/login", form, &user)
 		assert.Contains(t, err.Error(), "user not allow login")
 	}
 }
@@ -173,14 +173,14 @@ func TestAuthPassword(t *testing.T) {
 		Password: "123456",
 	}
 	var user User
-	err = client.Call("/auth/login", form, &user)
+	err = client.Post("/auth/login", form, &user)
 	assert.Nil(t, err)
 	{
 		form := ChangePasswordForm{
 			Password: "123456",
 		}
 		var r bool
-		err = client.Call("/auth/change_password", form, &r)
+		err = client.Post("/auth/change_password", form, &r)
 		assert.Nil(t, err)
 		assert.True(t, r)
 	}
@@ -188,7 +188,7 @@ func TestAuthPassword(t *testing.T) {
 		form := ResetPasswordForm{
 			Email: "bob_bad@example.org",
 		}
-		err = client.Call("/auth/reset_password", form, nil)
+		err = client.Post("/auth/reset_password", form, nil)
 		assert.Nil(t, err)
 	}
 
@@ -205,7 +205,7 @@ func TestAuthPassword(t *testing.T) {
 			Email: "bob@example.org",
 		}
 		var r map[string]interface{}
-		err = client.Call("/auth/reset_password", form, &r)
+		err = client.Post("/auth/reset_password", form, &r)
 		assert.Nil(t, err)
 		assert.NotEmpty(t, hash)
 		assert.Contains(t, r, "expired")
@@ -217,7 +217,7 @@ func TestAuthPassword(t *testing.T) {
 			Token:    hash,
 		}
 		var r bool
-		err = client.Call("/auth/reset_password_done", form, &r)
+		err = client.Post("/auth/reset_password_done", form, &r)
 		assert.Nil(t, err)
 		assert.True(t, r)
 	}
@@ -228,7 +228,7 @@ func TestAuthPassword(t *testing.T) {
 			Password: "abc",
 		}
 		var user User
-		err = client.Call("/auth/login", form, &user)
+		err = client.Post("/auth/login", form, &user)
 		assert.Nil(t, err)
 	}
 }
@@ -253,7 +253,7 @@ func TestAuthToken(t *testing.T) {
 		Remember: true,
 	}
 	var user User
-	err = client.Call("/auth/login", form, &user)
+	err = client.Post("/auth/login", form, &user)
 	assert.Nil(t, err)
 	assert.NotEmpty(t, user.AuthToken)
 	{
@@ -262,7 +262,7 @@ func TestAuthToken(t *testing.T) {
 			AuthToken: user.AuthToken,
 		}
 		var user User
-		err = client.Call("/auth/login", form, &user)
+		err = client.Post("/auth/login", form, &user)
 		assert.Nil(t, err)
 		assert.Empty(t, user.AuthToken)
 	}
@@ -287,7 +287,7 @@ func TestAuthActivation(t *testing.T) {
 			Password: "123456",
 		}
 		var user User
-		err = client.Call("/auth/login", form, &user)
+		err = client.Post("/auth/login", form, &user)
 		assert.Contains(t, err.Error(), "waiting for activation")
 	}
 
@@ -296,7 +296,7 @@ func TestAuthActivation(t *testing.T) {
 		assert.False(t, bob.Actived)
 
 		token := EncodeHashToken(bob, time.Now().Add(-10*time.Second).Unix(), true)
-		w := client.Get(fmt.Sprintf("/auth/activation?token=%s&next=https://bad.org", token))
+		w := client.GetRaw(fmt.Sprintf("/auth/activation?token=%s&next=https://bad.org", token))
 		assert.Equal(t, w.Code, http.StatusForbidden)
 	}
 
@@ -314,11 +314,11 @@ func TestAuthActivation(t *testing.T) {
 			Email: "bob@example.org",
 		}
 		var user User
-		err = client.Call("/auth/resend", form, &user)
+		err = client.Post("/auth/resend", form, &user)
 		assert.Nil(t, err)
 		assert.NotEmpty(t, hash)
 
-		w := client.Get("/auth/activation?token=" + hash)
+		w := client.GetRaw("/auth/activation?token=" + hash)
 		assert.Equal(t, w.Code, http.StatusFound)
 		u, _ := GetUserByEmail(db, "bob@example.org")
 		assert.True(t, u.Actived)

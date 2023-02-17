@@ -44,8 +44,18 @@ const (
 	OrderOpAsc             = "asc"
 )
 
+type Handle uint8
+
+const (
+	SINGLE_QUERY Handle = iota
+	CREATE
+	DELETE
+	EDIT
+	QUERY
+)
+
 type GetDB func(ctx *gin.Context, isCreate bool) *gorm.DB
-type PrepareModel func(ctx *gin.Context, vptr interface{})
+type PrepareModel func(ctx *gin.Context, vptr any)
 type PrepareQuery func(ctx *gin.Context, obj *WebObject) (*gorm.DB, *QueryForm, error)
 
 type QueryView struct {
@@ -54,7 +64,7 @@ type QueryView struct {
 }
 
 type WebObject struct {
-	Model     interface{}
+	Model     any
 	Group     string
 	Name      string
 	Editables []string
@@ -62,22 +72,30 @@ type WebObject struct {
 	Orders    []string
 	Searchs   []string
 	GetDB     GetDB
-	Init      PrepareModel // how to create a new object
+	Init      PrepareModel // How to create a new object
 	Views     []QueryView
 
-	PrimaryKeyType     reflect.Type
+	// Specify the to register to the route
+	// (SINGLE_QUERY, CREATE, DELETE, EDIT, QUERY)
+	// default register all handlers.
+	Handlers []Handle
+
 	PrimaryKeyName     string
+	PrimaryKeyType     reflect.Type
 	PrimaryKeyJsonName string
 	tableName          string
 	modelElem          reflect.Type
-	jsonToFields       map[string]string
+
+	// Map json tag to struct field name. such as:
+	// UUID `json:"id"` => {"id" : "UUID"}
+	jsonToFields map[string]string
 }
 
 type Filter struct {
-	Name        string      `json:"name"`
-	Op          string      `json:"op"`
-	Value       string      `json:"value"`
-	targetValue interface{} `json:"-"`
+	Name        string `json:"name"`
+	Op          string `json:"op"`
+	Value       string `json:"value"`
+	targetValue any    `json:"-"`
 }
 
 type Order struct {
@@ -95,11 +113,11 @@ type QueryForm struct {
 }
 
 type QueryResult struct {
-	TotalCount int         `json:"total,omitempty"`
-	Pos        int         `json:"pos,omitempty"`
-	Limit      int         `json:"limit,omitempty"`
-	Keyword    string      `json:"keyword,omitempty"`
-	Items      interface{} `json:"items,omitempty"`
+	TotalCount int    `json:"total,omitempty"`
+	Pos        int    `json:"pos,omitempty"`
+	Limit      int    `json:"limit,omitempty"`
+	Keyword    string `json:"keyword,omitempty"`
+	Items      any    `json:"items,omitempty"`
 }
 
 // GetQuery return the combined filter SQL statement.
@@ -128,7 +146,7 @@ func (f *Filter) GetQuery() string {
 }
 
 // GetValue return the target value of the filter SQL statement.
-func (f *Filter) GetValue() interface{} {
+func (f *Filter) GetValue() any {
 	if f.targetValue == nil && f.Value != "" {
 		return f.Value
 	}
@@ -153,7 +171,7 @@ func (f *Order) GetQuery() string {
 }
 
 // ConverKey convert the kind of v to dst.
-func ConvertKey(dst reflect.Type, v interface{}) interface{} {
+func ConvertKey(dst reflect.Type, v any) any {
 	if v == nil {
 		return nil
 	}
@@ -290,27 +308,43 @@ func handleCreateObject(c *gin.Context, obj *WebObject) {
 func handleEditObject(c *gin.Context, obj *WebObject) {
 	key := ConvertKey(obj.PrimaryKeyType, c.Param("key"))
 
-	var inputVals map[string]interface{}
+	var inputVals map[string]any
 	err := c.BindJSON(&inputVals)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
+	rt := obj.modelElem
+	types := make(map[string]reflect.Type, 0)
+	for i := 0; i < rt.NumField(); i++ {
+		f := rt.Field(i)
+		types[f.Name] = f.Type
+	}
+
 	db := obj.GetDB(c, false)
 
-	var vals map[string]interface{} = map[string]interface{}{}
+	var vals map[string]any = map[string]any{}
 	pkColName := db.NamingStrategy.ColumnName(obj.tableName, obj.PrimaryKeyName)
 	delete(inputVals, obj.PrimaryKeyJsonName) // remove primaryKey
 
 	for k, v := range inputVals {
-		if fname, ok := obj.jsonToFields[k]; ok {
-			vals[fname] = v
+		fname, ok := obj.jsonToFields[k]
+		if !ok {
+			continue
 		}
+		if rt, ok := types[fname]; ok {
+			// Handle Illegal Values
+			if rt.Kind() == reflect.Bool {
+				v = parseBool(v)
+			}
+		}
+
+		vals[fname] = v
 	}
 
 	if len(obj.Editables) > 0 {
-		stripVals := make(map[string]interface{})
+		stripVals := make(map[string]any)
 		for _, k := range obj.Editables {
 			if v, ok := vals[k]; ok {
 				stripVals[k] = v
@@ -370,6 +404,7 @@ func HandleQueryObject(c *gin.Context, obj *WebObject, prepareQuery PrepareQuery
 
 	namer := db.NamingStrategy
 
+	// Use struct{} makes map like set.
 	var filterFields map[string]struct{} = make(map[string]struct{})
 	for _, k := range obj.Filters {
 		filterFields[k] = struct{}{}
@@ -443,30 +478,47 @@ func (obj *WebObject) RegisterObject(r gin.IRoutes) error {
 
 	p := filepath.Join(obj.Group, obj.Name)
 
-	// Single Query
-	r.GET(filepath.Join(p, ":key"), func(c *gin.Context) {
-		handleGetObject(c, obj)
-	})
+	handleMap := map[Handle]func(){
+		SINGLE_QUERY: func() {
+			r.GET(filepath.Join(p, ":key"), func(c *gin.Context) {
+				handleGetObject(c, obj)
+			})
+		},
+		CREATE: func() {
+			r.PUT(p, func(c *gin.Context) {
+				handleCreateObject(c, obj)
+			})
+		},
+		EDIT: func() {
+			r.PATCH(filepath.Join(p, ":key"), func(c *gin.Context) {
+				handleEditObject(c, obj)
+			})
+		},
+		DELETE: func() {
+			r.DELETE(filepath.Join(p, ":key"), func(c *gin.Context) {
+				handleDeleteObject(c, obj)
+			})
+		},
+		QUERY: func() {
+			r.POST(filepath.Join(p, "query"), func(c *gin.Context) {
+				HandleQueryObject(c, obj, DefaultPrepareQuery)
+			})
+		},
+	}
 
-	// Create
-	r.PUT(p, func(c *gin.Context) {
-		handleCreateObject(c, obj)
-	})
+	// Register all by default.
+	if len(obj.Handlers) == 0 {
+		for _, f := range handleMap {
+			f()
+		}
+	}
 
-	// Edit
-	r.PATCH(filepath.Join(p, ":key"), func(c *gin.Context) {
-		handleEditObject(c, obj)
-	})
-
-	// Delete
-	r.DELETE(filepath.Join(p, ":key"), func(c *gin.Context) {
-		handleDeleteObject(c, obj)
-	})
-
-	// Query
-	r.POST(filepath.Join(p, "query"), func(c *gin.Context) {
-		HandleQueryObject(c, obj, DefaultPrepareQuery)
-	})
+	for _, h := range obj.Handlers {
+		if f, ok := handleMap[h]; ok {
+			f()
+			delete(handleMap, h) // Prevent duplicate registration.
+		}
+	}
 
 	for i := 0; i < len(obj.Views); i++ {
 		v := &obj.Views[i]
@@ -513,7 +565,8 @@ func (obj *WebObject) parseFields(rt reflect.Type) {
 			continue
 		}
 
-		if !strings.Contains(gormTag, "primarykey") {
+		if !strings.Contains(gormTag, "primarykey") &&
+			!strings.Contains(gormTag, "primaryKey") {
 			continue
 		}
 
@@ -535,8 +588,16 @@ func (obj *WebObject) Build() error {
 	}
 
 	obj.tableName = obj.modelElem.Name()
+	if obj.Name == "" {
+		obj.Name = strings.ToLower(obj.tableName)
+	}
 
 	obj.jsonToFields = make(map[string]string)
+
+	obj.parseFields(obj.modelElem)
+	if obj.PrimaryKeyName == "" {
+		return fmt.Errorf("%s not primaryKey", obj.Name)
+	}
 
 	if obj.GetDB == nil {
 		obj.GetDB = func(ctx *gin.Context, isCreate bool) *gorm.DB {
@@ -544,14 +605,21 @@ func (obj *WebObject) Build() error {
 		}
 	}
 
-	obj.parseFields(obj.modelElem)
-	if obj.PrimaryKeyName == "" {
-		return fmt.Errorf("%s not primaryKey", obj.Name)
-	}
-
-	if obj.Name == "" {
-		obj.Name = strings.ToLower(obj.tableName)
-	}
-
 	return nil
+}
+
+// parseBool convert v to bool type. Unresolved is false.
+func parseBool(v any) (res bool) {
+	if val, ok := v.(bool); ok {
+		res = val
+	} else if val, ok := v.(string); ok {
+		if b, err := strconv.ParseBool(val); err == nil {
+			res = b
+		} else {
+			res = false
+		}
+	} else {
+		res = false
+	}
+	return res
 }
