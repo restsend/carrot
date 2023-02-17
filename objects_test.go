@@ -341,7 +341,7 @@ func TestRpcCall(t *testing.T) {
 func TestEditBool(t *testing.T) {
 	type MockUser struct {
 		ID      uint   `json:"tid" gorm:"primarykey"`
-		Name    string `gorm:"size:100"`
+		Name    string `json:"name" gorm:"size:99"`
 		Enabled bool   `json:"enabled"`
 	}
 
@@ -395,11 +395,31 @@ func TestEditBool(t *testing.T) {
 				body, _ := json.Marshal(tt.param)
 				w := client.PostRaw(http.MethodPatch, fmt.Sprintf("/muser/%d", create.ID), body)
 				assert.Equal(t, w.Code, http.StatusOK)
+				if w.Code != http.StatusOK {
+					t.Log(w.Body)
+				}
 
 				var res MockUser
 				client.Get(fmt.Sprintf("/muser/%d", create.ID), &res)
 				assert.Equal(t, tt.expect, res.Enabled)
 			})
 		}
+
+		tests = []struct {
+			name   string
+			param  any
+			expect bool
+		}{
+			{"bad case 1", map[string]any{"other": true}, false},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				body, _ := json.Marshal(tt.param)
+				w := client.PostRaw(http.MethodPatch, fmt.Sprintf("/muser/%d", create.ID), body)
+				assert.NotEqual(t, w.Code, http.StatusOK)
+			})
+		}
+
 	}
 }

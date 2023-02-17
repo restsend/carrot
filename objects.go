@@ -320,21 +320,18 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 	delete(inputVals, obj.PrimaryKeyJsonName) // remove primaryKey
 
 	for k, v := range inputVals {
-		if fname, ok := obj.jsonToFields[k]; ok {
-			// Handle Illegal Values
-			if types[fname].Kind() == reflect.Bool {
-				if val, ok := v.(bool); ok {
-					v = val
-				} else if val, ok := v.(string); ok {
-					if _, err := strconv.ParseBool(val); err != nil {
-						v = false
-					}
-				} else {
-					v = false
-				}
-			}
-			vals[fname] = v
+		fname, ok := obj.jsonToFields[k]
+		if !ok {
+			continue
 		}
+		if rt, ok := types[fname]; ok {
+			// Handle Illegal Values
+			if rt.Kind() == reflect.Bool {
+				v = parseBool(v)
+			}
+		}
+
+		vals[fname] = v
 	}
 
 	if len(obj.Editables) > 0 {
@@ -600,4 +597,20 @@ func (obj *WebObject) Build() error {
 	}
 
 	return nil
+}
+
+// parseBool convert v to bool type. Unresolved is false.
+func parseBool(v any) (res bool) {
+	if val, ok := v.(bool); ok {
+		res = val
+	} else if val, ok := v.(string); ok {
+		if b, err := strconv.ParseBool(val); err == nil {
+			res = b
+		} else {
+			res = false
+		}
+	} else {
+		res = false
+	}
+	return res
 }
