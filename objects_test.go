@@ -59,6 +59,11 @@ func TestFilterOp(t *testing.T) {
 	assert.Equal(t, f.GetQuery(), "name IN ?")
 	f.Op = FilterOpNotIn
 	assert.Equal(t, f.GetQuery(), "name NOT IN ?")
+	{
+		f.Value = `["1",2]`
+		f.targetValue = f.Value
+		assert.Equal(t, f.GetValue(), []interface{}{"1", float64(2)})
+	}
 
 	f.Op = FilterOpGreater
 	assert.Equal(t, f.GetQuery(), "name > ?")

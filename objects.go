@@ -2,6 +2,7 @@ package carrot
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -130,6 +131,14 @@ func (f *Filter) GetQuery() string {
 func (f *Filter) GetValue() interface{} {
 	if f.targetValue == nil && f.Value != "" {
 		return f.Value
+	}
+	if f.Op != FilterOpIn && f.Op != FilterOpNotIn {
+		return f.targetValue
+	}
+	var arrValues []interface{}
+	err := json.Unmarshal([]byte(f.Value), &arrValues)
+	if err == nil {
+		return arrValues
 	}
 	return f.targetValue
 }
