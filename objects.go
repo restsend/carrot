@@ -153,7 +153,7 @@ func (f *Filter) GetValue() any {
 	if f.Op != FilterOpIn && f.Op != FilterOpNotIn {
 		return f.targetValue
 	}
-	var arrValues []interface{}
+	var arrValues []any
 	err := json.Unmarshal([]byte(f.Value), &arrValues)
 	if err == nil {
 		return arrValues

@@ -62,7 +62,7 @@ func TestFilterOp(t *testing.T) {
 	{
 		f.Value = `["1",2]`
 		f.targetValue = f.Value
-		assert.Equal(t, f.GetValue(), []interface{}{"1", float64(2)})
+		assert.Equal(t, f.GetValue(), []any{"1", float64(2)})
 	}
 
 	f.Op = FilterOpGreater
