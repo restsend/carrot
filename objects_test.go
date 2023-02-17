@@ -143,7 +143,7 @@ func TestRegisterWebObject(t *testing.T) {
 			GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB {
 				return db
 			},
-			Handlers: []Handle{CREATE, DELETE, CREATE}, // Only register create & delete handler.
+			AllowMethods: WebObjectDelete | WebObjectCreate, // Only register create & delete handler.
 		},
 	})
 
@@ -206,8 +206,7 @@ func TestWebObject(t *testing.T) {
 			GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB {
 				return db
 			},
-			Init:     func(ctx *gin.Context, vptr interface{}) {},
-			Handlers: []Handle{SINGLE_QUERY, CREATE, DELETE, EDIT, QUERY},
+			Init: func(ctx *gin.Context, vptr interface{}) {},
 		},
 	})
 	client := NewTestClient(r)

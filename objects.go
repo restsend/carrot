@@ -43,15 +43,12 @@ const (
 	OrderOpDesc            = "desc"
 	OrderOpAsc             = "asc"
 )
-
-type Handle uint8
-
 const (
-	SINGLE_QUERY Handle = iota
-	CREATE
-	DELETE
-	EDIT
-	QUERY
+	WebObjectGet    = 1 << 1
+	WebObjectCreate = 1 << 2
+	WebObjectEdit   = 1 << 3
+	WebObjectDelete = 1 << 4
+	WebObjectQuery  = 1 << 5
 )
 
 type GetDB func(ctx *gin.Context, isCreate bool) *gorm.DB
@@ -64,22 +61,17 @@ type QueryView struct {
 }
 
 type WebObject struct {
-	Model     any
-	Group     string
-	Name      string
-	Editables []string
-	Filters   []string
-	Orders    []string
-	Searchs   []string
-	GetDB     GetDB
-	Init      PrepareModel // How to create a new object
-	Views     []QueryView
-
-	// Specify the to register to the route
-	// (SINGLE_QUERY, CREATE, DELETE, EDIT, QUERY)
-	// default register all handlers.
-	Handlers []Handle
-
+	Model              any
+	Group              string
+	Name               string
+	Editables          []string
+	Filters            []string
+	Orders             []string
+	Searchs            []string
+	GetDB              GetDB
+	Init               PrepareModel // How to create a new object
+	Views              []QueryView
+	AllowMethods       int
 	PrimaryKeyName     string
 	PrimaryKeyType     reflect.Type
 	PrimaryKeyJsonName string
@@ -477,47 +469,37 @@ func (obj *WebObject) RegisterObject(r gin.IRoutes) error {
 	}
 
 	p := filepath.Join(obj.Group, obj.Name)
-
-	handleMap := map[Handle]func(){
-		SINGLE_QUERY: func() {
-			r.GET(filepath.Join(p, ":key"), func(c *gin.Context) {
-				handleGetObject(c, obj)
-			})
-		},
-		CREATE: func() {
-			r.PUT(p, func(c *gin.Context) {
-				handleCreateObject(c, obj)
-			})
-		},
-		EDIT: func() {
-			r.PATCH(filepath.Join(p, ":key"), func(c *gin.Context) {
-				handleEditObject(c, obj)
-			})
-		},
-		DELETE: func() {
-			r.DELETE(filepath.Join(p, ":key"), func(c *gin.Context) {
-				handleDeleteObject(c, obj)
-			})
-		},
-		QUERY: func() {
-			r.POST(filepath.Join(p, "query"), func(c *gin.Context) {
-				HandleQueryObject(c, obj, DefaultPrepareQuery)
-			})
-		},
+	allowMethods := obj.AllowMethods
+	if allowMethods == 0 {
+		allowMethods = WebObjectGet | WebObjectCreate | WebObjectEdit | WebObjectDelete | WebObjectQuery
 	}
 
-	// Register all by default.
-	if len(obj.Handlers) == 0 {
-		for _, f := range handleMap {
-			f()
-		}
+	if allowMethods&WebObjectGet != 0 {
+		r.GET(filepath.Join(p, ":key"), func(c *gin.Context) {
+			handleGetObject(c, obj)
+		})
+	}
+	if allowMethods&WebObjectCreate != 0 {
+		r.PUT(p, func(c *gin.Context) {
+			handleCreateObject(c, obj)
+		})
+	}
+	if allowMethods&WebObjectEdit != 0 {
+		r.PATCH(filepath.Join(p, ":key"), func(c *gin.Context) {
+			handleEditObject(c, obj)
+		})
 	}
 
-	for _, h := range obj.Handlers {
-		if f, ok := handleMap[h]; ok {
-			f()
-			delete(handleMap, h) // Prevent duplicate registration.
-		}
+	if allowMethods&WebObjectDelete != 0 {
+		r.DELETE(filepath.Join(p, ":key"), func(c *gin.Context) {
+			handleDeleteObject(c, obj)
+		})
+	}
+
+	if allowMethods&WebObjectQuery != 0 {
+		r.POST(filepath.Join(p, "query"), func(c *gin.Context) {
+			HandleQueryObject(c, obj, DefaultPrepareQuery)
+		})
 	}
 
 	for i := 0; i < len(obj.Views); i++ {
