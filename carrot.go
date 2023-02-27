@@ -60,8 +60,7 @@ func InitCarrot(db *gorm.DB, r *gin.Engine) (err error) {
 		log.Fatal("migrate fail", err)
 	}
 
-	r.Use(WithGormDB(db),
-		CORSEnabled())
+	r.Use(WithGormDB(db), CORSEnabled())
 
 	secret := GetEnv(ENV_SESSION_SECRET)
 	if secret != "" {

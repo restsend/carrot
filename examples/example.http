@@ -1,0 +1,36 @@
+@env = http://localhost:8080
+@contentType = application/json
+
+### Create
+PUT {{env}}/product
+Content-Type: {{contentType}}
+
+{
+  "id": "demoid",
+  "name": "demoproduct",
+  "enabled": true
+}
+
+### Single Query
+GET {{env}}/product/demoid
+
+### Update
+PATCH {{env}}/product/demoid
+Content-Type: {{contentType}}
+
+{
+  "name": "updated",
+  "enabled": false
+}
+
+### Query
+POST {{env}}/product/query
+Content-Type: {{contentType}}
+
+{
+  "pos": 0,
+  "limit": 5
+}
+
+### Delete
+DELETE {{env}}/product/demoid

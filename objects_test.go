@@ -373,7 +373,7 @@ func TestEditBool(t *testing.T) {
 	client := NewTestClient(r)
 	{
 		// Mock data
-		var create MockUser
+		var create MockUser = MockUser{Enabled: true}
 		err := client.Put("/muser", MockUser{Name: "muser"}, &create)
 		assert.Nil(t, err)
 		assert.Equal(t, "muser", create.Name)
@@ -390,8 +390,6 @@ func TestEditBool(t *testing.T) {
 			{"base case5", map[string]any{"enabled": "FALSE"}, false},
 			{"base case6", map[string]any{"enabled": true}, true},
 			{"base case7", map[string]any{"enabled": false}, false},
-			{"bad case1", map[string]any{"enabled": ""}, false},
-			{"bad case2", map[string]any{"enabled": "xxx"}, false},
 		}
 
 		for _, tt := range tests {
@@ -415,6 +413,8 @@ func TestEditBool(t *testing.T) {
 			expect bool
 		}{
 			{"bad case 1", map[string]any{"other": true}, false},
+			{"bad case 2", map[string]any{"enabled": ""}, false},
+			{"bad case 3", map[string]any{"enabled": "xxx"}, false},
 		}
 
 		for _, tt := range tests {
@@ -422,6 +422,7 @@ func TestEditBool(t *testing.T) {
 				body, _ := json.Marshal(tt.param)
 				w := client.PostRaw(http.MethodPatch, fmt.Sprintf("/muser/%d", create.ID), body)
 				assert.NotEqual(t, w.Code, http.StatusOK)
+				fmt.Println(w.Body) // {"error":"not changed"}
 			})
 		}
 

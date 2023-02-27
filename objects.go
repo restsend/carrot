@@ -3,6 +3,7 @@ package carrot
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -43,6 +44,7 @@ const (
 	OrderOpDesc            = "desc"
 	OrderOpAsc             = "asc"
 )
+
 const (
 	WebObjectGet    = 1 << 1
 	WebObjectCreate = 1 << 2
@@ -188,11 +190,8 @@ func ConvertKey(dst reflect.Type, v any) any {
 			x, _ := strconv.ParseUint(v.(string), 10, 64)
 			return x
 		case reflect.Bool:
-			if v.(string) == "true" || v.(string) == "yes" {
-				return true
-			} else {
-				return false
-			}
+			x, _ := strconv.ParseBool(v.(string))
+			return x
 		case reflect.Float32, reflect.Float64:
 			x, _ := strconv.ParseFloat(v.(string), 64)
 			return x
@@ -325,14 +324,18 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 		if !ok {
 			continue
 		}
+
 		if rt, ok := types[fname]; ok {
 			// Handle Illegal Values
-			if rt.Kind() == reflect.Bool {
-				v = parseBool(v)
+			switch rt.Kind() {
+			case reflect.Bool:
+				if parsed, err := parseBool(v); err == nil {
+					vals[fname] = parsed
+				}
+			default:
+				vals[fname] = v
 			}
 		}
-
-		vals[fname] = v
 	}
 
 	if len(obj.Editables) > 0 {
@@ -591,17 +594,12 @@ func (obj *WebObject) Build() error {
 }
 
 // parseBool convert v to bool type. Unresolved is false.
-func parseBool(v any) (res bool) {
+func parseBool(v any) (res bool, err error) {
 	if val, ok := v.(bool); ok {
-		res = val
-	} else if val, ok := v.(string); ok {
-		if b, err := strconv.ParseBool(val); err == nil {
-			res = b
-		} else {
-			res = false
-		}
-	} else {
-		res = false
+		return val, nil
 	}
-	return res
+	if val, ok := v.(string); ok {
+		return strconv.ParseBool(val)
+	}
+	return false, errors.New("parse bool type error")
 }
