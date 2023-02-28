@@ -75,7 +75,6 @@ type WebObject struct {
 	Views              []QueryView
 	AllowMethods       int
 	PrimaryKeyName     string
-	PrimaryKeyType     reflect.Type
 	PrimaryKeyJsonName string
 	tableName          string
 	modelElem          reflect.Type
@@ -86,10 +85,10 @@ type WebObject struct {
 }
 
 type Filter struct {
-	Name        string `json:"name"`
-	Op          string `json:"op"`
-	Value       string `json:"value"`
-	targetValue any    `json:"-"`
+	Name  string `json:"name"`
+	Op    string `json:"op"`
+	Value string `json:"value"`
+	// targetValue any    `json:"-"`
 }
 
 type Order struct {
@@ -141,18 +140,19 @@ func (f *Filter) GetQuery() string {
 
 // GetValue return the target value of the filter SQL statement.
 func (f *Filter) GetValue() any {
-	if f.targetValue == nil && f.Value != "" {
-		return f.Value
-	}
+	// if f.targetValue == nil && f.Value != "" {
+	// 	return f.Value
+	// }
 	if f.Op != FilterOpIn && f.Op != FilterOpNotIn {
-		return f.targetValue
+		// return f.targetValue
+		return f.Value
 	}
 	var arrValues []any
 	err := json.Unmarshal([]byte(f.Value), &arrValues)
 	if err == nil {
 		return arrValues
 	}
-	return f.targetValue
+	return f.Value
 }
 
 // GetQuery return the combined order SQL statement.
@@ -260,12 +260,13 @@ func QueryObjects(db *gorm.DB, obj *WebObject, form *QueryForm) (r QueryResult, 
 }
 
 func handleGetObject(c *gin.Context, obj *WebObject) {
-	key := ConvertKey(obj.PrimaryKeyType, c.Param("key"))
+	key := c.Param("key")
 	val := reflect.New(obj.modelElem).Interface()
-
 	db := obj.GetDB(c, false)
+
 	// the real name of the primaryKey column
 	pkColName := db.NamingStrategy.ColumnName(obj.tableName, obj.PrimaryKeyName)
+
 	result := db.Where(pkColName, key).Take(&val)
 	if result.Error != nil {
 		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "not found"})
@@ -297,7 +298,7 @@ func handleCreateObject(c *gin.Context, obj *WebObject) {
 }
 
 func handleEditObject(c *gin.Context, obj *WebObject) {
-	key := ConvertKey(obj.PrimaryKeyType, c.Param("key"))
+	key := c.Param("key")
 
 	var inputVals map[string]any
 	err := c.BindJSON(&inputVals)
@@ -317,6 +318,8 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 
 	var vals map[string]any = map[string]any{}
 	pkColName := db.NamingStrategy.ColumnName(obj.tableName, obj.PrimaryKeyName)
+
+	// can't edit primaryKey
 	delete(inputVals, obj.PrimaryKeyJsonName) // remove primaryKey
 
 	for k, v := range inputVals {
@@ -365,7 +368,7 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 }
 
 func handleDeleteObject(c *gin.Context, obj *WebObject) {
-	key := ConvertKey(obj.PrimaryKeyType, c.Param("key"))
+	key := c.Param("key")
 	val := reflect.New(obj.modelElem).Interface()
 
 	db := obj.GetDB(c, false)
@@ -420,8 +423,8 @@ func HandleQueryObject(c *gin.Context, obj *WebObject, prepareQuery PrepareQuery
 			}
 		}
 		f.Name = namer.ColumnName(obj.tableName, f.Name)
-		fe, _ := obj.modelElem.FieldByName(n)
-		f.targetValue = ConvertKey(fe.Type, f.Value)
+		// fe, _ := obj.modelElem.FieldByName(n)
+		// f.targetValue = ConvertKey(fe.Type, f.Value)
 		stripFilters = append(stripFilters, f)
 	}
 	form.Filters = stripFilters
@@ -529,7 +532,7 @@ func RegisterObjects(r gin.IRoutes, objs []WebObject) {
 }
 
 // parseFields parse the following properties according to struct tag:
-// - jsonToFields, primaryKeyName, primaryKeyType, primaryKeyJsonName
+// - jsonToFields, primaryKeyName, primaryKeyJsonName
 func (obj *WebObject) parseFields(rt reflect.Type) {
 	for i := 0; i < rt.NumField(); i++ {
 		f := rt.Field(i)
@@ -561,7 +564,6 @@ func (obj *WebObject) parseFields(rt reflect.Type) {
 			obj.PrimaryKeyJsonName = jsonTag
 		}
 		obj.PrimaryKeyName = f.Name
-		obj.PrimaryKeyType = f.Type
 	}
 }
 

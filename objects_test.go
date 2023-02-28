@@ -61,7 +61,7 @@ func TestFilterOp(t *testing.T) {
 	assert.Equal(t, f.GetQuery(), "name NOT IN ?")
 	{
 		f.Value = `["1",2]`
-		f.targetValue = f.Value
+		// f.targetValue = f.Value
 		assert.Equal(t, f.GetValue(), []any{"1", float64(2)})
 	}
 
