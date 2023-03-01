@@ -13,28 +13,28 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestConvertKey(t *testing.T) {
-	v := ConvertKey(reflect.TypeOf(uint64(0)), "1234")
-	assert.Equal(t, v, uint64(1234))
+// func TestConvertKey(t *testing.T) {
+// 	v := ConvertKey(reflect.TypeOf(uint64(0)), "1234")
+// 	assert.Equal(t, v, uint64(1234))
 
-	v = ConvertKey(reflect.TypeOf(uint(0)), "1234")
-	assert.Equal(t, v, uint(1234))
+// 	v = ConvertKey(reflect.TypeOf(uint(0)), "1234")
+// 	assert.Equal(t, v, uint(1234))
 
-	v = ConvertKey(reflect.TypeOf(int64(0)), "1234")
-	assert.Equal(t, v, int64(1234))
+// 	v = ConvertKey(reflect.TypeOf(int64(0)), "1234")
+// 	assert.Equal(t, v, int64(1234))
 
-	v = ConvertKey(reflect.TypeOf(int(0)), "1234")
-	assert.Equal(t, v, int(1234))
+// 	v = ConvertKey(reflect.TypeOf(int(0)), "1234")
+// 	assert.Equal(t, v, int(1234))
 
-	v = ConvertKey(reflect.TypeOf("1234"), 1234)
-	assert.Equal(t, v, "1234")
+// 	v = ConvertKey(reflect.TypeOf("1234"), 1234)
+// 	assert.Equal(t, v, "1234")
 
-	v = ConvertKey(reflect.TypeOf("1234"), nil)
-	assert.Nil(t, v)
+// 	v = ConvertKey(reflect.TypeOf("1234"), nil)
+// 	assert.Nil(t, v)
 
-	v = ConvertKey(reflect.TypeOf("1234"), "1234")
-	assert.Equal(t, v, "1234")
-}
+// 	v = ConvertKey(reflect.TypeOf("1234"), "1234")
+// 	assert.Equal(t, v, "1234")
+// }
 
 func TestUniqueKey(t *testing.T) {
 	db, err := InitDatabase(nil, "", "")

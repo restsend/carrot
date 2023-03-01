@@ -165,40 +165,40 @@ func (f *Order) GetQuery() string {
 }
 
 // ConverKey convert the kind of v to dst.
-func ConvertKey(dst reflect.Type, v any) any {
-	if v == nil {
-		return nil
-	}
+// func ConvertKey(dst reflect.Type, v any) any {
+// 	if v == nil {
+// 		return nil
+// 	}
 
-	src := reflect.TypeOf(v)
-	if src.Kind() == dst.Kind() {
-		return v
-	}
+// 	src := reflect.TypeOf(v)
+// 	if src.Kind() == dst.Kind() {
+// 		return v
+// 	}
 
-	if src.Kind() == reflect.String {
-		switch dst.Kind() {
-		case reflect.Int:
-			x, _ := strconv.ParseInt(v.(string), 10, 64)
-			return int(x)
-		case reflect.Int64:
-			x, _ := strconv.ParseInt(v.(string), 10, 64)
-			return x
-		case reflect.Uint:
-			x, _ := strconv.ParseUint(v.(string), 10, 64)
-			return uint(x)
-		case reflect.Uint64:
-			x, _ := strconv.ParseUint(v.(string), 10, 64)
-			return x
-		case reflect.Bool:
-			x, _ := strconv.ParseBool(v.(string))
-			return x
-		case reflect.Float32, reflect.Float64:
-			x, _ := strconv.ParseFloat(v.(string), 64)
-			return x
-		}
-	}
-	return fmt.Sprintf("%v", v)
-}
+// 	if src.Kind() == reflect.String {
+// 		switch dst.Kind() {
+// 		case reflect.Int:
+// 			x, _ := strconv.ParseInt(v.(string), 10, 64)
+// 			return int(x)
+// 		case reflect.Int64:
+// 			x, _ := strconv.ParseInt(v.(string), 10, 64)
+// 			return x
+// 		case reflect.Uint:
+// 			x, _ := strconv.ParseUint(v.(string), 10, 64)
+// 			return uint(x)
+// 		case reflect.Uint64:
+// 			x, _ := strconv.ParseUint(v.(string), 10, 64)
+// 			return x
+// 		case reflect.Bool:
+// 			x, _ := strconv.ParseBool(v.(string))
+// 			return x
+// 		case reflect.Float32, reflect.Float64:
+// 			x, _ := strconv.ParseFloat(v.(string), 64)
+// 			return x
+// 		}
+// 	}
+// 	return fmt.Sprintf("%v", v)
+// }
 
 // QueryObjects excute query and return data.
 func QueryObjects(db *gorm.DB, obj *WebObject, form *QueryForm) (r QueryResult, err error) {
