@@ -108,7 +108,7 @@ func (u *User) GetProfile() Profile {
 }
 
 func InitMigrate(db *gorm.DB) error {
-	return MakeMigrates(db, []interface{}{
+	return MakeMigrates(db, []any{
 		&Config{},
 		&User{},
 		&Group{},

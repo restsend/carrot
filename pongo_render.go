@@ -9,7 +9,7 @@ import (
 type PongoRender struct {
 	sets     *pongo2.TemplateSet
 	fileName string
-	ctx      map[string]interface{}
+	ctx      map[string]any
 }
 
 // Render implements render.Render

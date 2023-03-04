@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -25,26 +24,15 @@ func main() {
 		panic(err)
 	}
 
-	if as, ok := r.HTMLRender.(*carrot.StaticAssets); ok {
-		paths := []string{carrot.HintAssetsRoot([]string{"./", "../"})}
-		as.Paths = append(paths, as.Paths...)
-	}
-
 	// Check Default Value
-	carrot.CheckValue(db, carrot.KEY_SITE_NAME, "Your Name")
-
-	r.GET("/", func(ctx *gin.Context) {
-		data := carrot.GetRenderPageContext(ctx)
-		data["title"] = "Welcome"
-		ctx.HTML(http.StatusOK, "index.html", data)
-	})
+	// carrot.CheckValue(db, carrot.KEY_SITE_NAME, "Your Name")
 
 	// Connect user event, eg. Login, Create
-	carrot.Sig().Connect(carrot.SigUserCreate, func(sender interface{}, params ...interface{}) {
+	carrot.Sig().Connect(carrot.SigUserCreate, func(sender any, params ...any) {
 		user := sender.(*carrot.User)
 		log.Println("create user", user.GetVisibleName())
 	})
-	carrot.Sig().Connect(carrot.SigUserLogin, func(sender interface{}, params ...interface{}) {
+	carrot.Sig().Connect(carrot.SigUserLogin, func(sender any, params ...any) {
 		user := sender.(*carrot.User)
 		log.Println("user logined", user.GetVisibleName())
 	})
@@ -60,7 +48,7 @@ func main() {
 
 // Check example.http
 func RegisterWebObjectHandler(r *gin.Engine, db *gorm.DB) {
-	product := carrot.WebObject{
+	product := carrot.WebObject[Product]{
 		Model:     Product{},
 		Searchs:   []string{"Name"},
 		Editables: []string{"Name", "Enabled"},
@@ -69,9 +57,8 @@ func RegisterWebObjectHandler(r *gin.Engine, db *gorm.DB) {
 			return db
 		},
 		// You can Specify how the id is generated.
-		Init: func(ctx *gin.Context, vptr any) {
-			// v := vptr.(*Product)
-			// v.UUID = carrot.RandText(10)
+		Init: func(ctx *gin.Context, v *Product) {
+			v.UUID = carrot.RandText(10)
 		},
 	}
 

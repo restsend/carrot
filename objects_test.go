@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"reflect"
+	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -36,88 +38,61 @@ import (
 // 	assert.Equal(t, v, "1234")
 // }
 
-func TestUniqueKey(t *testing.T) {
-	db, err := InitDatabase(nil, "", "")
-	MakeMigrates(db, []interface{}{&User{}, &Config{}})
-	assert.Nil(t, err)
-	v := GenUniqueKey(db.Model(User{}), "email", 10)
-	assert.Equal(t, len(v), 10)
-	v = GenUniqueKey(db.Model(User{}), "xx", 10)
-	assert.Equal(t, len(v), 0)
-}
+// func TestFilterOp(t *testing.T) {
+// 	f := Filter{
+// 		Name: "name",
+// 		Op:   FilterOpEqual,
+// 	}
+// 	assert.Equal(t, f.GetQuery(), "name")
 
-func TestFilterOp(t *testing.T) {
-	f := Filter{
-		Name: "name",
-		Op:   FilterOpEqual,
-	}
-	assert.Equal(t, f.GetQuery(), "name")
+// 	f.Op = FilterOpNotEqual
+// 	assert.Equal(t, f.GetQuery(), "name <> ?")
+// 	f.Op = FilterOpIn
+// 	assert.Equal(t, f.GetQuery(), "name IN ?")
+// 	f.Op = FilterOpNotIn
+// 	assert.Equal(t, f.GetQuery(), "name NOT IN ?")
+// 	.Op = FilterOpGreater
+// 	assert.Equal(t, f.GetQuery(), "name > ?")
+// 	f.Op = FilterOpGreaterOrEqual
+// 	assert.Equal(t, f.GetQuery(), "name >= ?")
 
-	f.Op = FilterOpNotEqual
-	assert.Equal(t, f.GetQuery(), "name <> ?")
-	f.Op = FilterOpIn
-	assert.Equal(t, f.GetQuery(), "name IN ?")
-	f.Op = FilterOpNotIn
-	assert.Equal(t, f.GetQuery(), "name NOT IN ?")
-	{
-		f.Value = `["1",2]`
-		// f.targetValue = f.Value
-		assert.Equal(t, f.GetValue(), []any{"1", float64(2)})
-	}
+// 	f.Op = FilterOpLess
+// 	assert.Equal(t, f.GetQuery(), "name < ?")
+// 	f.Op = FilterOpLessOrEqual
+// 	assert.Equal(t, f.GetQuery(), "name <= ?")
 
-	f.Op = FilterOpGreater
-	assert.Equal(t, f.GetQuery(), "name > ?")
-	f.Op = FilterOpGreaterOrEqual
-	assert.Equal(t, f.GetQuery(), "name >= ?")
-
-	f.Op = FilterOpLess
-	assert.Equal(t, f.GetQuery(), "name < ?")
-	f.Op = FilterOpLessOrEqual
-	assert.Equal(t, f.GetQuery(), "name <= ?")
-
-	o := Order{
-		Name: "createdAt",
-	}
-	assert.Equal(t, o.GetQuery(), "createdAt")
-	o.Op = OrderOpDesc
-	assert.Equal(t, o.GetQuery(), "createdAt DESC")
-}
+// 	o := Order{
+// 		Name: "createdAt",
+// 	}
+// 	assert.Equal(t, o.GetQuery(), "createdAt")
+// 	o.Op = OrderOpDesc
+// 	assert.Equal(t, o.GetQuery(), "createdAt DESC")
+// }
 
 func TestQueryObjects(t *testing.T) {
 	db, err := InitDatabase(nil, "", "")
-	MakeMigrates(db, []interface{}{&User{}, &Config{}})
+	MakeMigrates(db, []any{&User{}, &Config{}})
 	assert.Nil(t, err)
 	bob, _ := CreateUser(db, "bob@example.org", "123456")
-	UpdateUserFields(db, bob, map[string]interface{}{"FirstName": "bot"})
+	UpdateUserFields(db, bob, map[string]any{"FirstName": "bot"})
 	form := QueryForm{
-		Pos:   0,
-		Limit: 10,
-		Filters: []Filter{
-			{
-				Name:  "email",
-				Op:    FilterOpEqual,
-				Value: "bob@example.org",
-			},
-		},
-		Orders: []Order{
-			{
-				Name: "Email",
-			},
-		},
+		Pos:          0,
+		Limit:        10,
+		Filters:      []Filter{{Name: "email", Op: "=", Value: "bob@example.org"}},
+		Orders:       []Order{{Name: "Email"}},
 		searchFields: []string{"first_name"},
 		Keyword:      "ot",
 	}
-	obj := WebObject{
+	obj := WebObject[User]{
 		tableName: "users",
-		modelElem: reflect.TypeOf(bob).Elem(),
 	}
-	r, err := QueryObjects(db.Debug(), &obj, &form)
+	r, err := QueryObjects(db, &obj, &form)
 	assert.Nil(t, err)
 	assert.Equal(t, r.TotalCount, 1)
 	data, _ := json.Marshal(r.Items)
 	assert.Contains(t, string(data), "bob@example.org")
-	users, ok := r.Items.([]User)
-	assert.True(t, ok)
+
+	users := r.Items
 	assert.Equal(t, len(users), 1)
 	assert.Equal(t, r.Limit, 10)
 	assert.Equal(t, r.Pos, 1)
@@ -130,22 +105,18 @@ func TestRegisterWebObject(t *testing.T) {
 	}
 
 	db, err := InitDatabase(nil, "", "")
-	MakeMigrates(db, []interface{}{&MockUser{}})
+	MakeMigrates(db, []any{&MockUser{}})
 	assert.Nil(t, err)
 	user := MockUser{Name: "user_1"}
 	db.Create(&user)
 
 	r := gin.Default()
-	RegisterObjects(r, []WebObject{
-		{
-			Model: MockUser{},
-			Name:  "muser",
-			GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB {
-				return db
-			},
-			AllowMethods: WebObjectDelete | WebObjectCreate, // Only register create & delete handler.
-		},
-	})
+	obj := WebObject[MockUser]{
+		Name:         "muser",
+		GetDB:        func(ctx *gin.Context, isCreate bool) *gorm.DB { return db },
+		AllowMethods: DELETE | CREATE, // Only register create & delete handler.
+	}
+	obj.RegisterObject(r)
 
 	client := NewTestClient(r)
 
@@ -189,26 +160,25 @@ func TestWebObject(t *testing.T) {
 	}
 
 	db, err := InitDatabase(nil, "", "")
-	MakeMigrates(db, []interface{}{&MockUser{}})
+	MakeMigrates(db, []any{&MockUser{}})
 	assert.Nil(t, err)
 	user := MockUser{Name: "user_1", Age: 10}
 	db.Create(&user)
 
 	r := gin.Default()
-	RegisterObjects(r, []WebObject{
-		{
-			Model:     MockUser{},
-			Name:      "muser",
-			Editables: []string{"Name", "DisplayName"},
-			Filters:   []string{"Name", "Age"},
-			Orders:    []string{"Name"},
-			Searchs:   []string{"Name"},
-			GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB {
-				return db
-			},
-			Init: func(ctx *gin.Context, vptr interface{}) {},
+	obj := WebObject[MockUser]{
+		Name:      "muser",
+		Editables: []string{"Name", "DisplayName"},
+		Filters:   []string{"Name", "Age"},
+		Orders:    []string{"Name"},
+		Searchs:   []string{"Name"},
+		GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB {
+			return db
 		},
-	})
+		Init: func(ctx *gin.Context, v *MockUser) {},
+	}
+	obj.RegisterObject(r)
+
 	client := NewTestClient(r)
 	{
 		// Create
@@ -258,7 +228,7 @@ func TestWebObject(t *testing.T) {
 			},
 			Keyword: "_2",
 		}
-		var result QueryResult
+		var result QueryResult[MockUser]
 		err = client.Post("/muser/query", &form, &result)
 		assert.Nil(t, err)
 		assert.Equal(t, result.TotalCount, 1)
@@ -283,25 +253,21 @@ func TestRpcCall(t *testing.T) {
 	}
 
 	db, err := InitDatabase(nil, "", "")
-	MakeMigrates(db, []interface{}{&MockUser{}})
+	MakeMigrates(db, []any{&MockUser{}})
 	assert.Nil(t, err)
 	user := MockUser{Name: "user_1", Age: 10}
 	db.Create(&user)
 
 	r := gin.Default()
-	RegisterObjects(r, []WebObject{
-		{
-			Model:     MockUser{},
-			Name:      "muser",
-			Editables: []string{"Name"},
-			Filters:   []string{"Name", "Age"},
-			Searchs:   []string{"Name"},
-			GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB {
-				return db
-			},
-			Init: func(ctx *gin.Context, vptr interface{}) {},
-		},
-	})
+	obj := WebObject[MockUser]{
+		Name:      "muser",
+		Editables: []string{"Name"},
+		Filters:   []string{"Name", "Age"},
+		Searchs:   []string{"Name"},
+		GetDB:     func(ctx *gin.Context, isCreate bool) *gorm.DB { return db },
+		Init:      func(ctx *gin.Context, v *MockUser) {},
+	}
+	obj.RegisterObject(r)
 
 	client := NewTestClient(r)
 	{
@@ -330,7 +296,7 @@ func TestRpcCall(t *testing.T) {
 			},
 			Keyword: "edited",
 		}
-		var query QueryResult
+		var query QueryResult[MockUser]
 		err = client.Post("/muser/query", &form, &query)
 		assert.Nil(t, err)
 		assert.Equal(t, 1, query.TotalCount)
@@ -350,25 +316,23 @@ func TestEditBool(t *testing.T) {
 	}
 
 	db, err := InitDatabase(nil, "", "")
-	MakeMigrates(db, []interface{}{&MockUser{}})
+	MakeMigrates(db, []any{&MockUser{}})
 	assert.Nil(t, err)
 	user := MockUser{Name: "user_1", Enabled: false}
 	db.Create(&user)
 
 	r := gin.Default()
-	RegisterObjects(r, []WebObject{
-		{
-			Model:     MockUser{},
-			Name:      "muser",
-			Editables: []string{"Name", "Enabled"},
-			Filters:   []string{"Name", "Enabled"},
-			Searchs:   []string{"Name"},
-			GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB {
-				return db
-			},
-			Init: func(ctx *gin.Context, vptr interface{}) {},
+	obj := WebObject[MockUser]{
+		Name:      "muser",
+		Editables: []string{"Name", "Enabled"},
+		Filters:   []string{"Name", "Enabled"},
+		Searchs:   []string{"Name"},
+		GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB {
+			return db
 		},
-	})
+		Init: func(ctx *gin.Context, v *MockUser) {},
+	}
+	obj.RegisterObject(r)
 
 	client := NewTestClient(r)
 	{
@@ -383,13 +347,8 @@ func TestEditBool(t *testing.T) {
 			param  any
 			expect bool
 		}{
-			{"base case1", map[string]any{"enabled": "true"}, true},
-			{"base case2", map[string]any{"enabled": "1"}, true},
-			{"base case3", map[string]any{"enabled": "t"}, true},
-			{"base case4", map[string]any{"enabled": "f"}, false},
-			{"base case5", map[string]any{"enabled": "FALSE"}, false},
-			{"base case6", map[string]any{"enabled": true}, true},
-			{"base case7", map[string]any{"enabled": false}, false},
+			{"base case1", map[string]any{"enabled": true}, true},
+			{"base case2", map[string]any{"enabled": false}, false},
 		}
 
 		for _, tt := range tests {
@@ -397,9 +356,6 @@ func TestEditBool(t *testing.T) {
 				body, _ := json.Marshal(tt.param)
 				w := client.PostRaw(http.MethodPatch, fmt.Sprintf("/muser/%d", create.ID), body)
 				assert.Equal(t, w.Code, http.StatusOK)
-				if w.Code != http.StatusOK {
-					t.Log(w.Body)
-				}
 
 				var res MockUser
 				client.Get(fmt.Sprintf("/muser/%d", create.ID), &res)
@@ -407,24 +363,565 @@ func TestEditBool(t *testing.T) {
 			})
 		}
 
-		tests = []struct {
-			name   string
-			param  any
-			expect bool
+		badtests := []struct {
+			name  string
+			param any
 		}{
-			{"bad case 1", map[string]any{"other": true}, false},
-			{"bad case 2", map[string]any{"enabled": ""}, false},
-			{"bad case 3", map[string]any{"enabled": "xxx"}, false},
+			{"bad case 1", map[string]any{"other": true}},
+			{"bad case 2", map[string]any{"enabled": ""}},
+			{"bad case 3", map[string]any{"enabled": "xxx"}},
+			{"bad case3", map[string]any{"enabled": "t"}},
+			{"bad case4", map[string]any{"enabled": "f"}},
+			{"bad case5", map[string]any{"enabled": 1}},
 		}
 
-		for _, tt := range tests {
+		for _, tt := range badtests {
 			t.Run(tt.name, func(t *testing.T) {
 				body, _ := json.Marshal(tt.param)
 				w := client.PostRaw(http.MethodPatch, fmt.Sprintf("/muser/%d", create.ID), body)
-				assert.NotEqual(t, w.Code, http.StatusOK)
+				assert.Equal(t, w.Code, http.StatusBadRequest)
 				fmt.Println(w.Body) // {"error":"not changed"}
 			})
 		}
 
+	}
+}
+
+func TestObjectCRUD(t *testing.T) {
+	type User struct {
+		ID   uint   `json:"uid" gorm:"primarykey"`
+		Name string `gorm:"size:100"`
+		Age  int
+		Body string `json:"-" gorm:"-"`
+	}
+
+	db, _ := gorm.Open(sqlite.Open("file::memory:"), nil)
+	db.AutoMigrate(User{})
+	err := db.Create(&User{ID: 1, Name: "user", Age: 10}).Error
+	assert.Nil(t, err)
+
+	r := gin.Default()
+	webobject := WebObject[User]{
+		Editables: []string{"Name"},
+		Filters:   []string{"Name"},
+		Searchs:   []string{"Name"},
+		GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB {
+			return db.Debug()
+		},
+		Init: func(ctx *gin.Context, vptr *User) {},
+	}
+	err = webobject.RegisterObject(r)
+	assert.Nil(t, err)
+
+	// Create
+	{
+		b, _ := json.Marshal(User{Name: "add"})
+		req := httptest.NewRequest(http.MethodPut, "/user", bytes.NewReader(b))
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Result().StatusCode)
+		assert.Contains(t, w.Body.String(), `"uid":2`)
+	}
+	// Single Query
+	{
+		req := httptest.NewRequest(http.MethodGet, "/user/1", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Result().StatusCode)
+		assert.Contains(t, w.Body.String(), `"uid":1`)
+	}
+	// Update
+	{
+		b, _ := json.Marshal(User{Name: "update", Age: 11})
+		req := httptest.NewRequest(http.MethodPatch, "/user/1", bytes.NewReader(b))
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Result().StatusCode)
+		assert.Equal(t, "true", w.Body.String())
+	}
+	// Query
+	{
+		data := map[string]any{
+			"pos":     0,
+			"limit":   5,
+			"keyword": "",
+			"filters": []map[string]any{
+				{
+					"name":  "Name",
+					"op":    "=",
+					"value": "update",
+				},
+			},
+		}
+		b, _ := json.Marshal(data)
+		req := httptest.NewRequest(http.MethodPost, "/user/query", bytes.NewReader(b))
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Result().StatusCode)
+		var res QueryResult[User]
+		err := json.Unmarshal(w.Body.Bytes(), &res)
+		assert.Nil(t, err)
+		assert.Equal(t, 1, res.TotalCount)
+		assert.Equal(t, "update", res.Items[0].Name)
+	}
+	// Delete
+	{
+		req := httptest.NewRequest(http.MethodDelete, "/user/1", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Result().StatusCode)
+	}
+	// Query After Delete
+	{
+		req := httptest.NewRequest(http.MethodGet, "/user/1", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusNotFound, w.Result().StatusCode)
+
+		b, _ := json.Marshal(map[string]any{"pos": 0, "limit": 5})
+		req = httptest.NewRequest(http.MethodPost, "/user/query", bytes.NewReader(b))
+		w = httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Result().StatusCode)
+
+		var res QueryResult[User]
+		err := json.Unmarshal(w.Body.Bytes(), &res)
+		assert.Nil(t, err)
+		assert.Equal(t, 1, res.TotalCount)
+	}
+}
+
+func TestObjectQuery(t *testing.T) {
+	type Super struct {
+		Fly bool
+	}
+	type User struct {
+		ID       uint      `json:"uid" gorm:"primarykey"`
+		Name     string    `json:"name" gorm:"size:100"`
+		Body     string    `json:"-" gorm:"-"`
+		Birthday time.Time `json:"birthday"`
+		Enabled  bool      `json:"enabled"`
+		Age      int
+		Super
+	}
+
+	db, _ := gorm.Open(sqlite.Open("file::memory:"), nil)
+	db.AutoMigrate(User{})
+
+	r := gin.Default()
+	webobject := WebObject[User]{
+		Filters: []string{"Name", "Age", "Birthday", "Enabled"},
+		Searchs: []string{"Name"},
+		GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB {
+			return db.Debug()
+		},
+		Init: func(ctx *gin.Context, vptr *User) {},
+	}
+	err := webobject.RegisterObject(r)
+	assert.Nil(t, err)
+
+	// Mock
+	{
+		db.Create(&User{ID: 1, Name: "alice", Age: 10, Enabled: true, Birthday: time.Now()})
+		db.Create(&User{ID: 2, Name: "bob", Age: 10, Enabled: true, Birthday: time.Now()})
+		db.Create(&User{ID: 3, Name: "foo", Age: 13})
+		db.Create(&User{ID: 4, Name: "bar", Age: 13})
+	}
+	// Query
+	{
+		type Param struct {
+			Keyword string
+			Filters []map[string]any
+		}
+		type Except struct {
+			Num int
+		}
+		tests := []struct {
+			name   string
+			params Param
+			expect Except
+		}{
+			{"base_case_1",
+				Param{Keyword: "", Filters: nil},
+				Except{4},
+			},
+			{"base_case_2",
+				Param{Keyword: "bob", Filters: nil},
+				Except{1},
+			},
+			{"base_case_3",
+				Param{Keyword: "", Filters: []map[string]any{
+					{"name": "name", "op": "=", "value": "alice"},
+				}},
+				Except{1},
+			},
+			{
+				"base_case_4",
+				Param{Keyword: "", Filters: []map[string]any{
+					{"name": "Age", "op": ">=", "value": "10"}},
+				},
+				Except{4},
+			},
+			{
+				"base_case_5: multiple filters",
+				Param{Keyword: "", Filters: []map[string]any{
+					{"name": "Age", "op": ">", "value": "11"},
+					{"name": "Age", "op": "<", "value": "15"}},
+				},
+				Except{2},
+			},
+			{
+				"base_case_6:",
+				Param{Keyword: "", Filters: []map[string]any{
+					{"name": "Age", "op": ">", "value": "11"},
+					{"name": "Age", "op": "<", "value": "15"}},
+				},
+				Except{2},
+			},
+			{
+				"base_case_7:",
+				Param{Keyword: "", Filters: []map[string]any{
+					{"name": "name", "op": "in", "value": []any{"alice", "bob", "foo"}}},
+				},
+				Except{3},
+			},
+			{
+				"base_case_8:",
+				Param{Keyword: "", Filters: []map[string]any{
+					{"name": "name", "op": "in", "value": []any{"alice", "bob"}},
+					{"name": "Age", "op": "<>", "value": "10"}},
+				},
+				Except{0},
+			},
+			{
+				"base_case_9:",
+				Param{Keyword: "", Filters: []map[string]any{
+					{"name": "birthday", "op": ">=", "value": "2023-01-01"}},
+				},
+				Except{2},
+			},
+			{
+				"bool_case_1",
+				Param{Filters: []map[string]any{
+					{"name": "enabled", "op": "=", "value": false}},
+				},
+				Except{2},
+			},
+			{
+				"bool_case_2",
+				Param{Filters: []map[string]any{
+					{"name": "enabled", "op": "=", "value": true}},
+				},
+				Except{2},
+			},
+
+			{
+				"bool_case_3",
+				Param{Filters: []map[string]any{
+					{"name": "enabled", "op": "=", "value": "xxxx"}},
+				},
+				Except{0},
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				data := map[string]any{
+					"pos":     0,
+					"limit":   5,
+					"keyword": tt.params.Keyword,
+					"filters": tt.params.Filters,
+				}
+
+				b, _ := json.Marshal(data)
+				req := httptest.NewRequest(http.MethodPost, "/user/query", bytes.NewReader(b))
+				w := httptest.NewRecorder()
+				r.ServeHTTP(w, req)
+				assert.Equal(t, http.StatusOK, w.Result().StatusCode)
+
+				var res QueryResult[User]
+				err := json.Unmarshal(w.Body.Bytes(), &res)
+				assert.Nil(t, err)
+				assert.Equal(t, tt.expect.Num, res.TotalCount)
+			})
+		}
+
+	}
+}
+
+func TestObjectOrder(t *testing.T) {
+	type User struct {
+		ID   uint   `json:"uid" gorm:"primarykey"`
+		Name string `json:"name" gorm:"size:100"`
+		Age  int
+	}
+
+	db, _ := gorm.Open(sqlite.Open("file::memory:"), nil)
+	db.AutoMigrate(User{})
+
+	r := gin.Default()
+	webobject := WebObject[User]{
+		Orders: []string{"ID", "Name", "Age"},
+		GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB {
+			return db.Debug()
+		},
+		Init: func(ctx *gin.Context, vptr *User) {},
+	}
+	err := webobject.RegisterObject(r)
+	assert.Nil(t, err)
+
+	// Mock data
+	{
+		db.Create(&User{ID: 1, Name: "alice", Age: 9})
+		db.Create(&User{ID: 2, Name: "bob", Age: 10})
+		db.Create(&User{ID: 3, Name: "foo", Age: 13})
+		db.Create(&User{ID: 4, Name: "zoom", Age: 15})
+	}
+	// Query
+	{
+		type Param struct {
+			Keyword string
+			Orders  []map[string]any
+		}
+		type Except struct {
+			ID uint
+		}
+		tests := []struct {
+			name   string
+			params Param
+			expect Except
+		}{
+			{"base_case_1",
+				Param{Orders: []map[string]any{
+					{"name": "uid", "op": "desc"},
+				}},
+				Except{4},
+			},
+			{"base_case_2",
+				Param{Orders: []map[string]any{
+					{"name": "uid", "op": "asc"},
+				}},
+				Except{1},
+			},
+			{"base_case_3",
+				Param{Orders: []map[string]any{
+					{"name": "Age", "op": "asc"},
+				}},
+				Except{1},
+			},
+			{"base_case_4",
+				Param{Orders: []map[string]any{
+					{"name": "Age", "op": "desc"},
+				}},
+				Except{4},
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				data := map[string]any{
+					"pos":    0,
+					"limit":  5,
+					"orders": tt.params.Orders,
+				}
+
+				b, _ := json.Marshal(data)
+				req := httptest.NewRequest(http.MethodPost, "/user/query", bytes.NewReader(b))
+				w := httptest.NewRecorder()
+				r.ServeHTTP(w, req)
+				assert.Equal(t, http.StatusOK, w.Result().StatusCode)
+
+				var res QueryResult[User]
+				err := json.Unmarshal(w.Body.Bytes(), &res)
+				assert.Nil(t, err)
+				fmt.Println(res.Items)
+				assert.Equal(t, tt.expect.ID, res.Items[0].ID)
+			})
+		}
+
+	}
+}
+
+// TODO:
+func TestObjectEdit(t *testing.T) {
+	type User struct {
+		ID       uint      `json:"uid" gorm:"primarykey"`
+		Name     string    `json:"name" gorm:"size:100"`
+		Age      int       `json:"age"`
+		Enabled  bool      `json:"enabled"`
+		Birthday time.Time `json:"birthday"`
+	}
+
+	// Query
+	{
+		type Param struct {
+			ID   uint
+			Data map[string]any
+		}
+		type Except struct {
+			Code int
+		}
+		tests := []struct {
+			name   string
+			params Param
+			expect Except
+		}{
+			{"base_case_1",
+				Param{1, map[string]any{
+					"name": "hhhhh",
+					"age":  12,
+				}},
+				Except{http.StatusOK},
+			},
+			{"base_case_2",
+				Param{1, map[string]any{
+					"name": true,
+					"age":  "12",
+				}},
+				Except{http.StatusBadRequest},
+			},
+			{"base_case_3",
+				Param{1, map[string]any{
+					"name": 11,
+				}},
+				Except{http.StatusBadRequest},
+			},
+			{"base_case_4",
+				Param{1, map[string]any{
+					"enabled": true,
+				}},
+				Except{http.StatusOK},
+			},
+			{"bad_case_1",
+				Param{1, map[string]any{}},
+				Except{http.StatusBadRequest},
+			},
+			{"bad_case_2",
+				Param{1, map[string]any{
+					"xxxxxx": "xxxxxx",
+				}},
+				Except{http.StatusBadRequest},
+			},
+			// TODO:
+			// {"bad_case_3",
+			// 	Param{1, map[string]any{
+			// 		"name": nil,
+			// 	}},
+			// 	Except{http.StatusBadRequest},
+			// },
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+
+				db, _ := gorm.Open(sqlite.Open("file::memory:"), nil)
+				db.AutoMigrate(User{})
+
+				r := gin.Default()
+				webobject := WebObject[User]{
+					Editables: []string{"Name", "Age", "Enabled"},
+					GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB {
+						return db.Debug()
+					},
+					Init: func(ctx *gin.Context, vptr *User) {},
+				}
+				err := webobject.RegisterObject(r)
+				assert.Nil(t, err)
+
+				// Mock data
+				{
+					db.Create(&User{ID: 1, Name: "alice", Age: 9})
+				}
+
+				b, _ := json.Marshal(tt.params.Data)
+				req := httptest.NewRequest(http.MethodPatch, fmt.Sprintf("/user/%d", tt.params.ID), bytes.NewReader(b))
+				w := httptest.NewRecorder()
+				r.ServeHTTP(w, req)
+				assert.Equal(t, tt.expect.Code, w.Result().StatusCode)
+			})
+		}
+	}
+}
+
+func TestObjectRegister(t *testing.T) {
+	type User struct {
+		ID       uint      `json:"uid" gorm:"primarykey"`
+		Name     string    `json:"name" gorm:"size:100"`
+		Age      int       `json:"age"`
+		Enabled  bool      `json:"enabled"`
+		Birthday time.Time `json:"birthday"`
+	}
+
+	{
+		type Param struct {
+			Filterable []string
+			Filters    []map[string]any
+		}
+		type Except struct {
+			Total int
+		}
+		tests := []struct {
+			name   string
+			params Param
+			expect Except
+		}{
+			{"filter by name and name is filterable",
+				Param{
+					[]string{"Name"},
+					[]map[string]any{{"name": "name", "op": "=", "value": "alice"}},
+				},
+				Except{1},
+			},
+			{"filter by name but name is not filterable",
+				Param{
+					[]string{"Age"},
+					[]map[string]any{{"name": "name", "op": "=", "value": "alice"}},
+				},
+				Except{4},
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+
+				db, _ := gorm.Open(sqlite.Open("file::memory:"), nil)
+				db.AutoMigrate(User{})
+
+				r := gin.Default()
+				webobject := WebObject[User]{
+					Filters: tt.params.Filterable,
+					GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB {
+						return db.Debug()
+					},
+					Init: func(ctx *gin.Context, vptr *User) {},
+				}
+				err := webobject.RegisterObject(r)
+				assert.Nil(t, err)
+
+				// Mock data
+				{
+					db.Create(&User{ID: 1, Name: "alice", Age: 9})
+					db.Create(&User{ID: 2, Name: "bob", Age: 10})
+					db.Create(&User{ID: 3, Name: "clash", Age: 11})
+					db.Create(&User{ID: 4, Name: "duck", Age: 12})
+				}
+
+				data := map[string]any{
+					"pos":     0,
+					"limit":   5,
+					"filters": tt.params.Filters,
+				}
+
+				b, _ := json.Marshal(data)
+				req := httptest.NewRequest(http.MethodPost, "/user/query", bytes.NewReader(b))
+				w := httptest.NewRecorder()
+				r.ServeHTTP(w, req)
+				assert.Equal(t, http.StatusOK, w.Result().StatusCode)
+
+				var res QueryResult[User]
+				json.Unmarshal(w.Body.Bytes(), &res)
+				assert.Equal(t, tt.expect.Total, res.TotalCount)
+			})
+		}
 	}
 }

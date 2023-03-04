@@ -53,8 +53,8 @@ func SafeCall(f func() error, failHandle func(error)) error {
 	return f()
 }
 
-func StructAsMap(form interface{}, fields []string) (vals map[string]interface{}) {
-	vals = make(map[string]interface{})
+func StructAsMap(form any, fields []string) (vals map[string]any) {
+	vals = make(map[string]any)
 	v := reflect.ValueOf(form)
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
