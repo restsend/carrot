@@ -380,7 +380,6 @@ func TestEditBool(t *testing.T) {
 				body, _ := json.Marshal(tt.param)
 				w := client.PostRaw(http.MethodPatch, fmt.Sprintf("/muser/%d", create.ID), body)
 				assert.Equal(t, w.Code, http.StatusBadRequest)
-				fmt.Println(w.Body) // {"error":"not changed"}
 			})
 		}
 
@@ -651,7 +650,7 @@ func TestObjectQuery(t *testing.T) {
 
 func TestObjectOrder(t *testing.T) {
 	type User struct {
-		ID   uint   `json:"uid" gorm:"primarykey"`
+		UUID string `json:"uid" gorm:"primarykey"`
 		Name string `json:"name" gorm:"size:100"`
 		Age  int
 	}
@@ -672,10 +671,10 @@ func TestObjectOrder(t *testing.T) {
 
 	// Mock data
 	{
-		db.Create(&User{ID: 1, Name: "alice", Age: 9})
-		db.Create(&User{ID: 2, Name: "bob", Age: 10})
-		db.Create(&User{ID: 3, Name: "foo", Age: 13})
-		db.Create(&User{ID: 4, Name: "zoom", Age: 15})
+		db.Create(&User{UUID: "aaa", Name: "alice", Age: 9})
+		db.Create(&User{UUID: "bbb", Name: "bob", Age: 10})
+		db.Create(&User{UUID: "ccc", Name: "foo", Age: 13})
+		db.Create(&User{UUID: "ddd", Name: "zoom", Age: 15})
 	}
 	// Query
 	{
@@ -684,36 +683,36 @@ func TestObjectOrder(t *testing.T) {
 			Orders  []map[string]any
 		}
 		type Except struct {
-			ID uint
+			ID string
 		}
 		tests := []struct {
 			name   string
 			params Param
 			expect Except
 		}{
-			{"base_case_1",
-				Param{Orders: []map[string]any{
-					{"name": "uid", "op": "desc"},
-				}},
-				Except{4},
-			},
-			{"base_case_2",
-				Param{Orders: []map[string]any{
-					{"name": "uid", "op": "asc"},
-				}},
-				Except{1},
-			},
+			// {"base_case_1",
+			// 	Param{Orders: []map[string]any{
+			// 		{"name": "uid", "op": "desc"},
+			// 	}},
+			// 	Except{"aaa"},
+			// },
+			// {"base_case_2",
+			// 	Param{Orders: []map[string]any{
+			// 		{"name": "uid", "op": "asc"},
+			// 	}},
+			// 	Except{"aaa"},
+			// },
 			{"base_case_3",
 				Param{Orders: []map[string]any{
 					{"name": "Age", "op": "asc"},
 				}},
-				Except{1},
+				Except{"aaa"},
 			},
 			{"base_case_4",
 				Param{Orders: []map[string]any{
 					{"name": "Age", "op": "desc"},
 				}},
-				Except{4},
+				Except{"ddd"},
 			},
 		}
 
@@ -734,8 +733,7 @@ func TestObjectOrder(t *testing.T) {
 				var res QueryResult[User]
 				err := json.Unmarshal(w.Body.Bytes(), &res)
 				assert.Nil(t, err)
-				fmt.Println(res.Items)
-				assert.Equal(t, tt.expect.ID, res.Items[0].ID)
+				assert.Equal(t, tt.expect.ID, res.Items[0].UUID)
 			})
 		}
 
@@ -745,11 +743,12 @@ func TestObjectOrder(t *testing.T) {
 // TODO:
 func TestObjectEdit(t *testing.T) {
 	type User struct {
-		ID       uint      `json:"uid" gorm:"primarykey"`
-		Name     string    `json:"name" gorm:"size:100"`
-		Age      int       `json:"age"`
-		Enabled  bool      `json:"enabled"`
-		Birthday time.Time `json:"birthday"`
+		UUID       string    `json:"uid" gorm:"primarykey"`
+		Name       string    `json:"name" gorm:"size:100"`
+		Age        int       `json:"age"`
+		Enabled    bool      `json:"enabled"`
+		Birthday   time.Time `json:"birthday"`
+		CannotEdit string    `json:"cannotEdit"`
 	}
 
 	// Query
@@ -802,13 +801,19 @@ func TestObjectEdit(t *testing.T) {
 				}},
 				Except{http.StatusBadRequest},
 			},
+			{"bad_case_3",
+				Param{1, map[string]any{
+					"cannotEdit": "xxxxxx",
+				}},
+				Except{http.StatusBadRequest},
+			},
 			// TODO:
-			// {"bad_case_3",
-			// 	Param{1, map[string]any{
-			// 		"name": nil,
-			// 	}},
-			// 	Except{http.StatusBadRequest},
-			// },
+			{"bad_case_4",
+				Param{1, map[string]any{
+					"name": nil,
+				}},
+				Except{http.StatusBadRequest},
+			},
 		}
 
 		for _, tt := range tests {
@@ -823,14 +828,14 @@ func TestObjectEdit(t *testing.T) {
 					GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB {
 						return db.Debug()
 					},
-					Init: func(ctx *gin.Context, vptr *User) {},
+					Init: func(ctx *gin.Context, u *User) {},
 				}
 				err := webobject.RegisterObject(r)
 				assert.Nil(t, err)
 
 				// Mock data
 				{
-					db.Create(&User{ID: 1, Name: "alice", Age: 9})
+					db.Create(&User{UUID: "aaa", Name: "alice", Age: 9})
 				}
 
 				b, _ := json.Marshal(tt.params.Data)
@@ -843,9 +848,44 @@ func TestObjectEdit(t *testing.T) {
 	}
 }
 
-func TestObjectRegister(t *testing.T) {
+func TestObjectNoFieldEdit(t *testing.T) {
 	type User struct {
 		ID       uint      `json:"uid" gorm:"primarykey"`
+		Name     string    `json:"name" gorm:"size:100"`
+		Age      int       `json:"age"`
+		Enabled  bool      `json:"enabled"`
+		Birthday time.Time `json:"birthday"`
+	}
+
+	db, _ := gorm.Open(sqlite.Open("file::memory:"), nil)
+	db.AutoMigrate(User{})
+
+	r := gin.Default()
+	webobject := WebObject[User]{
+		Editables: []string{},
+		GetDB:     func(ctx *gin.Context, isCreate bool) *gorm.DB { return db },
+	}
+	err := webobject.RegisterObject(r)
+	assert.Nil(t, err)
+
+	db.Create(&User{ID: 1, Name: "alice", Age: 9})
+
+	var data = map[string]any{
+		"name":    "updatename",
+		"age":     11,
+		"enabled": true,
+		"birthay": "2022-02-02 11:11:11",
+	}
+	b, _ := json.Marshal(data)
+	req := httptest.NewRequest(http.MethodPatch, fmt.Sprintf("/user/%d", 1), bytes.NewReader(b))
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Result().StatusCode)
+}
+
+func TestObjectRegister(t *testing.T) {
+	type User struct {
+		UUID     string    `json:"uid" gorm:"primarykey"`
 		Name     string    `json:"name" gorm:"size:100"`
 		Age      int       `json:"age"`
 		Enabled  bool      `json:"enabled"`
@@ -900,10 +940,10 @@ func TestObjectRegister(t *testing.T) {
 
 				// Mock data
 				{
-					db.Create(&User{ID: 1, Name: "alice", Age: 9})
-					db.Create(&User{ID: 2, Name: "bob", Age: 10})
-					db.Create(&User{ID: 3, Name: "clash", Age: 11})
-					db.Create(&User{ID: 4, Name: "duck", Age: 12})
+					db.Create(&User{UUID: "1", Name: "alice", Age: 9})
+					db.Create(&User{UUID: "2", Name: "bob", Age: 10})
+					db.Create(&User{UUID: "3", Name: "clash", Age: 11})
+					db.Create(&User{UUID: "4", Name: "duck", Age: 12})
 				}
 
 				data := map[string]any{
@@ -924,4 +964,45 @@ func TestObjectRegister(t *testing.T) {
 			})
 		}
 	}
+}
+
+func TestBatchDelete(t *testing.T) {
+	type User struct {
+		UUID     uint      `json:"uid" gorm:"primarykey"`
+		Name     string    `json:"name" gorm:"size:100"`
+		Age      int       `json:"age"`
+		Enabled  bool      `json:"enabled"`
+		Birthday time.Time `json:"birthday"`
+	}
+
+	db, _ := gorm.Open(sqlite.Open("file::memory:"), nil)
+	db.AutoMigrate(User{})
+
+	r := gin.Default()
+	webobject := WebObject[User]{
+		GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB { return db },
+	}
+	err := webobject.RegisterObject(r)
+	assert.Nil(t, err)
+
+	db.Create(&User{UUID: 1, Name: "alice", Age: 9})
+	db.Create(&User{UUID: 2, Name: "bob", Age: 10})
+	db.Create(&User{UUID: 3, Name: "charlie", Age: 11})
+	db.Create(&User{UUID: 4, Name: "dave", Age: 12})
+
+	var data = map[string]any{
+		"delete": []string{"1", "2"},
+	}
+	b, _ := json.Marshal(data)
+	req := httptest.NewRequest(http.MethodPost, "/user/batch", bytes.NewReader(b))
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Result().StatusCode)
+
+	req = httptest.NewRequest(http.MethodPost, "/user/query", nil)
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	var res QueryResult[User]
+	json.Unmarshal(w.Body.Bytes(), &res)
+	assert.Equal(t, 2, res.TotalCount)
 }

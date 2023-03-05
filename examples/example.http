@@ -34,3 +34,13 @@ Content-Type: {{contentType}}
 
 ### Delete
 DELETE {{env}}/product/demoid
+
+### Batch Delete
+POST {{env}}/product/batch
+Connection: {{contentType}}
+
+{
+  "delete": ["1", "2", "3", "demoid"]
+}
+
+### TODO: Batch Add, Batch Update

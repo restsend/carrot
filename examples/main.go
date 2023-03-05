@@ -10,7 +10,7 @@ import (
 )
 
 type Product struct {
-	UUID      string    `json:"id" gorm:"primaryKey"`
+	UUID      string    `json:"id" gorm:"primarykey"`
 	Name      string    `json:"name"`
 	CreatedAt time.Time `json:"created_at"`
 	Enabled   bool      `json:"enabled"`
@@ -30,18 +30,17 @@ func main() {
 	// Connect user event, eg. Login, Create
 	carrot.Sig().Connect(carrot.SigUserCreate, func(sender any, params ...any) {
 		user := sender.(*carrot.User)
-		log.Println("create user", user.GetVisibleName())
+		log.Println("create user: ", user.GetVisibleName())
 	})
 	carrot.Sig().Connect(carrot.SigUserLogin, func(sender any, params ...any) {
 		user := sender.(*carrot.User)
-		log.Println("user logined", user.GetVisibleName())
+		log.Println("user logined: ", user.GetVisibleName())
 	})
 
 	// Register WebObject
 	RegisterWebObjectHandler(r, db)
 
 	// Visit:
-	//  http://localhost:8080/
 	//  http://localhost:8080/auth/login
 	r.Run(":8080")
 }
@@ -49,7 +48,7 @@ func main() {
 // Check example.http
 func RegisterWebObjectHandler(r *gin.Engine, db *gorm.DB) {
 	product := carrot.WebObject[Product]{
-		Model:     Product{},
+		// Model:     Product{},
 		Searchs:   []string{"Name"},
 		Editables: []string{"Name", "Enabled"},
 		Filters:   []string{"Name", "CreatedAt", "Enabled"},
@@ -57,16 +56,16 @@ func RegisterWebObjectHandler(r *gin.Engine, db *gorm.DB) {
 			return db
 		},
 		// You can Specify how the id is generated.
-		Init: func(ctx *gin.Context, v *Product) {
-			v.UUID = carrot.RandText(10)
+		Init: func(ctx *gin.Context, p *Product) {
+			// p.UUID = carrot.RandText(10)
 		},
 	}
 
 	if err := product.RegisterObject(r); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	if err := carrot.MakeMigrates(db, []any{Product{}}); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }

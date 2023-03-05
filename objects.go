@@ -3,7 +3,6 @@ package carrot
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"net/http"
 	"path/filepath"
 	"reflect"
@@ -48,16 +47,17 @@ const (
 	EDIT   = 1 << 3
 	DELETE = 1 << 4
 	QUERY  = 1 << 5
+	BATCH  = 1 << 6
 )
 
 type GetDB func(ctx *gin.Context, isCreate bool) *gorm.DB
 type PrepareModel[T any] func(ctx *gin.Context, vptr *T)
-type PrepareQuery func(ctx *gin.Context) (*QueryForm, error)
+type PrepareQuery[T any] func(ctx *gin.Context, obj *WebObject[T]) (*gorm.DB, *QueryForm, error)
 
 // TODO:
-type QueryView struct {
+type QueryView[T any] struct {
 	Name    string
-	Prepare PrepareQuery
+	Prepare PrepareQuery[T]
 }
 
 type WebObject[T any] struct {
@@ -70,7 +70,7 @@ type WebObject[T any] struct {
 	Searchs      []string
 	GetDB        GetDB           // TODO: 抽取，解耦
 	Init         PrepareModel[T] // How to create a new object
-	Views        []QueryView
+	Views        []QueryView[T]
 	AllowMethods int
 
 	PrimaryKeyName     string
@@ -80,7 +80,7 @@ type WebObject[T any] struct {
 	// Map json tag to struct field name. such as:
 	// UUID string `json:"id"` => {"id" : "UUID"}
 	jsonToFields map[string]string
-	// Map json tag to field type. such as:
+	// Map json tag to field kind. such as:
 	// UUID string `json:"id"` => {"id": string}
 	jsonToKinds map[string]reflect.Kind
 }
@@ -113,6 +113,19 @@ type QueryResult[T any] struct {
 	Items      []T    `json:"items"`
 }
 
+// TODO: 批量新增、批量更新？
+// Batch operation form
+type BatchForm[T any] struct {
+	Delete []string     `json:"delete"`
+	Create BatchBody[T] `json:"create"` // TODO:
+	Update BatchBody[T] `json:"update"` // TODO:
+}
+
+type BatchBody[T any] struct {
+	Ids  []string `json:"ids"`
+	Body []T      `json:"body"`
+}
+
 // GetQuery return the combined filter SQL statement.
 // such as "age >= ?", "name IN ?".
 func (f *Filter) GetQuery() string {
@@ -138,24 +151,6 @@ func (f *Filter) GetQuery() string {
 	return fmt.Sprintf("%s %s ?", f.Name, op)
 }
 
-// GetValue return the target value of the filter SQL statement.
-func (f *Filter) GetValue() any {
-	return f.Value
-	// if f.targetValue == nil && f.Value != "" {
-	// 	return f.Value
-	// }
-	// if f.Op != FilterOpIn && f.Op != FilterOpNotIn {
-	// 	// return f.targetValue
-	// 	return f.Value
-	// }
-	// var arrValues []any
-	// err := json.Unmarshal([]byte(f.Value), &arrValues)
-	// if err == nil {
-	// 	return arrValues
-	// }
-	// return f.Value
-}
-
 // GetQuery return the combined order SQL statement.
 // such as "id DESC".
 func (f *Order) GetQuery() string {
@@ -173,7 +168,7 @@ func (obj *WebObject[T]) RegisterObject(r gin.IRoutes) error {
 	p := filepath.Join(obj.Group, obj.Name)
 	allowMethods := obj.AllowMethods
 	if allowMethods == 0 {
-		allowMethods = GET | CREATE | EDIT | DELETE | QUERY
+		allowMethods = GET | CREATE | EDIT | DELETE | QUERY | BATCH
 	}
 
 	if allowMethods&GET != 0 {
@@ -200,7 +195,13 @@ func (obj *WebObject[T]) RegisterObject(r gin.IRoutes) error {
 
 	if allowMethods&QUERY != 0 {
 		r.POST(filepath.Join(p, "query"), func(c *gin.Context) {
-			handleQueryObject(c, obj, DefaultPrepareQuery)
+			handleQueryObject(c, obj, DefaultPrepareQuery[T])
+		})
+	}
+
+	if allowMethods&BATCH != 0 {
+		r.POST(filepath.Join(p, "batch"), func(c *gin.Context) {
+			handleBatchObject(c, obj)
 		})
 	}
 
@@ -209,7 +210,7 @@ func (obj *WebObject[T]) RegisterObject(r gin.IRoutes) error {
 		r.POST(filepath.Join(p, v.Name), func(ctx *gin.Context) {
 			f := v.Prepare
 			if f == nil {
-				f = DefaultPrepareQuery
+				f = DefaultPrepareQuery[T]
 			}
 			handleQueryObject(ctx, obj, v.Prepare)
 		})
@@ -217,15 +218,20 @@ func (obj *WebObject[T]) RegisterObject(r gin.IRoutes) error {
 	return nil
 }
 
-func RegisterObjects[T any](r gin.IRoutes, objs []WebObject[T]) {
-	for idx := range objs {
-		obj := &objs[idx]
-		err := obj.RegisterObject(r)
-		if err != nil {
-			log.Printf("RegisterObject [%s] fail %v\n", obj.Name, err)
-		}
-	}
+func RegisterObject[T any](r gin.IRoutes, obj *WebObject[T]) error {
+	return obj.RegisterObject(r)
 }
+
+// TODO: 使用泛型后似乎无法用循环批量注册
+// func RegisterObjects[T any](r gin.IRoutes, objs []WebObject[T]) {
+// 	for idx := range objs {
+// 		obj := &objs[idx]
+// 		err := obj.RegisterObject(r)
+// 		if err != nil {
+// 			log.Printf("RegisterObject [%s] fail %v\n", obj.Name, err)
+// 		}
+// 	}
+// }
 
 // Build fill the properties of obj.
 func (obj *WebObject[T]) Build() error {
@@ -351,6 +357,9 @@ func handleEditObject[T any](c *gin.Context, obj *WebObject[T]) {
 	delete(inputVals, obj.PrimaryKeyJsonName)
 
 	for k, v := range inputVals {
+		if v == nil {
+			continue
+		}
 		// Check the kind to be edited.
 		kind, ok := obj.jsonToKinds[k]
 		if !ok {
@@ -363,7 +372,8 @@ func handleEditObject[T any](c *gin.Context, obj *WebObject[T]) {
 		}
 
 		if !checkType(kind, reflect.TypeOf(v).Kind()) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("%s type not match", fname)})
+			c.JSON(http.StatusBadRequest,
+				gin.H{"error": fmt.Sprintf("%s type not match", fname)})
 			return
 		}
 
@@ -378,6 +388,8 @@ func handleEditObject[T any](c *gin.Context, obj *WebObject[T]) {
 			}
 		}
 		vals = stripVals
+	} else {
+		vals = map[string]any{}
 	}
 
 	if len(vals) == 0 {
@@ -389,7 +401,7 @@ func handleEditObject[T any](c *gin.Context, obj *WebObject[T]) {
 	pkColName := db.NamingStrategy.ColumnName(obj.tableName, obj.PrimaryKeyName)
 	result := db.Model(model).Where(pkColName, key).UpdateColumns(vals)
 	if result.Error != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": result.Error.Error()})
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
 		return
 	}
 
@@ -405,21 +417,52 @@ func handleDeleteObject[T any](c *gin.Context, obj *WebObject[T]) {
 	var val T
 	result := db.Where(pkColName, key).Delete(val)
 	if result.Error != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": result.Error.Error()})
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, true)
 }
 
-func handleQueryObject[T any](c *gin.Context, obj *WebObject[T], prepareQuery PrepareQuery) {
-	form, err := prepareQuery(c)
+func handleBatchObject[T any](c *gin.Context, obj *WebObject[T]) {
+	var form BatchForm[T]
+	if err := c.BindJSON(&form); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"err": err.Error()})
+		return
+	}
+
+	db := obj.GetDB(c, false)
+
+	var data = make(map[string]bool)
+
+	if len(form.Delete) > 0 {
+		var val T
+		result := db.Delete(&val, form.Delete)
+		if result.Error != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+			return
+		}
+		data["delete"] = true
+	}
+
+	if len(form.Create.Ids) > 0 {
+		// TODO:
+	}
+
+	if len(form.Update.Ids) > 0 {
+		// TODO:
+	}
+
+	c.JSON(http.StatusOK, data)
+}
+
+func handleQueryObject[T any](c *gin.Context, obj *WebObject[T], prepareQuery PrepareQuery[T]) {
+	db, form, err := prepareQuery(c, obj)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	db := obj.GetDB(c, false)
 	namer := db.NamingStrategy
 
 	// Use struct{} makes map like set.
@@ -492,13 +535,15 @@ func handleQueryObject[T any](c *gin.Context, obj *WebObject[T], prepareQuery Pr
 
 // QueryObjects excute query and return data.
 func QueryObjects[T any](db *gorm.DB, obj *WebObject[T], form *QueryForm) (r QueryResult[T], err error) {
+	r.Items = make([]T, 0)
+
 	// the real name of the db table
 	tblName := db.NamingStrategy.TableName(obj.tableName)
 
 	for _, v := range form.Filters {
 		q := v.GetQuery()
 		if q != "" {
-			db = db.Where(fmt.Sprintf("%s.%s", tblName, q), v.GetValue())
+			db = db.Where(fmt.Sprintf("%s.%s", tblName, q), v.Value)
 		}
 	}
 
@@ -553,14 +598,14 @@ func QueryObjects[T any](db *gorm.DB, obj *WebObject[T], form *QueryForm) (r Que
 }
 
 // DefaultPrepareQuery return default QueryForm.
-func DefaultPrepareQuery(c *gin.Context) (*QueryForm, error) {
+func DefaultPrepareQuery[T any](c *gin.Context, obj *WebObject[T]) (*gorm.DB, *QueryForm, error) {
 	var form QueryForm
 	if c.Request.ContentLength > 0 {
 		if err := c.BindJSON(&form); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
-	return &form, nil
+	return obj.GetDB(c, false), &form, nil
 }
 
 /*
@@ -572,8 +617,9 @@ Check Go type corresponds to JSON type.
 - nil, for JSON null
 */
 func checkType(goKind, jsonKind reflect.Kind) bool {
-	fmt.Println(goKind, jsonKind)
 	switch goKind {
+	case reflect.Struct, reflect.Slice: // time.Time 或 关联用的结构体 或 切片
+		return true
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
 		reflect.Float32, reflect.Float64:
@@ -582,49 +628,3 @@ func checkType(goKind, jsonKind reflect.Kind) bool {
 		return goKind == jsonKind
 	}
 }
-
-// parseBool convert v to bool type. Unresolved is false.
-// func parseBool(v any) (res bool, err error) {
-// 	if val, ok := v.(bool); ok {
-// 		return val, nil
-// 	}
-// 	if val, ok := v.(string); ok {
-// 		return strconv.ParseBool(val)
-// 	}
-// 	return false, errors.New("parse bool type error")
-// }
-
-// ConverKey convert the kind of v to dst.
-// func ConvertKey(dst reflect.Type, v any) any {
-// 	if v == nil {
-// 		return nil
-// 	}
-// 	src := reflect.TypeOf(v)
-// 	if src.Kind() == dst.Kind() {
-// 		return v
-// 	}
-
-// 	if src.Kind() == reflect.String {
-// 		switch dst.Kind() {
-// 		case reflect.Int:
-// 			x, _ := strconv.ParseInt(v.(string), 10, 64)
-// 			return int(x)
-// 		case reflect.Int64:
-// 			x, _ := strconv.ParseInt(v.(string), 10, 64)
-// 			return x
-// 		case reflect.Uint:
-// 			x, _ := strconv.ParseUint(v.(string), 10, 64)
-// 			return uint(x)
-// 		case reflect.Uint64:
-// 			x, _ := strconv.ParseUint(v.(string), 10, 64)
-// 			return x
-// 		case reflect.Bool:
-// 			x, _ := strconv.ParseBool(v.(string))
-// 			return x
-// 		case reflect.Float32, reflect.Float64:
-// 			x, _ := strconv.ParseFloat(v.(string), 64)
-// 			return x
-// 		}
-// 	}
-// 	return fmt.Sprintf("%v", v)
-// }
