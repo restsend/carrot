@@ -650,9 +650,10 @@ func TestObjectQuery(t *testing.T) {
 
 func TestObjectOrder(t *testing.T) {
 	type User struct {
-		UUID string `json:"uid" gorm:"primarykey"`
-		Name string `json:"name" gorm:"size:100"`
-		Age  int
+		UUID      string    `json:"uid" gorm:"primarykey"`
+		CreatedAt time.Time `json:"createdAt"`
+		Name      string    `json:"name" gorm:"size:100"`
+		Age       int
 	}
 
 	db, _ := gorm.Open(sqlite.Open("file::memory:"), nil)
@@ -660,7 +661,7 @@ func TestObjectOrder(t *testing.T) {
 
 	r := gin.Default()
 	webobject := WebObject[User]{
-		Orders: []string{"ID", "Name", "Age"},
+		Orders: []string{"UUID", "Name", "Age", "CreatedAt"},
 		GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB {
 			return db.Debug()
 		},
@@ -671,10 +672,10 @@ func TestObjectOrder(t *testing.T) {
 
 	// Mock data
 	{
-		db.Create(&User{UUID: "aaa", Name: "alice", Age: 9})
-		db.Create(&User{UUID: "bbb", Name: "bob", Age: 10})
-		db.Create(&User{UUID: "ccc", Name: "foo", Age: 13})
-		db.Create(&User{UUID: "ddd", Name: "zoom", Age: 15})
+		db.Create(&User{UUID: "aaa", Name: "alice", Age: 9, CreatedAt: time.Now()})
+		db.Create(&User{UUID: "bbb", Name: "bob", Age: 10, CreatedAt: time.Now().Add(time.Second * 5)})
+		db.Create(&User{UUID: "ccc", Name: "foo", Age: 13, CreatedAt: time.Now().Add(time.Second * 10)})
+		db.Create(&User{UUID: "ddd", Name: "zoom", Age: 15, CreatedAt: time.Now().Add(time.Second * 15)})
 	}
 	// Query
 	{
@@ -690,27 +691,43 @@ func TestObjectOrder(t *testing.T) {
 			params Param
 			expect Except
 		}{
-			// {"base_case_1",
-			// 	Param{Orders: []map[string]any{
-			// 		{"name": "uid", "op": "desc"},
-			// 	}},
-			// 	Except{"aaa"},
-			// },
-			// {"base_case_2",
-			// 	Param{Orders: []map[string]any{
-			// 		{"name": "uid", "op": "asc"},
-			// 	}},
-			// 	Except{"aaa"},
-			// },
-			{"base_case_3",
+			{"base_case_1:name_desc",
+				Param{Orders: []map[string]any{
+					{"name": "name", "op": "desc"},
+				}},
+				Except{"ddd"},
+			},
+			{"base_case_2:name_asc",
+				Param{Orders: []map[string]any{
+					{"name": "name", "op": "asc"},
+				}},
+				Except{"aaa"},
+			},
+			{"base_case_3:nil",
+				Param{Orders: nil},
+				Except{"aaa"},
+			},
+			{"base_case_4:age_asc",
 				Param{Orders: []map[string]any{
 					{"name": "Age", "op": "asc"},
 				}},
 				Except{"aaa"},
 			},
-			{"base_case_4",
+			{"base_case_5:age_desc",
 				Param{Orders: []map[string]any{
 					{"name": "Age", "op": "desc"},
+				}},
+				Except{"ddd"},
+			},
+			{"base_case_6:createdAt_asc",
+				Param{Orders: []map[string]any{
+					{"name": "createdAt", "op": "asc"},
+				}},
+				Except{"aaa"},
+			},
+			{"base_case_5:createdAt_desc",
+				Param{Orders: []map[string]any{
+					{"name": "createdAt", "op": "desc"},
 				}},
 				Except{"ddd"},
 			},
