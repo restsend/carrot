@@ -141,7 +141,7 @@ func CheckPassword(user *User, password string) bool {
 
 func SetPassword(db *gorm.DB, user *User, password string) (err error) {
 	p := HashPassword(password)
-	err = UpdateUserFields(db, user, map[string]interface{}{
+	err = UpdateUserFields(db, user, map[string]any{
 		"Password": p,
 	})
 	if err != nil {
@@ -192,13 +192,13 @@ func CreateUser(db *gorm.DB, email, password string) (*User, error) {
 	return &user, result.Error
 }
 
-func UpdateUserFields(db *gorm.DB, user *User, vals map[string]interface{}) error {
+func UpdateUserFields(db *gorm.DB, user *User, vals map[string]any) error {
 	return db.Model(user).Updates(vals).Error
 }
 
 func SetLastLogin(db *gorm.DB, user *User, lastIp string) error {
 	now := time.Now().Truncate(1 * time.Second)
-	vals := map[string]interface{}{
+	vals := map[string]any{
 		"LastLoginIP": lastIp,
 		"LastLogin":   &now,
 	}

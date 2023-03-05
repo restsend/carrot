@@ -3,7 +3,7 @@ package carrot
 //Signals
 //
 
-type SignalHandler func(sender interface{}, params ...interface{})
+type SignalHandler func(sender any, params ...any)
 
 type SigHandler struct {
 	ID      uint
@@ -105,7 +105,7 @@ func (s *Signals) Disconnect(event string, id uint) {
 	s.processEvents()
 }
 
-func (s *Signals) Emit(event string, sender interface{}, params ...interface{}) {
+func (s *Signals) Emit(event string, sender any, params ...any) {
 	s.inLoop = true
 	defer func() {
 		s.inLoop = false

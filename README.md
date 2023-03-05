@@ -23,11 +23,11 @@ func main() {
 	carrot.CheckValue(db, carrot.KEY_SITE_NAME, "Your Name")
 
 	// Connect user event, eg. Login, Create
-	carrot.Sig().Connect(carrot.SigUserCreate, func(sender interface{}, params ...interface{}) {
+	carrot.Sig().Connect(carrot.SigUserCreate, func(sender any, params ...any) {
 		user := sender.(*carrot.User)
 		log.Println("create user", user.GetVisibleName())
 	})
-	carrot.Sig().Connect(carrot.SigUserLogin, func(sender interface{}, params ...interface{}) {
+	carrot.Sig().Connect(carrot.SigUserLogin, func(sender any, params ...any) {
 		user := sender.(*carrot.User)
 		log.Println("user logined", user.GetVisibleName())
 	})

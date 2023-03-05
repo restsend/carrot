@@ -15,9 +15,9 @@ import (
 	"gorm.io/gorm"
 )
 
-func GetRenderPageContext(c *gin.Context) map[string]interface{} {
+func GetRenderPageContext(c *gin.Context) map[string]any {
 	db := c.MustGet(DbField).(*gorm.DB)
-	return map[string]interface{}{
+	return map[string]any{
 		"siteurl":            GetValue(db, KEY_SITE_URL),
 		"sitename":           GetValue(db, KEY_SITE_NAME),
 		"copyright":          GetValue(db, KEY_SITE_COPYRIGHT),
@@ -119,7 +119,7 @@ func (as *StaticAssets) Open(name string) (http.File, error) {
 
 // gin.HTML Render
 func (as *StaticAssets) Instance(name string, ctx any) render.Render {
-	vals := ctx.(map[string]interface{})
+	vals := ctx.(map[string]any)
 	r := &PongoRender{
 		sets:     as.sets,
 		fileName: as.Locate(filepath.Join(as.TemplateDir, name)),

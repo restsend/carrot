@@ -41,7 +41,7 @@ func InitDatabase(logWrite io.Writer, driver, dsn string) (*gorm.DB, error) {
 	return createDatabaseInstance(cfg, driver, dsn)
 }
 
-func MakeMigrates(db *gorm.DB, insts []interface{}) error {
+func MakeMigrates(db *gorm.DB, insts []any) error {
 	for idx := range insts {
 		v := insts[idx]
 		err := db.AutoMigrate(v)

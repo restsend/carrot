@@ -63,7 +63,7 @@ func (c *TestClient) PostRaw(method, path string, body []byte) *httptest.Respons
 }
 
 // Rpc Call
-func (c *TestClient) Call(method, path string, form interface{}, result interface{}) error {
+func (c *TestClient) Call(method, path string, form any, result any) error {
 	body, err := json.Marshal(form)
 	if err != nil {
 		return err
@@ -85,22 +85,22 @@ func (c *TestClient) Call(method, path string, form interface{}, result interfac
 /** For WebObject CRUD quick test. **/
 
 // Rpc Get
-func (c *TestClient) Get(path string, result interface{}) error {
+func (c *TestClient) Get(path string, result any) error {
 	return c.Call(http.MethodGet, path, nil, result)
 }
 
 // Rpc Post
-func (c *TestClient) Post(path string, form interface{}, result interface{}) error {
+func (c *TestClient) Post(path string, form any, result any) error {
 	return c.Call(http.MethodPost, path, form, result)
 }
 
 // Rpc Put
-func (c *TestClient) Put(path string, form interface{}, result interface{}) error {
+func (c *TestClient) Put(path string, form any, result any) error {
 	return c.Call(http.MethodPut, path, form, result)
 }
 
 // Rpc Patch
-func (c *TestClient) Patch(path string, form interface{}) error {
+func (c *TestClient) Patch(path string, form any) error {
 	return c.Call(http.MethodPatch, path, form, nil)
 }
 

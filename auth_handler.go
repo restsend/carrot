@@ -336,7 +336,7 @@ func handleUserActivation(c *gin.Context) {
 	}
 
 	user.Actived = true
-	UpdateUserFields(db, user, map[string]interface{}{
+	UpdateUserFields(db, user, map[string]any{
 		"Actived": true,
 	})
 

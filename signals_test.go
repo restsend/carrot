@@ -8,7 +8,7 @@ import (
 
 func TestSignal(t *testing.T) {
 	var val string
-	eid := Sig().Connect("mock_test", func(sender interface{}, params ...interface{}) {
+	eid := Sig().Connect("mock_test", func(sender any, params ...any) {
 		val = sender.(string)
 	})
 	Sig().Emit("mock_test", "unittest")

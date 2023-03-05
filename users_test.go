@@ -24,7 +24,7 @@ func TestModels(t *testing.T) {
 
 func TestUserHashToken(t *testing.T) {
 	db, err := InitDatabase(nil, "", "")
-	MakeMigrates(db, []interface{}{&User{}, &Config{}})
+	MakeMigrates(db, []any{&User{}, &Config{}})
 	assert.Nil(t, err)
 	bob, _ := CreateUser(db, "bob@example.org", "123456")
 	n := time.Now().Add(1 * time.Minute)

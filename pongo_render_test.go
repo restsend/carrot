@@ -14,7 +14,7 @@ func TestPongoRender(t *testing.T) {
 	as.Paths = []string{"assets"}
 	{
 		w := httptest.NewRecorder()
-		err := as.Instance("index.html", map[string]interface{}{
+		err := as.Instance("index.html", map[string]any{
 			"sitename": "test",
 		}).Render(w)
 		assert.Nil(t, err)
@@ -22,7 +22,7 @@ func TestPongoRender(t *testing.T) {
 	}
 	{
 		w := httptest.NewRecorder()
-		err := as.Instance("privacy.html", map[string]interface{}{
+		err := as.Instance("privacy.html", map[string]any{
 			"sitename": "test",
 		}).Render(w)
 		assert.Nil(t, err)
@@ -30,7 +30,7 @@ func TestPongoRender(t *testing.T) {
 	}
 	{
 		w := httptest.NewRecorder()
-		err := as.Instance("terms.html", map[string]interface{}{
+		err := as.Instance("terms.html", map[string]any{
 			"sitename": "test",
 		}).Render(w)
 		assert.Nil(t, err)
@@ -38,7 +38,7 @@ func TestPongoRender(t *testing.T) {
 	}
 	{
 		w := httptest.NewRecorder()
-		err := as.Instance("signin.html", map[string]interface{}{
+		err := as.Instance("signin.html", map[string]any{
 			"sitename": "test",
 		}).Render(w)
 		assert.Nil(t, err)
@@ -46,7 +46,7 @@ func TestPongoRender(t *testing.T) {
 	}
 	{
 		w := httptest.NewRecorder()
-		err := as.Instance("signup.html", map[string]interface{}{
+		err := as.Instance("signup.html", map[string]any{
 			"sitename": "test",
 		}).Render(w)
 		assert.Nil(t, err)
@@ -54,7 +54,7 @@ func TestPongoRender(t *testing.T) {
 	}
 	{
 		w := httptest.NewRecorder()
-		err := as.Instance("reset_password.html", map[string]interface{}{
+		err := as.Instance("reset_password.html", map[string]any{
 			"sitename": "test",
 		}).Render(w)
 		assert.Nil(t, err)
@@ -62,7 +62,7 @@ func TestPongoRender(t *testing.T) {
 	}
 	{
 		w := httptest.NewRecorder()
-		err := as.Instance("reset_password_done.html", map[string]interface{}{
+		err := as.Instance("reset_password_done.html", map[string]any{
 			"sitename": "test",
 		}).Render(w)
 		assert.Nil(t, err)

@@ -14,7 +14,7 @@ import (
 )
 
 // TestDoGet Quick Test CheckResponse
-func checkResponse(t *testing.T, w *httptest.ResponseRecorder) (response map[string]interface{}) {
+func checkResponse(t *testing.T, w *httptest.ResponseRecorder) (response map[string]any) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
@@ -139,7 +139,7 @@ func TestAuthHandler(t *testing.T) {
 	}
 	{
 		u, _ := GetUserByEmail(db, "bob@example.org")
-		err := UpdateUserFields(db, u, map[string]interface{}{
+		err := UpdateUserFields(db, u, map[string]any{
 			"Enabled": false,
 		})
 		assert.Nil(t, err)
@@ -193,7 +193,7 @@ func TestAuthPassword(t *testing.T) {
 	}
 
 	var hash string
-	sid := Sig().Connect(SigUserResetpassword, func(sender interface{}, params ...interface{}) {
+	sid := Sig().Connect(SigUserResetpassword, func(sender any, params ...any) {
 		assert.Equal(t, len(params), 3)
 		hash = params[0].(string)
 	})
@@ -204,7 +204,7 @@ func TestAuthPassword(t *testing.T) {
 		form := ResetPasswordForm{
 			Email: "bob@example.org",
 		}
-		var r map[string]interface{}
+		var r map[string]any
 		err = client.Post("/auth/reset_password", form, &r)
 		assert.Nil(t, err)
 		assert.NotEmpty(t, hash)
@@ -301,7 +301,7 @@ func TestAuthActivation(t *testing.T) {
 	}
 
 	var hash string
-	sid := Sig().Connect(SigUserVerifyEmail, func(sender interface{}, params ...interface{}) {
+	sid := Sig().Connect(SigUserVerifyEmail, func(sender any, params ...any) {
 		assert.Equal(t, len(params), 3)
 		hash = params[0].(string)
 	})
