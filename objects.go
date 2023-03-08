@@ -51,7 +51,7 @@ const (
 )
 
 type GetDB func(ctx *gin.Context, isCreate bool) *gorm.DB
-type PrepareModel[T any] func(ctx *gin.Context, vptr *T)
+type PrepareModel[T any] func(ctx *gin.Context, vptr *T) error
 type PrepareQuery[T any] func(ctx *gin.Context, obj *WebObject[T]) (*gorm.DB, *QueryForm, error)
 
 // TODO:
@@ -327,7 +327,10 @@ func handleCreateObject[T any](c *gin.Context, obj *WebObject[T]) {
 	}
 
 	if obj.Init != nil {
-		obj.Init(c, val)
+		if err := obj.Init(c, val); err != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 	}
 
 	result := obj.GetDB(c, true).Create(val)
@@ -427,7 +430,7 @@ func handleDeleteObject[T any](c *gin.Context, obj *WebObject[T]) {
 func handleBatchObject[T any](c *gin.Context, obj *WebObject[T]) {
 	var form BatchForm[T]
 	if err := c.BindJSON(&form); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"err": err.Error()})
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
