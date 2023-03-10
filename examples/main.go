@@ -48,7 +48,6 @@ func main() {
 // Check example.http
 func RegisterWebObjectHandler(r *gin.Engine, db *gorm.DB) {
 	product := carrot.WebObject[Product]{
-		// Model:     Product{},
 		Searchs:   []string{"Name"},
 		Editables: []string{"Name", "Enabled"},
 		Filters:   []string{"Name", "CreatedAt", "Enabled"},
@@ -56,8 +55,9 @@ func RegisterWebObjectHandler(r *gin.Engine, db *gorm.DB) {
 			return db
 		},
 		// You can Specify how the id is generated.
-		Init: func(ctx *gin.Context, p *Product) {
+		Init: func(ctx *gin.Context, p *Product) error {
 			// p.UUID = carrot.RandText(10)
+			return nil
 		},
 	}
 
