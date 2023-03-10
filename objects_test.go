@@ -175,7 +175,9 @@ func TestWebObject(t *testing.T) {
 		GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB {
 			return db
 		},
-		Init: func(ctx *gin.Context, v *MockUser) {},
+		Init: func(ctx *gin.Context, v *MockUser) error {
+			return nil
+		},
 	}
 	obj.RegisterObject(r)
 
@@ -265,7 +267,9 @@ func TestRpcCall(t *testing.T) {
 		Filters:   []string{"Name", "Age"},
 		Searchs:   []string{"Name"},
 		GetDB:     func(ctx *gin.Context, isCreate bool) *gorm.DB { return db },
-		Init:      func(ctx *gin.Context, v *MockUser) {},
+		Init: func(ctx *gin.Context, v *MockUser) error {
+			return nil
+		},
 	}
 	obj.RegisterObject(r)
 
@@ -330,7 +334,9 @@ func TestEditBool(t *testing.T) {
 		GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB {
 			return db
 		},
-		Init: func(ctx *gin.Context, v *MockUser) {},
+		Init: func(ctx *gin.Context, v *MockUser) error {
+			return nil
+		},
 	}
 	obj.RegisterObject(r)
 
@@ -407,7 +413,9 @@ func TestObjectCRUD(t *testing.T) {
 		GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB {
 			return db.Debug()
 		},
-		Init: func(ctx *gin.Context, vptr *User) {},
+		Init: func(ctx *gin.Context, vptr *User) error {
+			return nil
+		},
 	}
 	err = webobject.RegisterObject(r)
 	assert.Nil(t, err)
@@ -514,7 +522,9 @@ func TestObjectQuery(t *testing.T) {
 		GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB {
 			return db.Debug()
 		},
-		Init: func(ctx *gin.Context, vptr *User) {},
+		Init: func(ctx *gin.Context, vptr *User) error {
+			return nil
+		},
 	}
 	err := webobject.RegisterObject(r)
 	assert.Nil(t, err)
@@ -665,7 +675,9 @@ func TestObjectOrder(t *testing.T) {
 		GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB {
 			return db.Debug()
 		},
-		Init: func(ctx *gin.Context, vptr *User) {},
+		Init: func(ctx *gin.Context, vptr *User) error {
+			return nil
+		},
 	}
 	err := webobject.RegisterObject(r)
 	assert.Nil(t, err)
@@ -845,7 +857,9 @@ func TestObjectEdit(t *testing.T) {
 					GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB {
 						return db.Debug()
 					},
-					Init: func(ctx *gin.Context, u *User) {},
+					Init: func(ctx *gin.Context, u *User) error {
+						return nil
+					},
 				}
 				err := webobject.RegisterObject(r)
 				assert.Nil(t, err)
@@ -950,7 +964,9 @@ func TestObjectRegister(t *testing.T) {
 					GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB {
 						return db.Debug()
 					},
-					Init: func(ctx *gin.Context, vptr *User) {},
+					Init: func(ctx *gin.Context, vptr *User) error {
+						return nil
+					},
 				}
 				err := webobject.RegisterObject(r)
 				assert.Nil(t, err)
