@@ -328,7 +328,7 @@ func handleCreateObject[T any](c *gin.Context, obj *WebObject[T]) {
 
 	if obj.Init != nil {
 		if err := obj.Init(c, val); err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 	}
