@@ -1034,7 +1034,7 @@ func TestObjectRegister(t *testing.T) {
 
 func TestBatchDelete(t *testing.T) {
 	type User struct {
-		UUID     uint      `json:"uid" gorm:"primarykey"`
+		UUID     uint      `json:"uid" gorm:"primaryKey"`
 		Name     string    `json:"name" gorm:"size:100"`
 		Age      int       `json:"age"`
 		Enabled  bool      `json:"enabled"`
@@ -1057,7 +1057,7 @@ func TestBatchDelete(t *testing.T) {
 	db.Create(&User{UUID: 4, Name: "dave", Age: 12})
 
 	var data = map[string]any{
-		"delete": []string{"1", "2"},
+		"delete": []string{"1", "2", "3"},
 	}
 	b, _ := json.Marshal(data)
 	req := httptest.NewRequest(http.MethodPost, "/user/batch", bytes.NewReader(b))
@@ -1070,5 +1070,5 @@ func TestBatchDelete(t *testing.T) {
 	r.ServeHTTP(w, req)
 	var res QueryResult[User]
 	json.Unmarshal(w.Body.Bytes(), &res)
-	assert.Equal(t, 2, res.TotalCount)
+	assert.Equal(t, 1, res.TotalCount)
 }
