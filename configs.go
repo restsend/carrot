@@ -6,11 +6,11 @@ import (
 	"strings"
 	"time"
 
-	lru "github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru/v2"
 	"gorm.io/gorm"
 )
 
-var configValueCache *lru.Cache
+var configValueCache *lru.Cache[string, *ConfigCacheItem]
 var configCacheExpired time.Duration = 10 * time.Second
 
 type ConfigCacheItem struct {
@@ -24,7 +24,7 @@ func init() {
 	if v > 0 {
 		size = int(v)
 	}
-	configValueCache, _ = lru.New(size)
+	configValueCache, _ = lru.New[string, *ConfigCacheItem](size)
 
 	exp, err := time.ParseDuration(GetEnv(ENV_CONFIG_CACHE_EXPIRED))
 	if err == nil {
@@ -86,8 +86,8 @@ func GetValue(db *gorm.DB, key string) string {
 	key = strings.ToUpper(key)
 	cobj, ok := configValueCache.Get(key)
 	if ok {
-		if time.Since(cobj.(*ConfigCacheItem).n) < configCacheExpired {
-			return cobj.(*ConfigCacheItem).val
+		if time.Since(cobj.n) < configCacheExpired {
+			return cobj.val
 		}
 	}
 
