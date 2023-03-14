@@ -275,10 +275,18 @@ func (obj *WebObject[T]) parseFields(rt reflect.Type) {
 		jsonTag := f.Tag.Get("json")
 		if jsonTag == "" {
 			obj.jsonToFields[f.Name] = f.Name
-			obj.jsonToKinds[f.Name] = f.Type.Kind()
+			kind := f.Type.Kind()
+			if kind == reflect.Ptr {
+				kind = f.Type.Elem().Kind()
+			}
+			obj.jsonToKinds[f.Name] = kind
 		} else if jsonTag != "-" {
 			obj.jsonToFields[jsonTag] = f.Name
-			obj.jsonToKinds[jsonTag] = f.Type.Kind()
+			kind := f.Type.Kind()
+			if kind == reflect.Ptr {
+				kind = f.Type.Elem().Kind()
+			}
+			obj.jsonToKinds[jsonTag] = kind
 		}
 
 		gormTag := f.Tag.Get("gorm")
@@ -375,6 +383,7 @@ func handleEditObject[T any](c *gin.Context, obj *WebObject[T]) {
 		}
 
 		if !checkType(kind, reflect.TypeOf(v).Kind()) {
+			fmt.Println(kind, reflect.TypeOf(v).Kind())
 			c.JSON(http.StatusBadRequest,
 				gin.H{"error": fmt.Sprintf("%s type not match", fname)})
 			return
@@ -382,6 +391,8 @@ func handleEditObject[T any](c *gin.Context, obj *WebObject[T]) {
 
 		vals[fname] = v
 	}
+
+	fmt.Println(vals)
 
 	if len(obj.Editables) > 0 {
 		stripVals := make(map[string]any)
