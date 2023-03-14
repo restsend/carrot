@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -772,12 +773,13 @@ func TestObjectOrder(t *testing.T) {
 // TODO:
 func TestObjectEdit(t *testing.T) {
 	type User struct {
-		UUID       string    `json:"uid" gorm:"primarykey"`
-		Name       string    `json:"name" gorm:"size:100"`
-		Age        int       `json:"age"`
-		Enabled    bool      `json:"enabled"`
-		Birthday   time.Time `json:"birthday"`
-		CannotEdit string    `json:"cannotEdit"`
+		UUID       string     `json:"uid" gorm:"primarykey"`
+		Name       string     `json:"name" gorm:"size:100"`
+		Age        int        `json:"age"`
+		Enabled    bool       `json:"enabled"`
+		Birthday   time.Time  `json:"birthday"`
+		CannotEdit string     `json:"cannotEdit"`
+		PtrTime    *time.Time `json:"ptrTime"`
 	}
 
 	// Query
@@ -843,6 +845,34 @@ func TestObjectEdit(t *testing.T) {
 				}},
 				Except{http.StatusBadRequest},
 			},
+			{"time_case_1",
+				Param{
+					1, map[string]any{
+						"birthday": "2023-03-13T10:27:11.9802049+08:00",
+					}},
+				Except{http.StatusOK},
+			},
+			{"time_case_2",
+				Param{
+					1, map[string]any{
+						"birthday": nil,
+					}},
+				Except{http.StatusBadRequest},
+			},
+			{"ptr_case_1",
+				Param{
+					1, map[string]any{
+						"ptrTime": "2023-03-13T10:27:11.9802049+08:00",
+					}},
+				Except{http.StatusOK},
+			},
+			{"ptr_case_2",
+				Param{
+					1, map[string]any{
+						"ptrTime": nil,
+					}},
+				Except{http.StatusBadRequest},
+			},
 		}
 
 		for _, tt := range tests {
@@ -853,7 +883,7 @@ func TestObjectEdit(t *testing.T) {
 
 				r := gin.Default()
 				webobject := WebObject[User]{
-					Editables: []string{"Name", "Age", "Enabled"},
+					Editables: []string{"Name", "Age", "Enabled", "Birthday", "PtrTime"},
 					GetDB: func(ctx *gin.Context, isCreate bool) *gorm.DB {
 						return db.Debug()
 					},
@@ -874,6 +904,9 @@ func TestObjectEdit(t *testing.T) {
 				w := httptest.NewRecorder()
 				r.ServeHTTP(w, req)
 				assert.Equal(t, tt.expect.Code, w.Result().StatusCode)
+				if w.Result().StatusCode != http.StatusOK {
+					log.Println(w.Body.String())
+				}
 			})
 		}
 	}
