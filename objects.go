@@ -459,14 +459,6 @@ func handleBatchObject[T any](c *gin.Context, obj *WebObject[T]) {
 		data["delete"] = true
 	}
 
-	if len(form.Create.Ids) > 0 {
-		// TODO:
-	}
-
-	if len(form.Update.Ids) > 0 {
-		// TODO:
-	}
-
 	c.JSON(http.StatusOK, data)
 }
 
@@ -581,7 +573,7 @@ func QueryObjects[T any](db *gorm.DB, obj *WebObject[T], form *QueryForm) (r Que
 	if pos < 0 {
 		pos = 0
 	}
-	if limit < 0 || limit > DefaultQueryLimit {
+	if limit <= 0 || limit > DefaultQueryLimit {
 		limit = DefaultQueryLimit
 	}
 
