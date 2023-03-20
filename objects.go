@@ -2,6 +2,7 @@ package carrot
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -427,9 +428,21 @@ func handleDeleteObject(c *gin.Context, obj *WebObject) {
 	pkColName := db.NamingStrategy.ColumnName(obj.tableName, obj.PrimaryKeyName)
 
 	val := reflect.New(obj.modelElem).Interface()
-	result := db.Where(pkColName, key).Delete(val)
-	if result.Error != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+
+	// for gorm delete hook, need to load model first.
+	r := db.First(val, pkColName, key)
+	if r.Error != nil {
+		if errors.Is(r.Error, gorm.ErrRecordNotFound) {
+			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": r.Error.Error()})
+		} else {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": r.Error.Error()})
+		}
+		return
+	}
+
+	r = db.Delete(val)
+	if r.Error != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": r.Error.Error()})
 		return
 	}
 
