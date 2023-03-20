@@ -3,6 +3,7 @@ package carrot
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"net/http"
 	"path/filepath"
 	"reflect"
@@ -15,18 +16,6 @@ import (
 const (
 	DefaultQueryLimit = 50
 )
-
-// const (
-// 	FieldTypeNull     = "null"
-// 	FieldTypeInt      = "int"
-// 	FieldTypeBoolean  = "boolean"
-// 	FieldTypeFloat    = "float"
-// 	FieldTypeDatetime = "datetime"
-// 	FieldTypeString   = "string"
-// 	FieldTypeArray    = "array"
-// 	FieldTypeMap      = "map"
-// 	FieldTypeObject   = "object"
-// )
 
 const (
 	FilterOpEqual          = "="
@@ -50,36 +39,42 @@ const (
 	BATCH  = 1 << 6
 )
 
-type GetDB func(ctx *gin.Context, isCreate bool) *gorm.DB
-type PrepareModel[T any] func(ctx *gin.Context, vptr *T) error
-type PrepareQuery[T any] func(ctx *gin.Context, obj *WebObject[T]) (*gorm.DB, *QueryForm, error)
+// type GetDB func() *gorm.DB
+type GetDB func(ctx *gin.Context, isCreate bool) *gorm.DB // designed for group
+type PrepareModel func(ctx *gin.Context, vptr any) error
+type PrepareQuery func(ctx *gin.Context, obj *WebObject) (*gorm.DB, *QueryForm, error)
 
 // TODO:
-type QueryView[T any] struct {
-	Name    string
-	Prepare PrepareQuery[T]
-}
+// type QueryView struct {
+// 	Name    string
+// 	Prepare PrepareQuery
+// }
 
-type WebObject[T any] struct {
-	Model        T
-	Group        string
-	Name         string
-	Editables    []string
-	Filters      []string
-	Orders       []string
-	Searchs      []string
-	GetDB        GetDB           // TODO: 抽取，解耦
-	Init         PrepareModel[T] // How to create a new object
-	Views        []QueryView[T]
+type WebObject struct {
+	Model     any
+	Group     string
+	Name      string
+	Editables []string
+	Filters   []string
+	Orders    []string
+	Searchs   []string
+	GetDB     GetDB
+	Init      PrepareModel // How to create a new object
+	// Views        []QueryView
 	AllowMethods int
 
 	PrimaryKeyName     string
 	PrimaryKeyJsonName string
 	tableName          string
 
+	// Model type
+	modelElem reflect.Type
 	// Map json tag to struct field name. such as:
 	// UUID string `json:"id"` => {"id" : "UUID"}
 	jsonToFields map[string]string
+	// Map filed name to json tag. such as:
+	// UUID string `json:"id"` => {"UUID" : "id"}
+	fieldsToJson map[string]string
 	// Map json tag to field kind. such as:
 	// UUID string `json:"id"` => {"id": string}
 	jsonToKinds map[string]reflect.Kind
@@ -110,21 +105,21 @@ type QueryResult[T any] struct {
 	Pos        int    `json:"pos,omitempty"`
 	Limit      int    `json:"limit,omitempty"`
 	Keyword    string `json:"keyword,omitempty"`
-	Items      []T    `json:"items"`
+	Items      T      `json:"items"`
 }
 
-// TODO: 批量新增、批量更新？
+// TODO: 批量新增、批量更新？暂时不考虑...
 // Batch operation form
-type BatchForm[T any] struct {
-	Delete []string     `json:"delete"`
-	Create BatchBody[T] `json:"create"` // TODO:
-	Update BatchBody[T] `json:"update"` // TODO:
+type BatchForm struct {
+	Delete []string `json:"delete"`
+	// Create BatchBody[T] `json:"create"`
+	// Update BatchBody[T] `json:"update"`
 }
 
-type BatchBody[T any] struct {
-	Ids  []string `json:"ids"`
-	Body []T      `json:"body"`
-}
+// type BatchBody[T any] struct {
+// 	Ids  []string `json:"ids"`
+// 	Body []T      `json:"body"`
+// }
 
 // GetQuery return the combined filter SQL statement.
 // such as "age >= ?", "name IN ?".
@@ -160,7 +155,7 @@ func (f *Order) GetQuery() string {
 	return f.Name
 }
 
-func (obj *WebObject[T]) RegisterObject(r gin.IRoutes) error {
+func (obj *WebObject) RegisterObject(r gin.IRoutes) error {
 	if err := obj.Build(); err != nil {
 		return err
 	}
@@ -195,7 +190,7 @@ func (obj *WebObject[T]) RegisterObject(r gin.IRoutes) error {
 
 	if allowMethods&QUERY != 0 {
 		r.POST(filepath.Join(p, "query"), func(c *gin.Context) {
-			handleQueryObject(c, obj, DefaultPrepareQuery[T])
+			handleQueryObject(c, obj, DefaultPrepareQuery)
 		})
 	}
 
@@ -205,58 +200,61 @@ func (obj *WebObject[T]) RegisterObject(r gin.IRoutes) error {
 		})
 	}
 
-	for i := 0; i < len(obj.Views); i++ {
-		v := &obj.Views[i]
-		r.POST(filepath.Join(p, v.Name), func(ctx *gin.Context) {
-			f := v.Prepare
-			if f == nil {
-				f = DefaultPrepareQuery[T]
-			}
-			handleQueryObject(ctx, obj, v.Prepare)
-		})
-	}
+	// for i := 0; i < len(obj.Views); i++ {
+	// 	v := &obj.Views[i]
+	// 	r.POST(filepath.Join(p, v.Name), func(ctx *gin.Context) {
+	// 		f := v.Prepare
+	// 		if f == nil {
+	// 			f = DefaultPrepareQuery[T]
+	// 		}
+	// 		handleQueryObject(ctx, obj, v.Prepare)
+	// 	})
+	// }
+
+	// HandleAdmin
+
 	return nil
 }
 
-func RegisterObject[T any](r gin.IRoutes, obj *WebObject[T]) error {
+func RegisterObject(r gin.IRoutes, obj *WebObject) error {
 	return obj.RegisterObject(r)
 }
 
-// TODO: 使用泛型后似乎无法用循环批量注册
-// func RegisterObjects[T any](r gin.IRoutes, objs []WebObject[T]) {
-// 	for idx := range objs {
-// 		obj := &objs[idx]
-// 		err := obj.RegisterObject(r)
-// 		if err != nil {
-// 			log.Printf("RegisterObject [%s] fail %v\n", obj.Name, err)
-// 		}
-// 	}
-// }
+func RegisterObjects(r gin.IRoutes, objs []WebObject) {
+	for idx := range objs {
+		obj := &objs[idx]
+		err := obj.RegisterObject(r)
+		if err != nil {
+			log.Fatalf("RegisterObject [%s] fail %v\n", obj.Name, err)
+		}
+	}
+}
 
 // Build fill the properties of obj.
-func (obj *WebObject[T]) Build() error {
-	var t T
-	rt := reflect.TypeOf(t)
+func (obj *WebObject) Build() error {
+	rt := reflect.TypeOf(obj.Model)
+	if rt.Kind() == reflect.Ptr {
+		rt = rt.Elem()
+	}
+	obj.modelElem = rt
 
-	obj.tableName = rt.Name()
+	obj.tableName = obj.modelElem.Name()
 
 	if obj.Name == "" {
 		obj.Name = strings.ToLower(obj.tableName)
 	}
 
 	obj.jsonToFields = make(map[string]string)
+	obj.fieldsToJson = make(map[string]string)
 	obj.jsonToKinds = make(map[string]reflect.Kind)
-	obj.parseFields(rt)
+	obj.parseFields(obj.modelElem)
 
 	if obj.PrimaryKeyName == "" {
 		return fmt.Errorf("%s not has primaryKey", obj.Name)
 	}
 
-	// TODO: 解耦，让 objects 可以作为工具类单独使用
 	if obj.GetDB == nil {
-		obj.GetDB = func(ctx *gin.Context, isCreate bool) *gorm.DB {
-			return ctx.MustGet(DbField).(*gorm.DB)
-		}
+		return fmt.Errorf("without db")
 	}
 
 	return nil
@@ -264,7 +262,7 @@ func (obj *WebObject[T]) Build() error {
 
 // parseFields parse the following properties according to struct tag:
 // - jsonToFields, jsonToKinds, primaryKeyName, primaryKeyJsonName
-func (obj *WebObject[T]) parseFields(rt reflect.Type) {
+func (obj *WebObject) parseFields(rt reflect.Type) {
 	for i := 0; i < rt.NumField(); i++ {
 		f := rt.Field(i)
 
@@ -275,6 +273,8 @@ func (obj *WebObject[T]) parseFields(rt reflect.Type) {
 		jsonTag := f.Tag.Get("json")
 		if jsonTag == "" {
 			obj.jsonToFields[f.Name] = f.Name
+			obj.fieldsToJson[f.Name] = f.Name
+
 			kind := f.Type.Kind()
 			if kind == reflect.Ptr {
 				kind = f.Type.Elem().Kind()
@@ -282,6 +282,8 @@ func (obj *WebObject[T]) parseFields(rt reflect.Type) {
 			obj.jsonToKinds[f.Name] = kind
 		} else if jsonTag != "-" {
 			obj.jsonToFields[jsonTag] = f.Name
+			obj.fieldsToJson[f.Name] = jsonTag
+
 			kind := f.Type.Kind()
 			if kind == reflect.Ptr {
 				kind = f.Type.Elem().Kind()
@@ -308,14 +310,14 @@ func (obj *WebObject[T]) parseFields(rt reflect.Type) {
 	}
 }
 
-func handleGetObject[T any](c *gin.Context, obj *WebObject[T]) {
+func handleGetObject(c *gin.Context, obj *WebObject) {
 	key := c.Param("key")
 	db := obj.GetDB(c, false)
 
 	// the real name of the primaryKey column
 	pkColName := db.NamingStrategy.ColumnName(obj.tableName, obj.PrimaryKeyName)
 
-	var val T
+	val := reflect.New(obj.modelElem).Interface()
 	result := db.Where(pkColName, key).Take(&val)
 	if result.Error != nil {
 		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "not found"})
@@ -325,8 +327,8 @@ func handleGetObject[T any](c *gin.Context, obj *WebObject[T]) {
 	c.JSON(http.StatusOK, val)
 }
 
-func handleCreateObject[T any](c *gin.Context, obj *WebObject[T]) {
-	var val *T
+func handleCreateObject(c *gin.Context, obj *WebObject) {
+	val := reflect.New(obj.modelElem).Interface()
 
 	err := c.BindJSON(&val)
 	if err != nil {
@@ -341,7 +343,7 @@ func handleCreateObject[T any](c *gin.Context, obj *WebObject[T]) {
 		}
 	}
 
-	result := obj.GetDB(c, true).Create(val)
+	result := obj.GetDB(c, true).Debug().Create(val)
 	if result.Error != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
 		return
@@ -350,7 +352,7 @@ func handleCreateObject[T any](c *gin.Context, obj *WebObject[T]) {
 	c.JSON(http.StatusOK, val)
 }
 
-func handleEditObject[T any](c *gin.Context, obj *WebObject[T]) {
+func handleEditObject(c *gin.Context, obj *WebObject) {
 	key := c.Param("key")
 
 	var inputVals map[string]any
@@ -383,16 +385,12 @@ func handleEditObject[T any](c *gin.Context, obj *WebObject[T]) {
 		}
 
 		if !checkType(kind, reflect.TypeOf(v).Kind()) {
-			fmt.Println(kind, reflect.TypeOf(v).Kind())
-			c.JSON(http.StatusBadRequest,
-				gin.H{"error": fmt.Sprintf("%s type not match", fname)})
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("%s type not match", fname)})
 			return
 		}
 
 		vals[fname] = v
 	}
-
-	fmt.Println(vals)
 
 	if len(obj.Editables) > 0 {
 		stripVals := make(map[string]any)
@@ -411,9 +409,9 @@ func handleEditObject[T any](c *gin.Context, obj *WebObject[T]) {
 		return
 	}
 
-	var model T
+	model := reflect.New(obj.modelElem).Interface()
 	pkColName := db.NamingStrategy.ColumnName(obj.tableName, obj.PrimaryKeyName)
-	result := db.Model(model).Where(pkColName, key).UpdateColumns(vals)
+	result := db.Model(model).Where(pkColName, key).Updates(vals)
 	if result.Error != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
 		return
@@ -422,13 +420,13 @@ func handleEditObject[T any](c *gin.Context, obj *WebObject[T]) {
 	c.JSON(http.StatusOK, true)
 }
 
-func handleDeleteObject[T any](c *gin.Context, obj *WebObject[T]) {
+func handleDeleteObject(c *gin.Context, obj *WebObject) {
 	key := c.Param("key")
 	db := obj.GetDB(c, false)
 
 	pkColName := db.NamingStrategy.ColumnName(obj.tableName, obj.PrimaryKeyName)
 
-	var val T
+	val := reflect.New(obj.modelElem).Interface()
 	result := db.Where(pkColName, key).Delete(val)
 	if result.Error != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
@@ -438,8 +436,8 @@ func handleDeleteObject[T any](c *gin.Context, obj *WebObject[T]) {
 	c.JSON(http.StatusOK, true)
 }
 
-func handleBatchObject[T any](c *gin.Context, obj *WebObject[T]) {
-	var form BatchForm[T]
+func handleBatchObject(c *gin.Context, obj *WebObject) {
+	var form BatchForm
 	if err := c.BindJSON(&form); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -450,7 +448,7 @@ func handleBatchObject[T any](c *gin.Context, obj *WebObject[T]) {
 	var data = make(map[string]bool)
 
 	if len(form.Delete) > 0 {
-		var val T
+		val := reflect.New(obj.modelElem).Interface()
 		result := db.Delete(&val, form.Delete)
 		if result.Error != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
@@ -462,7 +460,7 @@ func handleBatchObject[T any](c *gin.Context, obj *WebObject[T]) {
 	c.JSON(http.StatusOK, data)
 }
 
-func handleQueryObject[T any](c *gin.Context, obj *WebObject[T], prepareQuery PrepareQuery[T]) {
+func handleQueryObject(c *gin.Context, obj *WebObject, prepareQuery PrepareQuery) {
 	db, form, err := prepareQuery(c, obj)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -540,9 +538,7 @@ func handleQueryObject[T any](c *gin.Context, obj *WebObject[T], prepareQuery Pr
 }
 
 // QueryObjects excute query and return data.
-func QueryObjects[T any](db *gorm.DB, obj *WebObject[T], form *QueryForm) (r QueryResult[T], err error) {
-	r.Items = make([]T, 0)
-
+func QueryObjects(db *gorm.DB, obj *WebObject, form *QueryForm) (r QueryResult[any], err error) {
 	// the real name of the db table
 	tblName := db.NamingStrategy.TableName(obj.tableName)
 
@@ -573,7 +569,7 @@ func QueryObjects[T any](db *gorm.DB, obj *WebObject[T], form *QueryForm) (r Que
 	if pos < 0 {
 		pos = 0
 	}
-	if limit <= 0 || limit > DefaultQueryLimit {
+	if limit <= 0 || limit > 150 {
 		limit = DefaultQueryLimit
 	}
 
@@ -582,7 +578,7 @@ func QueryObjects[T any](db *gorm.DB, obj *WebObject[T], form *QueryForm) (r Que
 	r.Keyword = form.Keyword
 
 	var c int64
-	var model T
+	model := reflect.New(obj.modelElem).Interface()
 	result := db.Model(model).Count(&c)
 	if result.Error != nil {
 		return r, result.Error
@@ -592,19 +588,19 @@ func QueryObjects[T any](db *gorm.DB, obj *WebObject[T], form *QueryForm) (r Que
 		return r, nil
 	}
 
-	var items []T = make([]T, 0)
+	items := reflect.New(reflect.SliceOf(obj.modelElem))
 	db = db.Offset(form.Pos).Limit(limit)
-	result = db.Find(&items)
+	result = db.Find(items.Interface())
 	if result.Error != nil {
 		return r, result.Error
 	}
-	r.Items = items
+	r.Items = items.Elem().Interface()
 	r.Pos += int(result.RowsAffected)
 	return r, nil
 }
 
 // DefaultPrepareQuery return default QueryForm.
-func DefaultPrepareQuery[T any](c *gin.Context, obj *WebObject[T]) (*gorm.DB, *QueryForm, error) {
+func DefaultPrepareQuery(c *gin.Context, obj *WebObject) (*gorm.DB, *QueryForm, error) {
 	var form QueryForm
 	if c.Request.ContentLength > 0 {
 		if err := c.BindJSON(&form); err != nil {
