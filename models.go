@@ -21,9 +21,9 @@ const (
 )
 
 type Config struct {
-	ID    uint   `gorm:"primarykey"`
-	Key   string `gorm:"size:128;uniqueIndex"`
-	Desc  string `gorm:"size:200"`
+	ID    uint   `json:"id" gorm:"primarykey"`
+	Key   string `json:"key" gorm:"size:128;uniqueIndex"`
+	Desc  string `json:"desc" gorm:"size:200"`
 	Value string
 }
 
