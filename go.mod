@@ -3,7 +3,7 @@ module github.com/restsend/carrot
 go 1.19
 
 require (
-	github.com/gin-contrib/sessions v0.0.5
+	github.com/gin-contrib/sessions v0.0.4
 	github.com/gin-gonic/gin v1.9.0
 )
 
@@ -18,7 +18,7 @@ require (
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.4 // indirect
-	github.com/mattn/go-sqlite3 v2.0.3+incompatible // indirect
+	github.com/mattn/go-sqlite3 v1.14.16 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/quasoft/memstore v0.0.0-20191010062613-2bce066d2b0b // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
