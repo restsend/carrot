@@ -31,11 +31,13 @@ func WithCORS(origin, credentials, headers, methods string) gin.HandlerFunc {
 
 func WithCookieSession(secret string) gin.HandlerFunc {
 	store := cookie.NewStore([]byte(secret))
+	store.Options(sessions.Options{Path: "/", MaxAge: 0})
 	return sessions.Sessions(SessionField, store)
 }
 
 func WithMemSession(secret string) gin.HandlerFunc {
 	store := memstore.NewStore([]byte(secret))
+	store.Options(sessions.Options{Path: "/", MaxAge: 0})
 	return sessions.Sessions(SessionField, store)
 }
 
