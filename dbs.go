@@ -42,10 +42,8 @@ func InitDatabase(logWrite io.Writer, driver, dsn string) (*gorm.DB, error) {
 }
 
 func MakeMigrates(db *gorm.DB, insts []any) error {
-	for idx := range insts {
-		v := insts[idx]
-		err := db.AutoMigrate(v)
-		if err != nil {
+	for _, v := range insts {
+		if err := db.AutoMigrate(v); err != nil {
 			return err
 		}
 	}

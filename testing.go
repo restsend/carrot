@@ -49,20 +49,19 @@ func (c *TestClient) SendReq(path string, req *http.Request) *httptest.ResponseR
 	return w
 }
 
-// GetRaw return *httptest.ResponseRecoder
-func (c *TestClient) GetRaw(path string) *httptest.ResponseRecorder {
+// Get return *httptest.ResponseRecoder
+func (c *TestClient) Get(path string) *httptest.ResponseRecorder {
 	req, _ := http.NewRequest("GET", path, nil)
 	return c.SendReq(path, req)
 }
 
-// PostRaw return *httptest.ResponseRecoder
-func (c *TestClient) PostRaw(method, path string, body []byte) *httptest.ResponseRecorder {
+// Post return *httptest.ResponseRecoder
+func (c *TestClient) Post(method, path string, body []byte) *httptest.ResponseRecorder {
 	req, _ := http.NewRequest(method, path, bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	return c.SendReq(path, req)
 }
 
-// Rpc Call
 func (c *TestClient) Call(method, path string, form any, result any) error {
 	body, err := json.Marshal(form)
 	if err != nil {
@@ -82,29 +81,22 @@ func (c *TestClient) Call(method, path string, form any, result any) error {
 	return json.Unmarshal(w.Body.Bytes(), &result)
 }
 
-/** For WebObject CRUD quick test. **/
-
-// Rpc Get
-func (c *TestClient) Get(path string, result any) error {
-	return c.Call(http.MethodGet, path, nil, result)
+func (c *TestClient) CallGet(path string, form, result any) error {
+	return c.Call(http.MethodGet, path, form, result)
 }
 
-// Rpc Post
-func (c *TestClient) Post(path string, form any, result any) error {
+func (c *TestClient) CallPost(path string, form any, result any) error {
 	return c.Call(http.MethodPost, path, form, result)
 }
 
-// Rpc Put
-func (c *TestClient) Put(path string, form any, result any) error {
+func (c *TestClient) CallDelete(path string, form, result any) error {
+	return c.Call(http.MethodDelete, path, form, result)
+}
+
+func (c *TestClient) CallPut(path string, form, result any) error {
 	return c.Call(http.MethodPut, path, form, result)
 }
 
-// Rpc Patch
-func (c *TestClient) Patch(path string, form any) error {
-	return c.Call(http.MethodPatch, path, form, nil)
-}
-
-// Rpc Delete
-func (c *TestClient) Delete(path string) error {
-	return c.Call(http.MethodDelete, path, nil, nil)
+func (c *TestClient) CallPatch(path string, form, result any) error {
+	return c.Call(http.MethodPatch, path, form, result)
 }

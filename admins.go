@@ -1,24 +1,18 @@
 package carrot
 
-import (
-	"net/http"
+// type AdminObject struct{}
 
-	"github.com/gin-gonic/gin"
-)
+// func RegisterAdmin(r gin.IRoutes, objs []AdminObject) {
+// 	r.GET("/", func(ctx *gin.Context) {
+// 		ctx.Data(http.StatusOK, "plain/text", []byte("ok"))
+// 	})
 
-type AdminObject struct{}
-
-func RegisterAdmin(r gin.IRoutes, objs []AdminObject) {
-	r.GET("/", func(ctx *gin.Context) {
-		ctx.Data(http.StatusOK, "plain/text", []byte("ok"))
-	})
-
-	authr := r.Use(func(ctx *gin.Context) {
-		user := CurrentUser(ctx)
-		if user == nil || !user.IsStaff {
-			ctx.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "forbidden"})
-			return
-		}
-	})
-	_ = authr
-}
+// 	authr := r.Use(func(ctx *gin.Context) {
+// 		user := CurrentUser(ctx)
+// 		if user == nil || !user.IsStaff {
+// 			ctx.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+// 			return
+// 		}
+// 	})
+// 	_ = authr
+// }
