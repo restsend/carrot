@@ -1,6 +1,7 @@
 package carrot
 
 import (
+	"database/sql/driver"
 	"encoding/json"
 	"time"
 
@@ -28,12 +29,23 @@ type Config struct {
 }
 
 type Profile struct {
-	Avatar  string `json:"avatar"`
-	Gender  string `json:"gender"`
-	City    string `json:"city"`
-	Region  string `json:"region"`
-	Country string `json:"country"`
-	Extra   string `json:"extra"`
+	Avatar  string         `json:"avatar,omitempty"`
+	Gender  string         `json:"gender,omitempty"`
+	City    string         `json:"city,omitempty"`
+	Region  string         `json:"region,omitempty"`
+	Country string         `json:"country,omitempty"`
+	Extra   map[string]any `json:"extra,omitempty"`
+}
+
+func (p *Profile) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+	return json.Unmarshal(value.([]byte), p)
+}
+
+func (p Profile) Value() (driver.Value, error) {
+	return json.Marshal(p)
 }
 
 type User struct {
@@ -54,11 +66,11 @@ type User struct {
 	LastLogin   *time.Time `json:"lastLogin,omitempty"`
 	LastLoginIP string     `json:"-" gorm:"size:128"`
 
-	Source    string `json:"-" gorm:"size:64;index"`
-	Locale    string `json:"locale,omitempty" gorm:"size:20"`
-	Timezone  string `json:"timezone,omitempty" gorm:"size:200"`
-	Profile   string `json:"profile,omitempty"`
-	AuthToken string `json:"token,omitempty" gorm:"-"`
+	Source    string   `json:"-" gorm:"size:64;index"`
+	Locale    string   `json:"locale,omitempty" gorm:"size:20"`
+	Timezone  string   `json:"timezone,omitempty" gorm:"size:200"`
+	Profile   *Profile `json:"profile,omitempty"`
+	AuthToken string   `json:"token,omitempty" gorm:"-"`
 }
 
 type Group struct {
@@ -97,12 +109,8 @@ func (u *User) GetVisibleName() string {
 }
 
 func (u *User) GetProfile() Profile {
-	if u.Profile != "" {
-		var val Profile
-		err := json.Unmarshal([]byte(u.Profile), &val)
-		if err == nil {
-			return val
-		}
+	if u.Profile != nil {
+		return *u.Profile
 	}
 	return Profile{}
 }
