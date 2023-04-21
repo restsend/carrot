@@ -2,7 +2,6 @@ package carrot
 
 import (
 	"errors"
-	"log"
 	"math/rand"
 	"reflect"
 	"time"
@@ -46,7 +45,7 @@ func SafeCall(f func() error, failHandle func(error)) error {
 				}
 				failHandle(eo)
 			} else {
-				log.Println(err)
+				Error(err)
 			}
 		}
 	}()

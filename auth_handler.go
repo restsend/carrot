@@ -1,7 +1,6 @@
 package carrot
 
 import (
-	"log"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -160,7 +159,7 @@ func handleUserSignup(c *gin.Context) {
 
 	user, err := CreateUser(db, form.Email, form.Password)
 	if err != nil {
-		log.Println("create user fail", form, err)
+		Warnning("create user fail", form, err)
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 			"error": "server error",
 		})
@@ -190,7 +189,7 @@ func handleUserSignup(c *gin.Context) {
 
 	err = UpdateUserFields(db, user, vals)
 	if err != nil {
-		log.Println("update user fields fail id:", user.ID, vals, err)
+		Warnning("update user fields fail id:", user.ID, vals, err)
 	}
 
 	Sig().Emit(SigUserCreate, user, c)
@@ -376,7 +375,7 @@ func handleUserChangePassword(c *gin.Context) {
 	}
 	err := SetPassword(db, user, form.Password)
 	if err != nil {
-		log.Println("changed user password fail user:", user.ID, err.Error())
+		Warnning("changed user password fail user:", user.ID, err.Error())
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error": "changed fail",
 		})
@@ -444,7 +443,7 @@ func handleUserResetPasswordDone(c *gin.Context) {
 
 	err = SetPassword(db, user, form.Password)
 	if err != nil {
-		log.Println("reset user password fail user:", user.ID, err.Error())
+		Warnning("reset user password fail user:", user.ID, err.Error())
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error": "reset fail",
 		})

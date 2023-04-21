@@ -1,8 +1,6 @@
 package main
 
 import (
-	"log"
-
 	"github.com/gin-gonic/gin"
 	"github.com/restsend/carrot"
 )
@@ -26,11 +24,11 @@ func main() {
 	// Connect user event, eg. Login, Create
 	carrot.Sig().Connect(carrot.SigUserCreate, func(sender any, params ...any) {
 		user := sender.(*carrot.User)
-		log.Println("create user: ", user.GetVisibleName())
+		carrot.Info("create user: ", user.GetVisibleName())
 	})
 	carrot.Sig().Connect(carrot.SigUserLogin, func(sender any, params ...any) {
 		user := sender.(*carrot.User)
-		log.Println("user logined: ", user.GetVisibleName())
+		carrot.Info("user logined: ", user.GetVisibleName())
 	})
 
 	// http://localhost:8080/auth/login
