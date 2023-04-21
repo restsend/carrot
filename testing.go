@@ -12,7 +12,7 @@ import (
 
 type TestClient struct {
 	r         http.Handler
-	cookieJar http.CookieJar
+	CookieJar http.CookieJar
 	Scheme    string
 	Host      string
 }
@@ -21,7 +21,7 @@ func NewTestClient(r http.Handler) (c *TestClient) {
 	jar, _ := cookiejar.New(nil)
 	return &TestClient{
 		r:         r,
-		cookieJar: jar,
+		CookieJar: jar,
 		Scheme:    "http",
 		Host:      "1.2.3.4",
 	}
@@ -38,14 +38,14 @@ func (c *TestClient) SendReq(path string, req *http.Request) *httptest.ResponseR
 		Path:   path,
 	}
 
-	cookies := c.cookieJar.Cookies(currentUrl)
+	cookies := c.CookieJar.Cookies(currentUrl)
 	for _, cookie := range cookies {
 		req.AddCookie(cookie)
 	}
 
 	w := httptest.NewRecorder()
 	c.r.ServeHTTP(w, req)
-	c.cookieJar.SetCookies(currentUrl, w.Result().Cookies())
+	c.CookieJar.SetCookies(currentUrl, w.Result().Cookies())
 	return w
 }
 
