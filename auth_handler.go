@@ -159,7 +159,7 @@ func handleUserSignup(c *gin.Context) {
 
 	user, err := CreateUser(db, form.Email, form.Password)
 	if err != nil {
-		Warnning("create user fail", form, err)
+		Warning("create user fail", form, err)
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 			"error": "server error",
 		})
@@ -189,7 +189,7 @@ func handleUserSignup(c *gin.Context) {
 
 	err = UpdateUserFields(db, user, vals)
 	if err != nil {
-		Warnning("update user fields fail id:", user.ID, vals, err)
+		Warning("update user fields fail id:", user.ID, vals, err)
 	}
 
 	Sig().Emit(SigUserCreate, user, c)
@@ -375,7 +375,7 @@ func handleUserChangePassword(c *gin.Context) {
 	}
 	err := SetPassword(db, user, form.Password)
 	if err != nil {
-		Warnning("changed user password fail user:", user.ID, err.Error())
+		Warning("changed user password fail user:", user.ID, err.Error())
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error": "changed fail",
 		})
@@ -443,7 +443,7 @@ func handleUserResetPasswordDone(c *gin.Context) {
 
 	err = SetPassword(db, user, form.Password)
 	if err != nil {
-		Warnning("reset user password fail user:", user.ID, err.Error())
+		Warning("reset user password fail user:", user.ID, err.Error())
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error": "reset fail",
 		})

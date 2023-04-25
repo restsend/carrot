@@ -39,15 +39,15 @@ func colorize(color, message any) string {
 func colorLevel(level int) string {
 	switch level {
 	case LevelDebug:
-		return colorize(blue, "[DEBUG]")
+		return colorize(blue, "DEBUG")
 	case LevelInfo:
-		return colorize(green, "[INFO]")
+		return colorize(green, "INFO")
 	case LevelWarning:
-		return colorize(yellow, "[WARNING]")
+		return colorize(yellow, "WARNING")
 	case LevelError:
-		return colorize(red, "[ERROR]")
+		return colorize(red, "ERROR")
 	default:
-		return colorize(white, "[???]")
+		return colorize(white, "???")
 	}
 }
 

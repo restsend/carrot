@@ -16,8 +16,8 @@ func TestLogger(t *testing.T) {
 	assert.Contains(t, mockData.String(), "[D] debug")
 	Info("info")
 	assert.Contains(t, mockData.String(), "[I] info")
-	Warnning("warnning")
-	assert.Contains(t, mockData.String(), "[W] warnning")
+	Warning("Warning")
+	assert.Contains(t, mockData.String(), "[W] Warning")
 	Error("error")
 	assert.Contains(t, mockData.String(), "[E] error")
 }
