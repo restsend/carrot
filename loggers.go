@@ -22,7 +22,7 @@ const (
 const (
 	LevelDebug = iota
 	LevelInfo
-	LevelWarnning
+	LevelWarning
 	LevelError
 )
 
@@ -39,15 +39,15 @@ func colorize(color, message any) string {
 func colorLevel(level int) string {
 	switch level {
 	case LevelDebug:
-		return colorize(blue, "DEBUG")
+		return colorize(blue, "[DEBUG]")
 	case LevelInfo:
-		return colorize(green, "INFO")
-	case LevelWarnning:
-		return colorize(yellow, "WARNNING")
+		return colorize(green, "[INFO]")
+	case LevelWarning:
+		return colorize(yellow, "[WARNING]")
 	case LevelError:
-		return colorize(red, "ERROR")
+		return colorize(red, "[ERROR]")
 	default:
-		return colorize(white, "???")
+		return colorize(white, "[???]")
 	}
 }
 
@@ -64,19 +64,19 @@ func SetLogLevel(level int) {
 
 func Debug(v ...interface{}) {
 	if Loglevel <= LevelDebug {
-		log.Default().Output(2, fmt.Sprintf("[%s] %v", colorLevel(LevelDebug), fmt.Sprintln(v...)))
+		log.Default().Output(2, fmt.Sprintf("%s %v", colorLevel(LevelDebug), fmt.Sprintln(v...)))
 	}
 }
 
 func Info(v ...interface{}) {
 	if Loglevel <= LevelInfo {
-		log.Default().Output(2, fmt.Sprintf("[%s] %v", colorLevel(LevelInfo), fmt.Sprintln(v...)))
+		log.Default().Output(2, fmt.Sprintf("%s %v", colorLevel(LevelInfo), fmt.Sprintln(v...)))
 	}
 }
 
-func Warnning(v ...interface{}) {
-	if Loglevel <= LevelWarnning {
-		log.Default().Output(2, fmt.Sprintf("[%s] %v", colorLevel(LevelWarnning), fmt.Sprintln(v...)))
+func Warning(v ...interface{}) {
+	if Loglevel <= LevelWarning {
+		log.Default().Output(2, fmt.Sprintf("%s %v", colorLevel(LevelWarning), fmt.Sprintln(v...)))
 	}
 }
 
