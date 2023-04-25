@@ -127,7 +127,7 @@ func (w *Worker[T]) Push(req T) error {
 		return nil
 	default:
 		data, _ := json.Marshal(req)
-		Error("queue is full, worker:", w.Name, "req:", string(data))
+		Error("queue is full, worker:", w.Name, string(data))
 		return fmt.Errorf("worker: %s queue is full", w.Name)
 	}
 }
