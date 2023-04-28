@@ -82,6 +82,6 @@ func Warning(v ...interface{}) {
 
 func Error(v ...interface{}) {
 	if Loglevel <= LevelError {
-		log.Default().Output(2, fmt.Sprintf("[%s] %v", colorLevel(LevelError), fmt.Sprintln(v...)))
+		log.Default().Output(2, fmt.Sprintf("%s %v", colorLevel(LevelError), fmt.Sprintln(v...)))
 	}
 }

@@ -51,7 +51,7 @@ func NewSignals() *Signals {
 }
 
 func (s *Signals) processEvents() {
-	if len(s.events) <= 0 {
+	if len(s.events) <= 0 || s.inLoop {
 		return
 	}
 	defer func() {
