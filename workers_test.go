@@ -52,6 +52,7 @@ func TestWorker(t *testing.T) {
 	err = w.Push(3)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "queue is full")
+
 	time.Sleep(100 * time.Millisecond) // test avg usage
 	cancel()
 	time.Sleep(100 * time.Millisecond) // wait for worker to exit
