@@ -32,16 +32,14 @@ func TestObjectCRUD(t *testing.T) {
 	assert.Nil(t, err)
 
 	r := gin.Default()
+	r.Use(WithGormDB(db))
 	webobject := WebObject{
 		Model:       User{},
 		Editables:   []string{"Name"},
 		Filterables: []string{"Name"},
 		Searchables: []string{"Name"},
-		GetDB: func(c *gin.Context, isCreate bool) *gorm.DB {
-			return db
-		},
 	}
-	err = webobject.RegisterObject(r)
+	err = webobject.RegisterObject(&r.RouterGroup)
 	assert.Nil(t, err)
 
 	// Create
@@ -142,18 +140,17 @@ func TestObjectQuery(t *testing.T) {
 	db.AutoMigrate(User{})
 
 	r := gin.Default()
+	r.Use(WithGormDB(db))
 	webobject := WebObject{
 		Model:       User{},
 		Filterables: []string{"Name", "Age", "Birthday", "Enabled"},
 		Searchables: []string{"Name"},
-		GetDB: func(c *gin.Context, isCreate bool) *gorm.DB {
-			return db
-		},
+
 		OnRender: func(c *gin.Context, obj any) error {
 			return nil
 		},
 	}
-	err := webobject.RegisterObject(r)
+	err := webobject.RegisterObject(&r.RouterGroup)
 	assert.Nil(t, err)
 
 	// Mock
@@ -340,14 +337,12 @@ func TestObjectOrder(t *testing.T) {
 	db.AutoMigrate(User{})
 
 	r := gin.Default()
+	r.Use(WithGormDB(db))
 	webobject := WebObject{
 		Model:      User{},
 		Orderables: []string{"UUID", "Name", "Age", "CreatedAt"},
-		GetDB: func(c *gin.Context, isCreate bool) *gorm.DB {
-			return db
-		},
 	}
-	err := webobject.RegisterObject(r)
+	err := webobject.RegisterObject(&r.RouterGroup)
 	assert.Nil(t, err)
 
 	// Mock data
@@ -549,14 +544,12 @@ func TestObjectEdit(t *testing.T) {
 				db.AutoMigrate(User{})
 
 				r := gin.Default()
+				r.Use(WithGormDB(db))
 				webobject := WebObject{
 					Model:     User{},
 					Editables: []string{"Name", "Age", "Enabled", "Birthday", "PtrTime"},
-					GetDB: func(c *gin.Context, isCreate bool) *gorm.DB {
-						return db
-					},
 				}
-				err := webobject.RegisterObject(r)
+				err := webobject.RegisterObject(&r.RouterGroup)
 				assert.Nil(t, err)
 
 				// Mock data
@@ -590,14 +583,12 @@ func TestObjectNoFieldEdit(t *testing.T) {
 	db.AutoMigrate(User{})
 
 	r := gin.Default()
+	r.Use(WithGormDB(db))
 	webobject := WebObject{
 		Model:     User{},
 		Editables: []string{},
-		GetDB: func(c *gin.Context, isCreate bool) *gorm.DB {
-			return db
-		},
 	}
-	err := webobject.RegisterObject(r)
+	err := webobject.RegisterObject(&r.RouterGroup)
 	assert.Nil(t, err)
 
 	db.Create(&User{ID: 1, Name: "alice", Age: 9})
@@ -660,14 +651,12 @@ func TestObjectRegister(t *testing.T) {
 				db.AutoMigrate(User{})
 
 				r := gin.Default()
+				r.Use(WithGormDB(db))
 				webobject := WebObject{
 					Model:       User{},
 					Filterables: tt.params.Filterable,
-					GetDB: func(c *gin.Context, isCreate bool) *gorm.DB {
-						return db
-					},
 				}
-				err := webobject.RegisterObject(r)
+				err := webobject.RegisterObject(&r.RouterGroup)
 				assert.Nil(t, err)
 
 				// Mock data
@@ -711,13 +700,12 @@ func TestBatchDelete(t *testing.T) {
 	db.AutoMigrate(User{})
 
 	r := gin.Default()
+	r.Use(WithGormDB(db))
+
 	webobject := WebObject{
 		Model: User{},
-		GetDB: func(c *gin.Context, isCreate bool) *gorm.DB {
-			return db
-		},
 	}
-	err := webobject.RegisterObject(r)
+	err := webobject.RegisterObject(&r.RouterGroup)
 	assert.Nil(t, err)
 
 	db.Create(&User{UUID: 1, Name: "alice", Age: 9})
@@ -797,7 +785,7 @@ func initHookTest(t *testing.T) (TestClient, *gorm.DB) {
 	}
 
 	r := gin.Default()
-	err := webobject.RegisterObject(r)
+	err := webobject.RegisterObject(&r.RouterGroup)
 	assert.Nil(t, err)
 
 	return *NewTestClient(r), db
@@ -854,15 +842,14 @@ func TestQueryViews(t *testing.T) {
 	db.AutoMigrate(tuser{})
 
 	r := gin.Default()
+	r.Use(WithGormDB(db))
+
 	webobject := WebObject{
 		Name:        "user",
 		Model:       tuser{},
 		Editables:   []string{"Name"},
 		Filterables: []string{"Name, Age"},
 		Searchables: []string{"Name"},
-		GetDB: func(c *gin.Context, isCreate bool) *gorm.DB {
-			return db
-		},
 		Views: []QueryView{
 			{
 				Name:   "names",
@@ -873,7 +860,7 @@ func TestQueryViews(t *testing.T) {
 			},
 		},
 	}
-	err := webobject.RegisterObject(r)
+	err := webobject.RegisterObject(&r.RouterGroup)
 	assert.Nil(t, err)
 
 	// create 200 users

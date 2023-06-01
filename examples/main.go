@@ -37,7 +37,8 @@ func main() {
 		panic(err)
 	}
 
-	if as, ok := r.HTMLRender.(*carrot.StaticAssets); ok {
+	as, ok := r.HTMLRender.(*carrot.StaticAssets)
+	if ok {
 		paths := []string{carrot.HintAssetsRoot([]string{"./", "../"})}
 		as.Paths = append(paths, as.Paths...)
 	}
@@ -56,9 +57,18 @@ func main() {
 	})
 
 	objs := GetWebObjects(db)
-	carrot.RegisterObjects(r, objs)
+	carrot.RegisterObjects(r.Group("/"), objs)
 
-	// http://localhost:8080/auth/login
+	// Register Admin
+	/*
+		quick start:
+		DSN=file:demo.db go run .
+
+		1. Create a super user
+		2. Login with super user
+	*/
+	adminobjs := carrot.GetCarrotAdminObjects()
+	carrot.RegisterAdmins(r.Group("/admin"), as, adminobjs, nil)
 	r.Run(":8080")
 }
 

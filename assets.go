@@ -73,6 +73,19 @@ func (as *StaticAssets) InitStaticAssets(r *gin.Engine) {
 	r.StaticFS(staticPrefix, as)
 }
 
+func (as *StaticAssets) Exists(name string) bool {
+	for _, dir := range as.Paths {
+		dir, _ = filepath.Abs(os.ExpandEnv(dir))
+		testFileName := filepath.Join(dir, filepath.FromSlash(name))
+		st, err := os.Stat(testFileName)
+
+		if err == nil && !st.IsDir() {
+			return true
+		}
+	}
+	return false
+}
+
 func (as *StaticAssets) Locate(name string) string {
 	for _, dir := range as.Paths {
 		dir, _ = filepath.Abs(os.ExpandEnv(dir))

@@ -161,7 +161,7 @@ func (f *Order) GetQuery() string {
 	return f.Name + " ASC"
 }
 
-func (obj *WebObject) RegisterObject(r gin.IRoutes) error {
+func (obj *WebObject) RegisterObject(r *gin.RouterGroup) error {
 	if err := obj.Build(); err != nil {
 		return err
 	}
@@ -225,11 +225,11 @@ func (obj *WebObject) RegisterObject(r gin.IRoutes) error {
 	return nil
 }
 
-func RegisterObject(r gin.IRoutes, obj *WebObject) error {
+func RegisterObject(r *gin.RouterGroup, obj *WebObject) error {
 	return obj.RegisterObject(r)
 }
 
-func RegisterObjects(r gin.IRoutes, objs []WebObject) {
+func RegisterObjects(r *gin.RouterGroup, objs []WebObject) {
 	for idx := range objs {
 		obj := &objs[idx]
 		err := obj.RegisterObject(r)
@@ -259,10 +259,6 @@ func (obj *WebObject) Build() error {
 
 	if obj.PrimaryKeyName == "" {
 		return fmt.Errorf("%s not has primaryKey", obj.Name)
-	}
-
-	if obj.GetDB == nil {
-		return fmt.Errorf("without db")
 	}
 
 	return nil
@@ -316,9 +312,16 @@ func (obj *WebObject) parseFields(rt reflect.Type) {
 	}
 }
 
+func getDbConnection(c *gin.Context, objFn GetDB, isCreate bool) *gorm.DB {
+	if objFn != nil {
+		return objFn(c, isCreate)
+	}
+	return c.MustGet(DbField).(*gorm.DB)
+}
+
 func handleGetObject(c *gin.Context, obj *WebObject) {
 	key := c.Param("key")
-	db := obj.GetDB(c, false)
+	db := getDbConnection(c, obj.GetDB, false)
 
 	// the real name of the primaryKey column
 	pkColName := db.NamingStrategy.ColumnName(obj.tableName, obj.PrimaryKeyName)
@@ -359,7 +362,7 @@ func handleCreateObject(c *gin.Context, obj *WebObject) {
 		}
 	}
 
-	result := obj.GetDB(c, true).Create(val)
+	result := getDbConnection(c, obj.GetDB, true).Create(val)
 	if result.Error != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
 		return
@@ -377,7 +380,7 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 		return
 	}
 
-	db := obj.GetDB(c, false)
+	db := getDbConnection(c, obj.GetDB, false)
 
 	var vals map[string]any = map[string]any{}
 
@@ -450,7 +453,7 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 
 func handleDeleteObject(c *gin.Context, obj *WebObject) {
 	key := c.Param("key")
-	db := obj.GetDB(c, false)
+	db := getDbConnection(c, obj.GetDB, false)
 
 	pkColName := db.NamingStrategy.ColumnName(obj.tableName, obj.PrimaryKeyName)
 	val := reflect.New(obj.modelElem).Interface()
@@ -490,7 +493,7 @@ func handleBatchDelete(c *gin.Context, obj *WebObject) {
 		return
 	}
 
-	db := obj.GetDB(c, false)
+	db := getDbConnection(c, obj.GetDB, false)
 
 	val := reflect.New(obj.modelElem).Interface()
 	r := db.Delete(&val, form)
@@ -503,7 +506,7 @@ func handleBatchDelete(c *gin.Context, obj *WebObject) {
 }
 
 func handleQueryObject(c *gin.Context, obj *WebObject, prepareQuery PrepareQuery) {
-	db, form, err := prepareQuery(obj.GetDB(c, false), c)
+	db, form, err := prepareQuery(getDbConnection(c, obj.GetDB, false), c)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -598,10 +601,14 @@ func handleQueryObject(c *gin.Context, obj *WebObject, prepareQuery PrepareQuery
 }
 
 // QueryObjects excute query and return data.
+
 func QueryObjects(db *gorm.DB, obj *WebObject, form *QueryForm) (r QueryResult[any], err error) {
 	// the real name of the db table
 	tblName := db.NamingStrategy.TableName(obj.tableName)
+	return QueryObjectsEx(db, tblName, obj.modelElem, form)
+}
 
+func QueryObjectsEx(db *gorm.DB, tblName string, modelElem reflect.Type, form *QueryForm) (r QueryResult[any], err error) {
 	for _, v := range form.Filters {
 		if q := v.GetQuery(); q != "" {
 			db = db.Where(fmt.Sprintf("%s.%s", tblName, q), v.Value)
@@ -632,7 +639,7 @@ func QueryObjects(db *gorm.DB, obj *WebObject, form *QueryForm) (r QueryResult[a
 	r.Keyword = form.Keyword
 
 	var c int64
-	model := reflect.New(obj.modelElem).Interface()
+	model := reflect.New(modelElem).Interface()
 	if err := db.Model(model).Count(&c).Error; err != nil {
 		return r, err
 	}
@@ -641,7 +648,7 @@ func QueryObjects(db *gorm.DB, obj *WebObject, form *QueryForm) (r QueryResult[a
 	}
 	r.TotalCount = int(c)
 
-	items := reflect.New(reflect.SliceOf(obj.modelElem))
+	items := reflect.New(reflect.SliceOf(modelElem))
 	result := db.Offset(form.Pos).Limit(form.Limit).Find(items.Interface())
 	if result.Error != nil {
 		return r, result.Error
@@ -663,7 +670,7 @@ func DefaultPrepareQuery(db *gorm.DB, c *gin.Context) (*gorm.DB, *QueryForm, err
 	if form.Pos < 0 {
 		form.Pos = 0
 	}
-	if form.Limit <= 0 || form.Limit > 150 {
+	if form.Limit <= 0 || form.Limit > DefaultQueryLimit {
 		form.Limit = DefaultQueryLimit
 	}
 
