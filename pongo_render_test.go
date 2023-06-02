@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/flosch/pongo2/v6"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 )
@@ -87,4 +88,17 @@ func TestPongoRender(t *testing.T) {
 		assert.Contains(t, w.Body.String(), "MOCK_TEST")
 		assert.Contains(t, w.Body.String(), "Coming soon")
 	}
+}
+
+func TestCarrotFilters(t *testing.T) {
+	RegisterCarrotFilters()
+	tmpl := `{{objects|stringify}}`
+	r, err := pongo2.DefaultSet.RenderTemplateString(tmpl, pongo2.Context{
+		"objects": gin.H{
+			"Group": "Sys",
+			"Name":  "User",
+		},
+	})
+	assert.Nil(t, err)
+	assert.Contains(t, r, `"Group":"Sys","Name":"User"`)
 }

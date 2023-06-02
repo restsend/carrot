@@ -1,6 +1,7 @@
 package carrot
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
@@ -12,17 +13,31 @@ import (
 	"gorm.io/gorm"
 )
 
+type AdminQueryResult struct {
+	TotalCount int              `json:"total,omitempty"`
+	Pos        int              `json:"pos,omitempty"`
+	Limit      int              `json:"limit,omitempty"`
+	Keyword    string           `json:"keyword,omitempty"`
+	Items      []map[string]any `json:"items"`
+}
 type AdminSettings struct {
-	AdminTempalteDir string // default: "/admin/"
-	assets           *StaticAssets
+	Title          string        `json:"title"`
+	TempalteRoot   string        `json:"-"`        // default: "/admin/"
+	ListPage       string        `json:"-"`        // default: "list.html"
+	EditPage       string        `json:"-"`        // default: "edit.html"
+	PetiteVueURL   string        `json:"petite"`   // default: ""
+	TailwindCSSURL string        `json:"tailwind"` // default: ""
+	Prefix         string        `json:"prefix"`   // default: "/admin/"
+	Objects        []AdminObject `json:"-"`
+	assets         *StaticAssets `json:"-"`
 }
 
 func (settings *AdminSettings) hintPage(objpath, name string) string {
-	p := path.Join(settings.AdminTempalteDir, objpath, name)
-	if settings.assets.Exists(p) {
+	p := path.Join(settings.TempalteRoot, objpath, name)
+	if settings.assets != nil && settings.assets.TemplateExists(p) {
 		return p
 	}
-	return path.Join(settings.AdminTempalteDir, name)
+	return path.Join(settings.TempalteRoot, name)
 }
 
 // Access control
@@ -30,37 +45,34 @@ type AdminAccessCheck func(c *gin.Context, obj *AdminObject) error
 type AdminAttribute struct {
 }
 type AdminField struct {
-	Name     string
-	Type     string
-	Tag      string
-	Attr     AdminAttribute
-	Primary  bool
-	elemType reflect.Type `json:"-"`
+	Name     string         `json:"name"`
+	Type     string         `json:"type"`
+	Tag      string         `json:"tag"`
+	Attr     AdminAttribute `json:"attr"`
+	Primary  bool           `json:"primary"`
+	IsAutoID bool           `json:"isAutoId"`
+	elemType reflect.Type   `json:"-"`
 }
 
 type AdminObject struct {
 	Model          any                       `json:"-"`
-	Group          string                    // Group name
-	Name           string                    // Name of the object
-	Path           string                    // Path prefix
-	Shows          []string                  // Show fields
-	Editables      []string                  // Editable fields
-	Filterables    []string                  // Filterable fields
-	Orderables     []string                  // Orderable fields
-	Searchables    []string                  // Searchable fields
-	ListPage       string                    // path to list page
-	EditPage       string                    // path to edit/create page
-	Pages          map[string]string         // path to custom pages
-	Attributes     map[string]AdminAttribute // Field's extra attributes
-	PrimaryKeyName string                    // Primary key name
-	Fields         []AdminField
+	Group          string                    `json:"group"`       // Group name
+	Name           string                    `json:"name"`        // Name of the object
+	Path           string                    `json:"path"`        // Path prefix
+	Shows          []string                  `json:"shows"`       // Show fields
+	Editables      []string                  `json:"editables"`   // Editable fields
+	Filterables    []string                  `json:"filterables"` // Filterable fields
+	Orderables     []string                  `json:"orderables"`  // Orderable fields
+	Searchables    []string                  `json:"searchables"` // Searchable fields
+	Attributes     map[string]AdminAttribute `json:"attributes"`  // Field's extra attributes
+	PrimaryKeyName string                    `json:"primaryKey"`  // Primary key name
+	Fields         []AdminField              `json:"fields"`
 
 	AccessCheck AdminAccessCheck `json:"-"` // Access control function
 	GetDB       GetDB            `json:"-"`
 	OnCreate    CreateFunc       `json:"-"`
 	OnUpdate    UpdateFunc       `json:"-"`
 	OnDelete    DeleteFunc       `json:"-"`
-	OnRender    RenderFunc       `json:"-"`
 	tableName   string           `json:"-"`
 	modelElem   reflect.Type     `json:"-"`
 }
@@ -107,6 +119,7 @@ func RegisterAdmins(r *gin.RouterGroup, as *StaticAssets, objs []AdminObject, se
 				ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "login required"})
 			} else {
 				ctx.Redirect(http.StatusFound, signUrl+"?next="+ctx.Request.URL.String())
+				ctx.Abort()
 			}
 			return
 		}
@@ -118,14 +131,20 @@ func RegisterAdmins(r *gin.RouterGroup, as *StaticAssets, objs []AdminObject, se
 	})
 
 	if settings == nil {
-		settings = &AdminSettings{
-			AdminTempalteDir: "/admin/",
-		}
+		settings = &AdminSettings{}
+	}
+
+	if settings.Prefix == "" {
+		settings.Prefix = "/admin/"
+	}
+	if settings.TempalteRoot == "" {
+		settings.TempalteRoot = "/admin/"
 	}
 
 	settings.assets = as
+	RegisterCarrotFilters()
 
-	handledObjs := make([]AdminObject, 0)
+	settings.Objects = make([]AdminObject, 0)
 	exists := make(map[string]bool)
 	for idx := range objs {
 		obj := &objs[idx]
@@ -140,78 +159,78 @@ func RegisterAdmins(r *gin.RouterGroup, as *StaticAssets, objs []AdminObject, se
 			continue
 		}
 
-		err = obj.RegisterAdmin(r, settings)
-		if err != nil {
-			Warning("RegisterAdmin fail, ignore", obj.Group, obj.Name, "err:", err)
-			continue
-		}
-		handledObjs = append(handledObjs, *obj)
+		objr := r.Group(obj.Path)
+		obj.RegisterAdmin(objr, settings)
+		settings.Objects = append(settings.Objects, *obj)
 	}
 
 	r.GET("/", func(ctx *gin.Context) {
-		handleAdminIndex(ctx, settings, handledObjs)
+		handleAdminIndex(ctx, settings)
 	})
 }
 
-func handleAdminIndex(c *gin.Context, settings *AdminSettings, objs []AdminObject) {
+func handleAdminIndex(c *gin.Context, settings *AdminSettings) {
 	ctx := GetRenderPageContext(c)
-	ctx["objects"] = objs
-	ctx["user"] = CurrentUser(c)
 	ctx["settings"] = settings
+	ctx["user"] = CurrentUser(c)
 
-	htmlpage := path.Join(settings.AdminTempalteDir, "index.html")
+	htmlpage := path.Join(settings.TempalteRoot, "index.html")
 	c.HTML(http.StatusOK, htmlpage, ctx)
 }
 
 // RegisterAdmin registers admin routes
 //
 //   - GET /admin/{objectslug}/ -> Get object page, lookup order:  {objectslug}/list.html, list.html
-//   - GET /admin/{objectslug}/{pk} -> Get one page, lookup order:  {objectslug}/edit.html, edit.html
-//   - POST /admin/{objectslug}/{pk} -> Get one object
+//   - GET /admin/{objectslug}/{:pk} -> Get object json
 //   - POST /admin/{objectslug} -> Get objects
 //   - PUT /admin/{objectslug} -> Create One
 //   - PATCH /admin/{objectslug}/{pk} -> Update One
 //   - DELETE /admin/{objectslug}/{pk} -> Delete One
-//   - POST /admin/_/action/{objectslug} -> Action
-//   - POST /admin/_/render/{objectslug}/*filepath -> render html with object
-func (obj *AdminObject) RegisterAdmin(r *gin.RouterGroup, settings *AdminSettings) (err error) {
-	r.GET(obj.Path, func(c *gin.Context) {
+//   - POST /admin/{objectslug}/_/{action}/:name -> Action
+//   - POST /admin/{objectslug}/_/{render}/*filepath -> render html with object
+func (obj *AdminObject) RegisterAdmin(r gin.IRoutes, settings *AdminSettings) {
+	r = r.Use(func(ctx *gin.Context) {
+		if obj.AccessCheck != nil {
+			err := obj.AccessCheck(ctx, obj)
+			if err != nil {
+				ctx.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": err.Error()})
+				return
+			}
+		}
+		ctx.Next()
+	})
+
+	r.GET("/", func(c *gin.Context) {
 		obj.handleGetListPage(c, settings)
 	})
 
-	r.GET(path.Join(obj.Path, ":pk"), func(c *gin.Context) {
-		obj.handleGetEditPage(c, settings)
-	})
-
-	r.POST(path.Join(obj.Path, ":pk"), func(c *gin.Context) {
+	r.GET(":pk", func(c *gin.Context) {
 		obj.handleGetOne(c, settings)
 	})
 
-	r.POST(obj.Path, func(c *gin.Context) {
+	r.POST("/", func(c *gin.Context) {
 		obj.handleQuery(c, settings)
 	})
 
-	r.PUT(obj.Path, func(c *gin.Context) {
+	r.PUT("/", func(c *gin.Context) {
 		obj.handleCreate(c, settings)
 	})
 
-	r.PATCH(path.Join(obj.Path, ":pk"), func(c *gin.Context) {
+	r.PATCH(":pk", func(c *gin.Context) {
 		obj.handleUpdate(c, settings)
 	})
 
-	r.DELETE(path.Join(obj.Path, ":pk"), func(c *gin.Context) {
+	r.DELETE(":pk", func(c *gin.Context) {
 		obj.handleDelete(c, settings)
 	})
 
-	r.POST(path.Join("_", "action", obj.Path), func(c *gin.Context) {
+	r.POST("_/action/:name", func(c *gin.Context) {
 		obj.handleAction(c, settings)
 	})
 
-	r.POST(path.Join("_", "render", obj.Path, "*filepath"), func(c *gin.Context) {
+	r.POST("_/render/*filepath", func(c *gin.Context) {
 		obj.handleRenderPage(c, settings)
 	})
-
-	return
 }
 
 // Build fill the properties of obj.
@@ -254,8 +273,8 @@ func (obj *AdminObject) parseFields(rt reflect.Type) error {
 			obj.parseFields(f.Type)
 		}
 
-		gormTag := f.Tag.Get("gorm")
-		if gormTag == "" || gormTag == "-" {
+		gormTag := strings.ToLower(f.Tag.Get("gorm"))
+		if gormTag == "-" {
 			continue
 		}
 		field := AdminField{
@@ -265,11 +284,11 @@ func (obj *AdminObject) parseFields(rt reflect.Type) error {
 			elemType: f.Type,
 		}
 
-		if strings.Contains(gormTag, "primarykey") ||
-			strings.Contains(gormTag, "primaryKey") {
-			if obj.PrimaryKeyName != "" {
-				obj.PrimaryKeyName = f.Name
-				field.Primary = true
+		if obj.PrimaryKeyName == "" && strings.Contains(gormTag, "primarykey") {
+			obj.PrimaryKeyName = f.Name
+			field.Primary = true
+			if strings.Contains(field.Type, "int") {
+				field.IsAutoID = true
 			}
 		}
 		obj.Fields = append(obj.Fields, field)
@@ -282,6 +301,9 @@ func (obj *AdminObject) MarshalOne(val interface{}) (map[string]any, error) {
 	rv := reflect.ValueOf(val)
 	if rv.IsNil() || rv.IsZero() {
 		return result, nil
+	}
+	if rv.Kind() == reflect.Ptr {
+		rv = rv.Elem()
 	}
 
 	for _, field := range obj.Fields {
@@ -304,21 +326,16 @@ func (obj *AdminObject) MarshalOne(val interface{}) (map[string]any, error) {
 }
 
 func (obj *AdminObject) handleGetListPage(c *gin.Context, settings *AdminSettings) {
-	htmlpage := settings.hintPage(obj.Path, "list.html")
+	htmlpage := settings.ListPage
+	if htmlpage == "" {
+		htmlpage = "list.html"
+	}
+	htmlpage = settings.hintPage(obj.Path, htmlpage)
 	ctx := GetRenderPageContext(c)
 	ctx["user"] = CurrentUser(c)
 	ctx["settings"] = settings
-	ctx["object"] = obj
-	c.HTML(http.StatusOK, htmlpage, ctx)
-}
+	ctx["current"] = obj
 
-func (obj *AdminObject) handleGetEditPage(c *gin.Context, settings *AdminSettings) {
-	htmlpage := settings.hintPage(obj.Path, "edit.html")
-	ctx := GetRenderPageContext(c)
-	ctx["user"] = CurrentUser(c)
-	ctx["settings"] = settings
-	ctx["object"] = obj
-	ctx["pk"] = c.Param("pk")
 	c.HTML(http.StatusOK, htmlpage, ctx)
 }
 
@@ -327,20 +344,13 @@ func (obj *AdminObject) handleGetOne(c *gin.Context, settings *AdminSettings) {
 	pkColName := obj.GetColName(db, obj.PrimaryKeyName)
 
 	modelObj := reflect.New(obj.modelElem).Interface()
-	result := obj.GetDB(c, false).Where(pkColName, c.Param("pk")).First(modelObj)
+	result := db.Where(pkColName, c.Param("pk")).First(modelObj)
 
 	if result.Error != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error": result.Error.Error(),
 		})
 		return
-	}
-
-	if obj.OnRender != nil {
-		if err := obj.OnRender(c, modelObj); err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
 	}
 
 	data, err := obj.MarshalOne(modelObj)
@@ -353,11 +363,64 @@ func (obj *AdminObject) handleGetOne(c *gin.Context, settings *AdminSettings) {
 	c.JSON(http.StatusOK, data)
 }
 
+func (obj *AdminObject) QueryObjects(db *gorm.DB, form *QueryForm) (r AdminQueryResult, err error) {
+	tblName := db.NamingStrategy.TableName(obj.tableName)
+	db = db.Debug()
+	for _, v := range form.Filters {
+		v.Name = fmt.Sprintf("`%s`", db.NamingStrategy.ColumnName(obj.tableName, v.Name))
+		if q := v.GetQuery(); q != "" {
+			value := v.Value
+			if v.Op == FilterOpLike {
+				value = fmt.Sprintf(`%%%s%%`, value)
+			}
+			db = db.Where(fmt.Sprintf("`%s`.%s", tblName, q), value)
+		}
+	}
+
+	for _, v := range form.Orders {
+		if q := v.GetQuery(); q != "" {
+			db = db.Order(fmt.Sprintf("%s.%s", tblName, q))
+		}
+	}
+
+	if form.Keyword != "" && len(obj.Searchables) > 0 {
+		var query []string
+		for _, v := range obj.Searchables {
+			colName := db.NamingStrategy.ColumnName(obj.tableName, v)
+			query = append(query, fmt.Sprintf("`%s`.`%s` LIKE @keyword", tblName, colName))
+		}
+		searchKey := strings.Join(query, " OR ")
+		db = db.Where(searchKey, sql.Named("keyword", "%"+form.Keyword+"%"))
+	}
+
+	r.Pos = form.Pos
+	r.Limit = form.Limit
+	r.Keyword = form.Keyword
+
+	db = db.Table(tblName)
+	var c int64
+	if err := db.Count(&c).Error; err != nil {
+		return r, err
+	}
+	if c <= 0 {
+		return r, nil
+	}
+	r.TotalCount = int(c)
+
+	items := []map[string]any{}
+	result := db.Offset(form.Pos).Limit(form.Limit).Find(&items)
+	if result.Error != nil {
+		return r, result.Error
+	}
+	r.Items = items
+	r.Pos += int(result.RowsAffected)
+	return r, nil
+}
+
 // Query many objects with filter/limit/offset/order/search
 func (obj *AdminObject) handleQuery(c *gin.Context, settings *AdminSettings) {
-	db := getDbConnection(c, obj.GetDB, false)
-	var form QueryForm
-	if err := c.ShouldBind(&form); err != nil {
+	db, form, err := DefaultPrepareQuery(getDbConnection(c, obj.GetDB, false), c)
+	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
@@ -365,29 +428,26 @@ func (obj *AdminObject) handleQuery(c *gin.Context, settings *AdminSettings) {
 	}
 
 	// the real name of the db table
-	tblName := db.NamingStrategy.TableName(obj.tableName)
-	r, err := QueryObjectsEx(db, tblName, obj.modelElem, &form)
+	mapping := map[string]string{}
+	for _, v := range obj.Fields {
+		mapping[db.NamingStrategy.ColumnName(obj.tableName, v.Name)] = v.Name
+	}
+
+	r, err := obj.QueryObjects(db, form)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
 		return
 	}
-
-	if obj.OnRender != nil {
-		vals := reflect.ValueOf(r.Items)
-		if vals.Kind() == reflect.Slice {
-			for i := 0; i < vals.Len(); i++ {
-				v := vals.Index(i).Addr().Interface()
-				if err := obj.OnRender(c, v); err != nil {
-					c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-					return
-				}
-				vals.Index(i).Set(reflect.ValueOf(v).Elem())
+	for _, v := range r.Items {
+		for k, v2 := range v { // convert column name to field name
+			if name, ok := mapping[k]; ok {
+				v[name] = v2
+				delete(v, k)
 			}
 		}
 	}
-
 	c.JSON(http.StatusOK, r)
 }
 
@@ -416,7 +476,7 @@ func (obj *AdminObject) handleCreate(c *gin.Context, settings *AdminSettings) {
 }
 
 func (obj *AdminObject) handleUpdate(c *gin.Context, settings *AdminSettings) {
-	key := c.Param("key")
+	key := c.Param("pk")
 
 	var inputVals map[string]any
 	if err := c.BindJSON(&inputVals); err != nil {
@@ -493,13 +553,13 @@ func (obj *AdminObject) handleUpdate(c *gin.Context, settings *AdminSettings) {
 }
 
 func (obj *AdminObject) handleDelete(c *gin.Context, settings *AdminSettings) {
-	key := c.Param("key")
+	key := c.Param("pk")
 	db := getDbConnection(c, obj.GetDB, false)
 
-	pkColName := db.NamingStrategy.ColumnName(obj.tableName, obj.PrimaryKeyName)
+	//pkColName := db.NamingStrategy.ColumnName(obj.tableName, obj.PrimaryKeyName)
 	val := reflect.New(obj.modelElem).Interface()
 
-	r := db.First(val, pkColName, key)
+	r := db.Take(val, key)
 
 	// for gorm delete hook, need to load model first.
 	if r.Error != nil {
@@ -518,7 +578,7 @@ func (obj *AdminObject) handleDelete(c *gin.Context, settings *AdminSettings) {
 		}
 	}
 
-	r = db.Delete(&val)
+	r = db.Delete(val)
 	if r.Error != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": r.Error.Error()})
 		return
@@ -531,11 +591,30 @@ func (obj *AdminObject) handleAction(c *gin.Context, settings *AdminSettings) {
 }
 
 func (obj *AdminObject) handleRenderPage(c *gin.Context, settings *AdminSettings) {
-	htmlpage := settings.hintPage(obj.Path, c.Param("filepath"))
+	ext := path.Ext(c.Param("filepath"))
+	if strings.ToLower(ext) != ".html" {
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	if settings.assets == nil {
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	htmlpage := path.Join(settings.TempalteRoot, obj.Path, c.Param("filepath"))
+	if !settings.assets.TemplateExists(htmlpage) {
+		htmlpage = path.Join(settings.TempalteRoot, c.Param("filepath"))
+		if !settings.assets.TemplateExists(htmlpage) {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+	}
+
 	ctx := GetRenderPageContext(c)
 	ctx["user"] = CurrentUser(c)
 	ctx["settings"] = settings
-	ctx["object"] = obj
+	ctx["current"] = obj
 	ctx["refer"] = c.Query("refer")
 
 	c.HTML(http.StatusOK, htmlpage, ctx)

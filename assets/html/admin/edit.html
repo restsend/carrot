@@ -1,0 +1,10 @@
+<script>
+PetiteVue.createApp({
+    $delimiters: ['[[', ']]'],
+    current: {{current|stringify}},
+}).mount('#editform')
+</script>
+
+<div id="editform" v-cloak>
+   [[current.name]]
+</b>

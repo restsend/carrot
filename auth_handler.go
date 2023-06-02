@@ -291,6 +291,11 @@ func handleUserLogout(c *gin.Context) {
 	if user != nil {
 		Logout(c, user)
 	}
+	next := c.Query("next")
+	if next != "" {
+		c.Redirect(http.StatusFound, next)
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{})
 }
 

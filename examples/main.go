@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"flag"
 	"math/rand"
 	"time"
 
@@ -30,7 +31,34 @@ type User struct {
 }
 
 func main() {
+	var superUserEmail string
+	var superUserPassword string
+
+	flag.StringVar(&superUserEmail, "superuser", "", "Create an super user with email")
+	flag.StringVar(&superUserPassword, "password", "", "Super user password")
+	flag.Parse()
+
 	db, _ := carrot.InitDatabase(nil, "", "")
+
+	if superUserEmail != "" && superUserPassword != "" {
+		u, err := carrot.GetUserByEmail(db, superUserEmail)
+		if err == nil && u != nil {
+			carrot.SetPassword(db, u, superUserPassword)
+			carrot.Warning("Update super with new password")
+		} else {
+			u, err = carrot.CreateUser(db, superUserEmail, superUserPassword)
+			if err != nil {
+				panic(err)
+			}
+		}
+		u.IsStaff = true
+		u.Actived = true
+		u.Enabled = true
+		u.IsSuperUser = true
+		db.Save(u)
+		carrot.Warning("Create super user:", superUserEmail)
+		return
+	}
 
 	r := gin.Default()
 	if err := carrot.InitCarrot(db, r); err != nil {
@@ -65,7 +93,9 @@ func main() {
 		DSN=file:demo.db go run .
 
 		1. Create a super user
+			go run . -superuser ADMIN@YOUR -password XXXXX
 		2. Login with super user
+			http://localhost:8080/admin
 	*/
 	adminobjs := carrot.GetCarrotAdminObjects()
 	carrot.RegisterAdmins(r.Group("/admin"), as, adminobjs, nil)

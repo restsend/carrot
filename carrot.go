@@ -44,6 +44,7 @@ const KEY_SITE_TERMS_URL = "SITE_TERMS_URL"
 const KEY_SITE_PRIVACY_URL = "SITE_PRIVACY_URL"
 const KEY_SITE_SIGNIN_URL = "SITE_SIGNIN_URL"
 const KEY_SITE_SIGNUP_URL = "SITE_SIGNUP_URL"
+const KEY_SITE_LOGOUT_URL = "SITE_LOGOUT_URL"
 const KEY_SITE_RESET_PASSWORD_URL = "SITE_RESET_PASSWORD_URL"
 const KEY_SITE_LOGIN_NEXT = "SITE_LOGIN_NEXT"
 
@@ -76,6 +77,7 @@ func InitCarrot(db *gorm.DB, r *gin.Engine) (err error) {
 	CheckValue(db, KEY_SITE_FAVICON_URL, "/static/img/favicon.png")
 	CheckValue(db, KEY_SITE_SIGNIN_URL, "/auth/login")
 	CheckValue(db, KEY_SITE_SIGNUP_URL, "/auth/register")
+	CheckValue(db, KEY_SITE_LOGOUT_URL, "/auth/logout")
 	CheckValue(db, KEY_SITE_RESET_PASSWORD_URL, "/auth/reset_password")
 	CheckValue(db, KEY_SITE_LOGIN_NEXT, "/")
 

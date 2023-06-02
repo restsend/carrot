@@ -31,6 +31,7 @@ func GetRenderPageContext(c *gin.Context) map[string]any {
 		"privacy_url":        GetValue(db, KEY_SITE_PRIVACY_URL),
 		"signin_url":         GetValue(db, KEY_SITE_SIGNIN_URL),
 		"signup_url":         GetValue(db, KEY_SITE_SIGNUP_URL),
+		"logout_url":         GetValue(db, KEY_SITE_LOGOUT_URL),
 		"reset_password_url": GetValue(db, KEY_SITE_RESET_PASSWORD_URL),
 		"login_next":         GetValue(db, KEY_SITE_LOGIN_NEXT),
 		"slogan":             GetValue(db, KEY_SITE_SLOGAN),
@@ -61,6 +62,7 @@ func NewStaticAssets() *StaticAssets {
 		TemplateDir: "html",
 	}
 	r.sets = pongo2.NewSet("carrot", r)
+
 	return r
 }
 
@@ -73,10 +75,10 @@ func (as *StaticAssets) InitStaticAssets(r *gin.Engine) {
 	r.StaticFS(staticPrefix, as)
 }
 
-func (as *StaticAssets) Exists(name string) bool {
+func (as *StaticAssets) TemplateExists(name string) bool {
 	for _, dir := range as.Paths {
 		dir, _ = filepath.Abs(os.ExpandEnv(dir))
-		testFileName := filepath.Join(dir, filepath.FromSlash(name))
+		testFileName := filepath.Join(dir, as.TemplateDir, filepath.FromSlash(name))
 		st, err := os.Stat(testFileName)
 
 		if err == nil && !st.IsDir() {
