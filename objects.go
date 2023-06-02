@@ -637,7 +637,7 @@ func QueryObjectsEx(db *gorm.DB, tblName string, modelElem reflect.Type, form *Q
 	r.Pos = form.Pos
 	r.Limit = form.Limit
 	r.Keyword = form.Keyword
-	db = db.Debug()
+
 	var c int64
 	model := reflect.New(modelElem).Interface()
 	if err := db.Model(model).Count(&c).Error; err != nil {

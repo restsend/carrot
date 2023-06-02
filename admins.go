@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jinzhu/inflection"
 	"gorm.io/gorm"
 )
 
@@ -75,6 +76,7 @@ type AdminObject struct {
 	OnDelete    DeleteFunc       `json:"-"`
 	tableName   string           `json:"-"`
 	modelElem   reflect.Type     `json:"-"`
+	PluralName  string           `json:"pluralName"`
 }
 
 // Returns all admin objects
@@ -140,7 +142,9 @@ func RegisterAdmins(r *gin.RouterGroup, as *StaticAssets, objs []AdminObject, se
 	if settings.TempalteRoot == "" {
 		settings.TempalteRoot = "/admin/"
 	}
-
+	if settings.Title == "" {
+		settings.Title = "Carrot Admin"
+	}
 	settings.assets = as
 	RegisterCarrotFilters()
 
@@ -250,7 +254,7 @@ func (obj *AdminObject) Build() error {
 
 	obj.modelElem = rt
 	obj.tableName = rt.Name()
-
+	obj.PluralName = inflection.Plural(obj.Name)
 	err := obj.parseFields(rt)
 	if err != nil {
 		return err
@@ -365,7 +369,7 @@ func (obj *AdminObject) handleGetOne(c *gin.Context, settings *AdminSettings) {
 
 func (obj *AdminObject) QueryObjects(db *gorm.DB, form *QueryForm) (r AdminQueryResult, err error) {
 	tblName := db.NamingStrategy.TableName(obj.tableName)
-	db = db.Debug()
+
 	for _, v := range form.Filters {
 		v.Name = fmt.Sprintf("`%s`", db.NamingStrategy.ColumnName(obj.tableName, v.Name))
 		if q := v.GetQuery(); q != "" {
@@ -440,11 +444,12 @@ func (obj *AdminObject) handleQuery(c *gin.Context, settings *AdminSettings) {
 		})
 		return
 	}
-	for _, v := range r.Items {
-		for k, v2 := range v { // convert column name to field name
+
+	for _, item := range r.Items {
+		for k, v := range item { // convert column name to field name
 			if name, ok := mapping[k]; ok {
-				v[name] = v2
-				delete(v, k)
+				item[name] = v
+				delete(item, k)
 			}
 		}
 	}

@@ -14,7 +14,7 @@ const adminapp = (admin) => ({
                 menus.push(group)
             }
             let selected = (admin.current != undefined && admin.current.path == obj.path)
-            group.items.push({ selected, name: obj.name, path: `${admin.prefix}${obj.path}/` })
+            group.items.push({ selected, name: obj.pluralName, path: `${admin.prefix}${obj.path}/` })
         })
         return menus
     },
