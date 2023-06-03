@@ -106,6 +106,12 @@ const adminapp = () => ({
             event.preventDefault()
         }
     },
+
+    selectAllResult(event) {
+        this.qureyresult.items.forEach(row => {
+            row.selected = !row.selected
+        })
+    },
     refreshcurrent() {
         let query = {}
         let path = this.current.path
@@ -134,6 +140,7 @@ const adminapp = () => ({
                         row.push({
                             value: item[field.name],
                             primary: field.primary,
+                            selected: false,
                         })
                     })
                     return row

@@ -152,8 +152,19 @@ func RegisterAdmins(r *gin.RouterGroup, db *gorm.DB, adminAssetsRoot string, obj
 }
 
 func handleAdminIndex(c *gin.Context, objects []*AdminObject) {
+	var viewObjects []AdminObject
+	for _, obj := range objects {
+		if obj.AccessCheck != nil {
+			err := obj.AccessCheck(c, obj)
+			if err != nil {
+				continue
+			}
+		}
+		viewObjects = append(viewObjects, *obj)
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"objects": objects,
+		"objects": viewObjects,
 		"user":    CurrentUser(c),
 		"site":    GetRenderPageContext(c),
 	})
