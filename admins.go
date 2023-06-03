@@ -136,7 +136,7 @@ func RegisterAdmins(r *gin.RouterGroup, db *gorm.DB, objs []AdminObject) {
 		handledObjects = append(handledObjects, obj)
 	}
 
-	r.GET("/", func(ctx *gin.Context) {
+	r.GET("/admin.json", func(ctx *gin.Context) {
 		handleAdminIndex(ctx, handledObjects)
 	})
 }

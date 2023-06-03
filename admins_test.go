@@ -72,9 +72,9 @@ func TestAdminIndex(t *testing.T) {
 
 	client := NewTestClient(r)
 
-	w := client.Get("/admin/")
+	w := client.Get("/admin/admin.json")
 	assert.Equal(t, w.Code, 302)
-	assert.Equal(t, w.Header().Get("Location"), "/auth/login?next=http://MOCKSERVER/admin/")
+	assert.Equal(t, w.Header().Get("Location"), "/auth/login?next=http://MOCKSERVER/admin/admin.json")
 
 	authClient(db, client, "bob@restsend.com", "--", true)
 
@@ -82,7 +82,7 @@ func TestAdminIndex(t *testing.T) {
 		Email:    "bob@restsend.com",
 		Password: "--",
 	}, nil)
-	w = client.Get("/admin/")
+	w = client.Get("/admin/admin.json")
 	assert.Equal(t, w.Code, 200)
 	body := w.Body.String()
 	assert.Contains(t, body, "/admin/user")
