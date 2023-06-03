@@ -75,38 +75,48 @@ func (as *StaticAssets) InitStaticAssets(r *gin.Engine) {
 	r.StaticFS(staticPrefix, as)
 }
 
-func (as *StaticAssets) TemplateExists(name string) bool {
+func (as *StaticAssets) Locate(name string) (string, error) {
 	for _, dir := range as.Paths {
 		dir, _ = filepath.Abs(os.ExpandEnv(dir))
-		testFileName := filepath.Join(dir, as.TemplateDir, filepath.FromSlash(name))
+		testFileName := filepath.Join(dir, name)
 		st, err := os.Stat(testFileName)
-
-		if err == nil && !st.IsDir() {
-			return true
+		if err == nil {
+			if st.IsDir() { // disable directory listing
+				_, err = os.Stat(filepath.Join(testFileName, "index.html"))
+				if err != nil {
+					return "", errors.New("file not found")
+				}
+			}
+			return testFileName, nil
 		}
 	}
-	return false
+	return "", errors.New("file not found")
 }
 
-func (as *StaticAssets) Locate(name string) string {
-	for _, dir := range as.Paths {
-		dir, _ = filepath.Abs(os.ExpandEnv(dir))
-		testFileName := filepath.Join(dir, filepath.FromSlash(name))
-		st, err := os.Stat(testFileName)
-
-		if err == nil && !st.IsDir() {
-			return testFileName
-		}
+// gin.StaticFS interface
+func (as *StaticAssets) Open(name string) (http.File, error) {
+	dir := filepath.Dir(name)
+	if !strings.HasPrefix(dir, "/") || strings.ContainsRune(dir, '.') {
+		return nil, errors.New("http: invalid character in file path")
 	}
-	return name
+	n, err := as.Locate(name)
+	if err != nil {
+		return nil, err
+	}
+	return os.Open(n)
 }
 
 // pongo2.TemplateLoader
 func (as *StaticAssets) Abs(base, name string) string {
-	if base != "" {
-		name = filepath.Join(as.TemplateDir, name)
+	for _, dir := range as.Paths {
+		dir, _ = filepath.Abs(os.ExpandEnv(dir))
+		testFileName := filepath.Join(dir, as.TemplateDir, filepath.Base(name))
+		_, err := os.Stat(testFileName)
+		if err == nil {
+			return testFileName
+		}
 	}
-	return as.Locate(name)
+	return ""
 }
 
 // pongo2.TemplateLoader Get returns an io.Reader where the template's content can be read from.
@@ -118,26 +128,12 @@ func (as *StaticAssets) Get(path string) (io.Reader, error) {
 	return bytes.NewReader(buf), nil
 }
 
-// gin.StaticFS interface
-func (as *StaticAssets) Open(name string) (http.File, error) {
-	dir := filepath.Dir(name)
-	if !strings.HasPrefix(dir, "/") || strings.ContainsRune(dir, '.') {
-		return nil, errors.New("http: invalid character in file path")
-	}
-	name = as.Locate(name)
-	f, err := os.Open(name)
-	if err != nil {
-		return nil, err
-	}
-	return f, err
-}
-
 // gin.HTML Render
 func (as *StaticAssets) Instance(name string, ctx any) render.Render {
 	vals := ctx.(map[string]any)
 	r := &PongoRender{
 		sets:     as.sets,
-		fileName: as.Locate(filepath.Join(as.TemplateDir, name)),
+		fileName: name,
 		ctx:      vals,
 	}
 	return r

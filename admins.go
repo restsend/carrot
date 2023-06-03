@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"path"
+	"path/filepath"
 	"reflect"
 	"strings"
 
@@ -61,6 +62,18 @@ type AdminObject struct {
 	tableName    string           `json:"-"`
 	modelElem    reflect.Type     `json:"-"`
 }
+type AdminAssets struct {
+	as *StaticAssets
+}
+
+// gin.StaticFS interface
+func (admin *AdminAssets) Open(name string) (http.File, error) {
+	dir := filepath.Dir(name)
+	if !strings.HasPrefix(dir, "/") || strings.ContainsRune(dir, '.') {
+		return nil, errors.New("http: invalid character in file path")
+	}
+	return admin.as.Open(filepath.Join("/admin", name))
+}
 
 // Returns all admin objects
 func GetCarrotAdminObjects() []AdminObject {
@@ -94,7 +107,7 @@ func GetCarrotAdminObjects() []AdminObject {
 }
 
 // RegisterAdmins registers admin routes
-func RegisterAdmins(r *gin.RouterGroup, db *gorm.DB, objs []AdminObject) {
+func RegisterAdmins(r *gin.RouterGroup, db *gorm.DB, as *StaticAssets, objs []AdminObject) {
 	r.Use(func(ctx *gin.Context) {
 		user := CurrentUser(ctx)
 		if user == nil {
@@ -136,9 +149,10 @@ func RegisterAdmins(r *gin.RouterGroup, db *gorm.DB, objs []AdminObject) {
 		handledObjects = append(handledObjects, obj)
 	}
 
-	r.GET("/admin.json", func(ctx *gin.Context) {
+	r.POST("/admin.json", func(ctx *gin.Context) {
 		handleAdminIndex(ctx, handledObjects)
 	})
+	r.StaticFS("/", &AdminAssets{as: as})
 }
 
 func handleAdminIndex(c *gin.Context, objects []*AdminObject) {
@@ -170,7 +184,7 @@ func (obj *AdminObject) RegisterAdmin(r gin.IRoutes) {
 		ctx.Next()
 	})
 
-	r.GET(":pk", obj.handleGetOne)
+	r.POST("/:pk", obj.handleGetOne)
 	r.POST("/", obj.handleQuery)
 	r.PUT("/", obj.handleCreate)
 	r.PATCH(":pk", obj.handleUpdate)

@@ -98,7 +98,7 @@ func main() {
 			http://localhost:8080/admin
 	*/
 	adminobjs := carrot.GetCarrotAdminObjects()
-	carrot.RegisterAdmins(r.Group("/admin"), db, adminobjs)
+	carrot.RegisterAdmins(r.Group("/admin"), db, as, adminobjs)
 	r.Run(":8080")
 }
 

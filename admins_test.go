@@ -2,6 +2,7 @@ package carrot
 
 import (
 	"encoding/json"
+	"net/http"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -54,8 +55,10 @@ func createAdminTest() (*gin.Engine, *gorm.DB, *TestClient) {
 	db, _ := InitDatabase(nil, "", "")
 	InitCarrot(db, r)
 
+	as := r.HTMLRender.(*StaticAssets)
+	as.Paths = []string{"assets"}
 	objs := GetCarrotAdminObjects()
-	RegisterAdmins(r.Group("/admin"), db, objs)
+	RegisterAdmins(r.Group("/admin"), db, as, objs)
 	client := NewTestClient(r)
 	authClient(db, client, "bob@restsend.com", "--", true)
 	return r, db, client
@@ -67,8 +70,10 @@ func TestAdminIndex(t *testing.T) {
 	assert.Nil(t, err)
 	InitCarrot(db, r)
 
+	as := r.HTMLRender.(*StaticAssets)
+	as.Paths = []string{"assets"}
 	objs := GetCarrotAdminObjects()
-	RegisterAdmins(r.Group("/admin"), db, objs)
+	RegisterAdmins(r.Group("/admin"), db, as, objs)
 
 	client := NewTestClient(r)
 
@@ -82,11 +87,17 @@ func TestAdminIndex(t *testing.T) {
 		Email:    "bob@restsend.com",
 		Password: "--",
 	}, nil)
-	w = client.Get("/admin/admin.json")
+
+	w = client.Post(http.MethodPost, "/admin/admin.json", nil)
 	assert.Equal(t, w.Code, 200)
 	body := w.Body.String()
 	assert.Contains(t, body, "/admin/user")
 	assert.Contains(t, body, `"pluralName":"Configs"`)
+
+	w = client.Get("/admin/")
+	assert.Equal(t, w.Code, 200)
+	body = w.Body.String()
+	assert.Contains(t, body, "Admin panel")
 }
 
 func TestAdminCRUD(t *testing.T) {
@@ -181,7 +192,7 @@ func TestAdminSingle(t *testing.T) {
 		Key:   "Carrot Admin Unittest",
 		Value: "mock"})
 
-	w := client.Get("/admin/config/1024")
+	w := client.Post(http.MethodPost, "/admin/config/1024", nil)
 	assert.Equal(t, w.Code, 200)
 
 	body := w.Body.String()

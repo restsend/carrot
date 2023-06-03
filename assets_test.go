@@ -10,8 +10,8 @@ import (
 
 func TestLocate(t *testing.T) {
 	as := NewStaticAssets()
-	as.Paths = []string{"assets/html"}
-	assert.Contains(t, as.Locate("signin.html"), "assets/html")
+	as.Paths = []string{"assets"}
+	assert.Contains(t, as.Abs("", "signin.html"), "assets/html")
 }
 func TestStaticAssets(t *testing.T) {
 	as := NewStaticAssets()
