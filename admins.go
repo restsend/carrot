@@ -39,18 +39,21 @@ type AdminField struct {
 
 type AdminObject struct {
 	Model       any                       `json:"-"`
-	Group       string                    `json:"group"`       // Group name
-	Name        string                    `json:"name"`        // Name of the object
-	Path        string                    `json:"path"`        // Path prefix
-	Shows       []string                  `json:"shows"`       // Show fields
-	Editables   []string                  `json:"editables"`   // Editable fields
-	Filterables []string                  `json:"filterables"` // Filterable fields
-	Orderables  []string                  `json:"orderables"`  // Orderable fields
-	Searchables []string                  `json:"searchables"` // Searchable fields
-	Attributes  map[string]AdminAttribute `json:"attributes"`  // Field's extra attributes
-	PrimaryKey  string                    `json:"primaryKey"`  // Primary key name
+	Group       string                    `json:"group"`          // Group name
+	Name        string                    `json:"name"`           // Name of the object
+	Desc        string                    `json:"desc,omitempty"` // Description
+	Path        string                    `json:"path"`           // Path prefix
+	Shows       []string                  `json:"shows"`          // Show fields
+	Editables   []string                  `json:"editables"`      // Editable fields
+	Filterables []string                  `json:"filterables"`    // Filterable fields
+	Orderables  []string                  `json:"orderables"`     // Orderable fields
+	Searchables []string                  `json:"searchables"`    // Searchable fields
+	Attributes  map[string]AdminAttribute `json:"attributes"`     // Field's extra attributes
+	PrimaryKey  string                    `json:"primaryKey"`     // Primary key name
 	PluralName  string                    `json:"pluralName"`
 	Fields      []AdminField              `json:"fields"`
+	EditPage    string                    `json:"editpage,omitempty"`
+	ListPage    string                    `json:"listpage,omitempty"`
 
 	AccessCheck  AdminAccessCheck `json:"-"` // Access control function
 	GetDB        GetDB            `json:"-"`
@@ -75,9 +78,10 @@ func GetCarrotAdminObjects() []AdminObject {
 	return []AdminObject{
 		{
 			Model:       &User{},
-			Group:       "Sys",
+			Group:       "Settings",
 			Name:        "User",
-			Shows:       []string{"String", "Email", "Username", "FirstName", "ListName", "IsStaff", "IsSuperUser", "Enabled", "Actived", "Source", "Locale", "Timezone", "FirstName", "ListName"},
+			Desc:        "Builtin user management system",
+			Shows:       []string{"ID", "Email", "Username", "FirstName", "ListName", "IsStaff", "IsSuperUser", "Enabled", "Actived", "Source", "Locale", "Timezone", "FirstName", "ListName"},
 			Editables:   []string{"Email", "Password", "Username", "FirstName", "ListName", "IsStaff", "IsSuperUser", "Enabled", "Actived", "Source", "Locale", "Timezone"},
 			Filterables: []string{"CreatedAt", "UpdatedAt", "Username", "IsStaff", "IsSuperUser", "Enabled", "Actived"},
 			Orderables:  []string{"CreatedAt", "UpdatedAt", "Enabled", "Actived"},
@@ -86,8 +90,9 @@ func GetCarrotAdminObjects() []AdminObject {
 		},
 		{
 			Model:       &Config{},
-			Group:       "Sys",
+			Group:       "Settings",
 			Name:        "Config",
+			Desc:        "System config with database backend, You can change it in admin page, and it will take effect immediately without restarting the server", //
 			Shows:       []string{"Key", "Value", "Desc"},
 			Editables:   []string{"Key", "Value", "Desc"},
 			Orderables:  []string{"Key"},
@@ -380,7 +385,6 @@ func (obj *AdminObject) QueryObjects(db *gorm.DB, form *QueryForm, ctx *gin.Cont
 		}
 		r.Items = append(r.Items, item)
 	}
-	r.Pos += int(result.RowsAffected)
 	return r, nil
 }
 

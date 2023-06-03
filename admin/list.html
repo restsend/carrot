@@ -1,0 +1,62 @@
+<template x-if="!switching">
+    <div class="px-4 sm:px-6 lg:px-8">
+        <div class="sm:flex sm:items-center">
+            <div class="sm:flex-auto">
+                <h1 class="text-base font-semibold leading-6 text-gray-900" x-text="current.pluralName"></h1>
+                <p class="mt-2 text-sm text-gray-700" x-text="current.desc"></p>
+            </div>
+            <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+                <button type="button" x-text="'Add '+ current.name"
+                    class="block rounded-md bg-indigo-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"></button>
+            </div>
+        </div>
+        <div class="mt-8 flow-root">
+            <div class="-mx-4 -my-2 sm:-mx-6 lg:-mx-8">
+                <div class="inline-block w-96 min-w-full py-2 align-middle">
+                    <table class="min-w-full border-separate border-spacing-0">
+                        <thead>
+                            <tr>
+                                <template x-for="col in current.shows">
+                                    <th scope="col" x-text="col.headerName"
+                                        class="sticky top-0 z-10 border-b border-gray-300 bg-white bg-opacity-75 py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
+                                    </th>
+                                </template>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="item in qureyresult.items">
+                                <tr class="bg-white hover:bg-gray-50">
+                                    <template x-for="col in item">
+                                        <td x-text="col.value" :class="col.primary ? 'font-semibold' : 'font-normal'"
+                                            class="whitespace-nowrap border-b border-gray-200 py-4 pl-4 pr-3 text-sm text-gray-900 sm:pl-6 lg:pl-8">
+                                        </td>
+                                    </template>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                    <nav class="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6"
+                        aria-label="Pagination">
+                        <div class="hidden sm:block">
+                            <p class="text-sm text-gray-700">
+                                Showing
+                                <span class="font-medium" x-text="qureyresult.pos"></span>
+                                to
+                                <span class="font-medium" x-text="qureyresult.count"></span>
+                                of
+                                <span class="font-medium" x-text="qureyresult.total"></span>
+                                results
+                            </p>
+                        </div>
+                        <div class="flex flex-1 justify-between sm:justify-end">
+                            <a href="#" x-on:click="queryprev($event)"
+                                class="relative inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus-visible:outline-offset-0">Previous</a>
+                            <a href="#" x-on:click="querynext($event)"
+                                class="relative ml-3 inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus-visible:outline-offset-0">Next</a>
+                        </div>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
