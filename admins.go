@@ -142,10 +142,11 @@ func RegisterAdmins(r *gin.RouterGroup, db *gorm.DB, objs []AdminObject) {
 }
 
 func handleAdminIndex(c *gin.Context, objects []*AdminObject) {
-	ctx := GetRenderPageContext(c)
-	ctx["objects"] = objects
-	ctx["user"] = CurrentUser(c)
-	c.JSON(http.StatusOK, ctx)
+	c.JSON(http.StatusOK, gin.H{
+		"objects": objects,
+		"user":    CurrentUser(c),
+		"site":    GetRenderPageContext(c),
+	})
 }
 
 // RegisterAdmin registers admin routes
