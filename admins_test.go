@@ -39,6 +39,7 @@ func authClient(db *gorm.DB, client *TestClient, email, password string, isSuper
 	if _, err := GetUserByEmail(db, email); err != nil {
 		u, _ := CreateUser(db, email, password)
 		if isSuper {
+			u.IsStaff = true
 			u.IsSuperUser = true
 			db.Save(&u)
 		}
@@ -55,10 +56,8 @@ func createAdminTest() (*gin.Engine, *gorm.DB, *TestClient) {
 	db, _ := InitDatabase(nil, "", "")
 	InitCarrot(db, r)
 
-	as := r.HTMLRender.(*StaticAssets)
-	as.Paths = []string{"assets"}
 	objs := GetCarrotAdminObjects()
-	RegisterAdmins(r.Group("/admin"), db, as, objs)
+	RegisterAdmins(r.Group("/admin"), db, "./admin", objs)
 	client := NewTestClient(r)
 	authClient(db, client, "bob@restsend.com", "--", true)
 	return r, db, client
@@ -70,10 +69,8 @@ func TestAdminIndex(t *testing.T) {
 	assert.Nil(t, err)
 	InitCarrot(db, r)
 
-	as := r.HTMLRender.(*StaticAssets)
-	as.Paths = []string{"assets"}
 	objs := GetCarrotAdminObjects()
-	RegisterAdmins(r.Group("/admin"), db, as, objs)
+	RegisterAdmins(r.Group("/admin"), db, HintAssetsRoot("admin"), objs)
 
 	client := NewTestClient(r)
 
@@ -104,6 +101,25 @@ func TestAdminCRUD(t *testing.T) {
 	_, db, client := createAdminTest()
 
 	{
+		db.Model(&User{}).Where("email", "bob@restsend.com").UpdateColumn("is_staff", false)
+		db.Model(&User{}).Where("email", "bob@restsend.com").UpdateColumn("is_super_user", false)
+		err := client.CallPut("/admin/config/", gin.H{
+			"id": 1024,
+		}, nil)
+		assert.NotNil(t, err)
+		assert.Contains(t, err.Error(), "forbidden")
+
+		db.Model(&User{}).Where("email", "bob@restsend.com").UpdateColumn("is_staff", true)
+		db.Model(&User{}).Where("email", "bob@restsend.com").UpdateColumn("is_super_user", false)
+		err = client.CallPut("/admin/config/", gin.H{
+			"id": 1024,
+		}, nil)
+		assert.NotNil(t, err)
+		assert.Contains(t, err.Error(), "only superuser can access")
+	}
+
+	{
+		db.Model(&User{}).Where("email", "bob@restsend.com").UpdateColumn("is_super_user", true)
 		var r Config
 		err := client.CallPut("/admin/config/", gin.H{
 			"id":    1024,

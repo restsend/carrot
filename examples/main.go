@@ -65,12 +65,6 @@ func main() {
 		panic(err)
 	}
 
-	as, ok := r.HTMLRender.(*carrot.StaticAssets)
-	if ok {
-		paths := []string{carrot.HintAssetsRoot([]string{"./", "../"})}
-		as.Paths = append(paths, as.Paths...)
-	}
-
 	// Check Default Value
 	carrot.CheckValue(db, carrot.KEY_SITE_NAME, "Carrot")
 
@@ -98,7 +92,7 @@ func main() {
 			http://localhost:8080/admin
 	*/
 	adminobjs := carrot.GetCarrotAdminObjects()
-	carrot.RegisterAdmins(r.Group("/admin"), db, as, adminobjs)
+	carrot.RegisterAdmins(r.Group("/admin"), db, carrot.HintAssetsRoot("admin"), adminobjs)
 	r.Run(":8080")
 }
 

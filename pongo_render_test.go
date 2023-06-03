@@ -12,7 +12,7 @@ import (
 
 func TestPongoRender(t *testing.T) {
 	as := NewStaticAssets()
-	as.Paths = []string{"assets"}
+
 	{
 		w := httptest.NewRecorder()
 		err := as.Instance("index.html", map[string]any{
@@ -81,7 +81,7 @@ func TestPongoRender(t *testing.T) {
 			data["sitename"] = "MOCK_TEST"
 			ctx.HTML(http.StatusOK, "index.html", data)
 		})
-		r.HTMLRender.(*StaticAssets).Paths = []string{"assets"}
+
 		client := NewTestClient(r)
 		w := client.Get("/")
 		assert.Equal(t, w.Code, http.StatusOK)

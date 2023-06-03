@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	DefaultQueryLimit = 50
+	DefaultQueryLimit = 100
 )
 
 const (

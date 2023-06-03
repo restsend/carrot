@@ -2,12 +2,10 @@ package carrot
 
 import (
 	"bytes"
-	"errors"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/flosch/pongo2/v6"
 	"github.com/gin-gonic/gin"
@@ -38,10 +36,10 @@ func GetRenderPageContext(c *gin.Context) map[string]any {
 	}
 }
 
-func HintAssetsRoot(paths []string) string {
+func HintAssetsRoot(dirName string) string {
 	var p string
-	for _, dir := range paths {
-		testDirName := filepath.Join(os.ExpandEnv(dir), "assets")
+	for _, dir := range []string{".", ".."} {
+		testDirName := filepath.Join(os.ExpandEnv(dir), dirName)
 		st, err := os.Stat(testDirName)
 
 		if err == nil && st.IsDir() {
@@ -52,17 +50,15 @@ func HintAssetsRoot(paths []string) string {
 }
 
 type StaticAssets struct {
-	Paths       []string
 	TemplateDir string
-	sets        *pongo2.TemplateSet
+	pongosets   *pongo2.TemplateSet
 }
 
 func NewStaticAssets() *StaticAssets {
 	r := &StaticAssets{
-		TemplateDir: "html",
+		TemplateDir: HintAssetsRoot("templates"),
 	}
-	r.sets = pongo2.NewSet("carrot", r)
-
+	r.pongosets = pongo2.NewSet("carrot", r)
 	return r
 }
 
@@ -71,50 +67,19 @@ func (as *StaticAssets) InitStaticAssets(r *gin.Engine) {
 	if staticPrefix == "" {
 		staticPrefix = "/static"
 	}
-
-	r.StaticFS(staticPrefix, as)
-}
-
-func (as *StaticAssets) Locate(name string) (string, error) {
-	for _, dir := range as.Paths {
-		dir, _ = filepath.Abs(os.ExpandEnv(dir))
-		testFileName := filepath.Join(dir, name)
-		st, err := os.Stat(testFileName)
-		if err == nil {
-			if st.IsDir() { // disable directory listing
-				_, err = os.Stat(filepath.Join(testFileName, "index.html"))
-				if err != nil {
-					return "", errors.New("file not found")
-				}
-			}
-			return testFileName, nil
-		}
+	staticDir := HintAssetsRoot("static")
+	if staticDir != "" {
+		Warning("static serving at", staticPrefix, "->", staticDir)
+		r.StaticFS(staticPrefix, http.Dir(staticDir))
 	}
-	return "", errors.New("file not found")
-}
-
-// gin.StaticFS interface
-func (as *StaticAssets) Open(name string) (http.File, error) {
-	dir := filepath.Dir(name)
-	if !strings.HasPrefix(dir, "/") || strings.ContainsRune(dir, '.') {
-		return nil, errors.New("http: invalid character in file path")
-	}
-	n, err := as.Locate(name)
-	if err != nil {
-		return nil, err
-	}
-	return os.Open(n)
 }
 
 // pongo2.TemplateLoader
 func (as *StaticAssets) Abs(base, name string) string {
-	for _, dir := range as.Paths {
-		dir, _ = filepath.Abs(os.ExpandEnv(dir))
-		testFileName := filepath.Join(dir, as.TemplateDir, filepath.Base(name))
-		_, err := os.Stat(testFileName)
-		if err == nil {
-			return testFileName
-		}
+	testFileName := filepath.Join(as.TemplateDir, filepath.Base(name))
+	_, err := os.Stat(testFileName)
+	if err == nil {
+		return testFileName
 	}
 	return ""
 }
@@ -132,7 +97,7 @@ func (as *StaticAssets) Get(path string) (io.Reader, error) {
 func (as *StaticAssets) Instance(name string, ctx any) render.Render {
 	vals := ctx.(map[string]any)
 	r := &PongoRender{
-		sets:     as.sets,
+		sets:     as.pongosets,
 		fileName: name,
 		ctx:      vals,
 	}

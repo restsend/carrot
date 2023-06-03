@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"path"
-	"path/filepath"
 	"reflect"
 	"strings"
 
@@ -62,21 +61,17 @@ type AdminObject struct {
 	tableName    string           `json:"-"`
 	modelElem    reflect.Type     `json:"-"`
 }
-type AdminAssets struct {
-	as *StaticAssets
-}
-
-// gin.StaticFS interface
-func (admin *AdminAssets) Open(name string) (http.File, error) {
-	dir := filepath.Dir(name)
-	if !strings.HasPrefix(dir, "/") || strings.ContainsRune(dir, '.') {
-		return nil, errors.New("http: invalid character in file path")
-	}
-	return admin.as.Open(filepath.Join("/admin", name))
-}
 
 // Returns all admin objects
 func GetCarrotAdminObjects() []AdminObject {
+
+	superAccessCheck := func(c *gin.Context, obj *AdminObject) error {
+		if !CurrentUser(c).IsSuperUser {
+			return errors.New("only superuser can access")
+		}
+		return nil
+	}
+
 	return []AdminObject{
 		{
 			Model:       &User{},
@@ -87,6 +82,7 @@ func GetCarrotAdminObjects() []AdminObject {
 			Filterables: []string{"CreatedAt", "UpdatedAt", "Username", "IsStaff", "IsSuperUser", "Enabled", "Actived"},
 			Orderables:  []string{"CreatedAt", "UpdatedAt", "Enabled", "Actived"},
 			Searchables: []string{"Username", "Email", "FirstName", "ListName"},
+			AccessCheck: superAccessCheck,
 		},
 		{
 			Model:       &Config{},
@@ -96,18 +92,13 @@ func GetCarrotAdminObjects() []AdminObject {
 			Editables:   []string{"Key", "Value", "Desc"},
 			Orderables:  []string{"Key"},
 			Searchables: []string{"Key", "Value", "Desc"},
-			AccessCheck: func(c *gin.Context, obj *AdminObject) error {
-				if !CurrentUser(c).IsSuperUser {
-					return fmt.Errorf("only superuser can access")
-				}
-				return nil
-			},
+			AccessCheck: superAccessCheck,
 		},
 	}
 }
 
 // RegisterAdmins registers admin routes
-func RegisterAdmins(r *gin.RouterGroup, db *gorm.DB, as *StaticAssets, objs []AdminObject) {
+func RegisterAdmins(r *gin.RouterGroup, db *gorm.DB, adminAssetsRoot string, objs []AdminObject) {
 	r.Use(func(ctx *gin.Context) {
 		user := CurrentUser(ctx)
 		if user == nil {
@@ -152,7 +143,7 @@ func RegisterAdmins(r *gin.RouterGroup, db *gorm.DB, as *StaticAssets, objs []Ad
 	r.POST("/admin.json", func(ctx *gin.Context) {
 		handleAdminIndex(ctx, handledObjects)
 	})
-	r.StaticFS("/", &AdminAssets{as: as})
+	r.StaticFS("/", http.Dir(adminAssetsRoot))
 }
 
 func handleAdminIndex(c *gin.Context, objects []*AdminObject) {
