@@ -98,7 +98,7 @@ func main() {
 			http://localhost:8080/admin
 	*/
 	adminobjs := carrot.GetCarrotAdminObjects()
-	carrot.RegisterAdmins(r.Group("/admin"), as, adminobjs, nil)
+	carrot.RegisterAdmins(r.Group("/admin"), db, adminobjs)
 	r.Run(":8080")
 }
 
@@ -141,13 +141,13 @@ func GetWebObjects(db *gorm.DB) []carrot.WebObject {
 			GetDB: func(c *gin.Context, isCreate bool) *gorm.DB {
 				return db
 			},
-			OnCreate: func(ctx *gin.Context, vptr any) error {
+			BeforeCreate: func(ctx *gin.Context, vptr any) error {
 				p := (vptr).(*Product)
 				p.UUID = carrot.RandText(8)
 				p.GroupID = rand.Intn(5)
 				return nil
 			},
-			OnDelete: func(ctx *gin.Context, vptr any) error {
+			BeforeDelete: func(ctx *gin.Context, vptr any) error {
 				p := (vptr).(*Product)
 				if p.Enabled {
 					return errors.New("product is enabled, can not delete")

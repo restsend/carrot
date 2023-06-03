@@ -48,10 +48,10 @@ type GetDB func(c *gin.Context, isCreate bool) *gorm.DB // designed for group
 type PrepareQuery func(db *gorm.DB, c *gin.Context) (*gorm.DB, *QueryForm, error)
 
 type (
-	CreateFunc func(ctx *gin.Context, vptr any) error
-	DeleteFunc func(ctx *gin.Context, vptr any) error
-	UpdateFunc func(ctx *gin.Context, vptr any, vals map[string]any) error
-	RenderFunc func(ctx *gin.Context, vptr any) error
+	BeforeCreateFunc func(ctx *gin.Context, vptr any) error
+	BeforeDeleteFunc func(ctx *gin.Context, vptr any) error
+	BeforeUpdateFunc func(ctx *gin.Context, vptr any, vals map[string]any) error
+	BeforeRenderFunc func(ctx *gin.Context, vptr any) error
 )
 
 type QueryView struct {
@@ -61,18 +61,18 @@ type QueryView struct {
 }
 
 type WebObject struct {
-	Model       any
-	Group       string
-	Name        string
-	Editables   []string
-	Filterables []string
-	Orderables  []string
-	Searchables []string
-	GetDB       GetDB
-	OnCreate    CreateFunc
-	OnUpdate    UpdateFunc
-	OnDelete    DeleteFunc
-	OnRender    RenderFunc
+	Model        any
+	Group        string
+	Name         string
+	Editables    []string
+	Filterables  []string
+	Orderables   []string
+	Searchables  []string
+	GetDB        GetDB
+	BeforeCreate BeforeCreateFunc
+	BeforeUpdate BeforeUpdateFunc
+	BeforeDelete BeforeDeleteFunc
+	BeforeRender BeforeRenderFunc
 
 	Views        []QueryView
 	AllowMethods int
@@ -149,7 +149,7 @@ func (f *Filter) GetQuery() string {
 		return ""
 	}
 
-	return fmt.Sprintf("%s %s ?", f.Name, op)
+	return fmt.Sprintf("`%s` %s ?", f.Name, op)
 }
 
 // GetQuery return the combined order SQL statement.
@@ -294,7 +294,7 @@ func (obj *WebObject) parseFields(rt reflect.Type) {
 		}
 
 		gormTag := f.Tag.Get("gorm")
-		if gormTag == "" || gormTag == "-" {
+		if gormTag == "-" {
 			continue
 		}
 
@@ -337,8 +337,8 @@ func handleGetObject(c *gin.Context, obj *WebObject) {
 		return
 	}
 
-	if obj.OnRender != nil {
-		if err := obj.OnRender(c, val); err != nil {
+	if obj.BeforeRender != nil {
+		if err := obj.BeforeRender(c, val); err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -355,8 +355,8 @@ func handleCreateObject(c *gin.Context, obj *WebObject) {
 		return
 	}
 
-	if obj.OnCreate != nil {
-		if err := obj.OnCreate(c, val); err != nil {
+	if obj.BeforeCreate != nil {
+		if err := obj.BeforeCreate(c, val); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
@@ -429,13 +429,13 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 
 	pkColName := db.NamingStrategy.ColumnName(obj.tableName, obj.PrimaryKeyName)
 
-	if obj.OnUpdate != nil {
+	if obj.BeforeUpdate != nil {
 		val := reflect.New(obj.modelElem).Interface()
 		if err := db.First(val, pkColName, key).Error; err != nil {
 			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "not found"})
 			return
 		}
-		if err := obj.OnUpdate(c, val, inputVals); err != nil {
+		if err := obj.BeforeUpdate(c, val, inputVals); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
@@ -470,8 +470,8 @@ func handleDeleteObject(c *gin.Context, obj *WebObject) {
 		return
 	}
 
-	if obj.OnDelete != nil {
-		if err := obj.OnDelete(c, val); err != nil {
+	if obj.BeforeDelete != nil {
+		if err := obj.BeforeDelete(c, val); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
@@ -583,12 +583,12 @@ func handleQueryObject(c *gin.Context, obj *WebObject, prepareQuery PrepareQuery
 		return
 	}
 
-	if obj.OnRender != nil {
+	if obj.BeforeRender != nil {
 		vals := reflect.ValueOf(r.Items)
 		if vals.Kind() == reflect.Slice {
 			for i := 0; i < vals.Len(); i++ {
 				v := vals.Index(i).Addr().Interface()
-				if err := obj.OnRender(c, v); err != nil {
+				if err := obj.BeforeRender(c, v); err != nil {
 					c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 					return
 				}
@@ -611,7 +611,12 @@ func QueryObjects(db *gorm.DB, obj *WebObject, form *QueryForm) (r QueryResult[a
 func QueryObjectsEx(db *gorm.DB, tblName string, modelElem reflect.Type, form *QueryForm) (r QueryResult[any], err error) {
 	for _, v := range form.Filters {
 		if q := v.GetQuery(); q != "" {
-			db = db.Where(fmt.Sprintf("%s.%s", tblName, q), v.Value)
+			if v.Op == FilterOpLike {
+				kw := sql.Named("keyword", fmt.Sprintf(`%%%s%%`, v.Value))
+				db = db.Where(fmt.Sprintf("`%s`.%s @keyword", tblName, q), kw)
+			} else {
+				db = db.Where(fmt.Sprintf("`%s`.%s", tblName, q), v.Value)
+			}
 		}
 	}
 
