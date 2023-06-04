@@ -2,82 +2,72 @@
     <div class="px-4 sm:px-6 lg:px-8">
         <div class="sm:flex sm:items-center">
             <div class="sm:flex-auto">
-                <h1 class="text-base font-semibold leading-6 text-gray-900" x-text="current.pluralName"></h1>
-                <p class="mt-2 text-sm text-gray-700" x-text="current.desc"></p>
+                <h1 class="text-base font-semibold leading-6 text-gray-900" x-text="$store.current.pluralName"></h1>
+                <p class="mt-2 text-sm text-gray-700" x-text="$store.current.desc"></p>
             </div>
             <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
-                <button type="button" x-text="'Add '+ current.name"
+                <button type="button" x-text="'Add '+ $store.current.name"
                     class="block rounded-md bg-indigo-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"></button>
             </div>
         </div>
         <div class="mt-8 flow-root">
             <div class="-mx-4 -my-2 sm:-mx-6 lg:-mx-8">
                 <div class="inline-block w-96 min-w-full py-2 align-middle">
-                    <div class="flex mb-2 justify-between">
+                    <div class="flex mb-2 items-center">
                         <div class="relative mt-2 rounded-md shadow-sm">
-                            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke-width="1.5"
-                                    stroke="currentColor" class="w-5 h-5 text-gray-400" viewBox="0 0 20 20"
-                                    fill="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                        d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-                                </svg>
-
-                            </div>
-                            <input type="email" name="email" id="email"
-                                class="block w-full rounded-md border-0 py-1.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                                placeholder="Type to search">
-                        </div>
-                        <div class="mr-10">
-                            <span class="isolate inline-flex rounded-md shadow-sm">
-                                <!-- <button type="button"
-                                    class="relative inline-flex items-center rounded-l-md bg-white px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-10">
-                                    <span class="sr-only">Previous</span>
-                                    <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                        <path fill-rule="evenodd"
-                                            d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z"
-                                            clip-rule="evenodd" />
-                                    </svg>
-                                    </button>
-                                    -->
-                                <button type="button"
-                                    class="relative -ml-px inline-flex items-center rounded-md bg-white px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-10">
-                                    <span class="sr-only">Next</span>
-                                    <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <div x-show="$store.current.showsearch">
+                                <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke-width="1.5"
+                                        stroke="currentColor" class="w-5 h-5 text-gray-400" viewBox="0 0 20 20"
+                                        fill="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round"
-                                            d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
+                                            d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                                     </svg>
-                                </button>
-                            </span>
+                                </div>
+                                <input type="text"
+                                    class="block w-full rounded-md border-0 py-1.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                    placeholder="Type to search">
+                            </div>
                         </div>
+                        <span class="mx-2 relative mt-2 rounded-md shadow-sm">
+                            <button type="button"
+                                class="relative -ml-px inline-flex items-center rounded-md bg-white px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-10">
+                                <span class="sr-only">Next</span>
+                                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
+                                </svg>
+                                <span class="mx-2">Filters</span>
+                            </button>
+                        </span>
                     </div>
-                    <table class="min-w-full border-separate border-spacing-0">
+                    <table class="min-w-full border-separate border-spacing-0 shadow">
                         <thead>
                             <tr>
                                 <!-- Column headers -->
                                 <th scope="col"
-                                    class="sticky top-0 z-10 border-b border-gray-300 bg-white relative px-7 sm:w-12 sm:px-6">
+                                    class="sticky top-0 z-10 border-b border-gray-300  relative px-7 sm:w-12 sm:px-6">
                                     <input type="checkbox" x-on:click="selectAllResult"
                                         class="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
                                 </th>
-                                <template x-for="col in current.shows">
+                                <template x-for="col in $store.current.shows">
                                     <th scope="col" x-text="col.headerName"
-                                        class="sticky top-0 z-10 border-b border-gray-300 bg-white bg-opacity-75 py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
+                                        class="sticky top-0 z-10 border-b border-gray-300  bg-opacity-75 py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
                                     </th>
                                 </template>
                             </tr>
                         </thead>
                         <tbody>
                             <!-- Query result -->
-                            <template x-for="row in qureyresult.items">
+                            <template x-for="row in $store.queryresult.items">
                                 <tr class="bg-white hover:bg-gray-50">
                                     <td class="border-b border-gray-200 relative px-7 sm:w-12 sm:px-6">
                                         <input type="checkbox" x-model="row.selected"
                                             class="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
                                     </td>
                                     <template x-for="col in row">
-                                        <td x-text="col.value" :class="col.primary ? 'font-semibold' : 'font-normal'"
-                                            class="whitespace-nowrap border-b border-gray-200 py-4 pl-4 pr-3 text-sm text-gray-900 sm:pl-6 lg:pl-8">
+                                        <td x-html="col.value" :class="col.primary ? 'font-semibold' : 'font-normal'"
+                                            class="whitespace-nowrap border-b border-gray-200 py-3 pl-4 pr-3 text-sm text-gray-900 sm:pl-6 lg:pl-8">
                                         </td>
                                     </template>
                                 </tr>
@@ -89,11 +79,11 @@
                         <div class="hidden sm:block">
                             <p class="text-sm text-gray-700">
                                 Showing
-                                <span class="font-medium" x-text="qureyresult.pos"></span>
+                                <span class="font-medium" x-text="$store.queryresult.pos"></span>
                                 to
-                                <span class="font-medium" x-text="qureyresult.count"></span>
+                                <span class="font-medium" x-text="$store.queryresult.count"></span>
                                 of
-                                <span class="font-medium" x-text="qureyresult.total"></span>
+                                <span class="font-medium" x-text="$store.queryresult.total"></span>
                                 results
                             </p>
                         </div>
