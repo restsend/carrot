@@ -36,7 +36,10 @@ type AdminField struct {
 	elemType  reflect.Type   `json:"-"`
 	fieldName string         `json:"-"`
 }
-
+type AdminScript struct {
+	Src    string `json:"src"`
+	Onload bool   `json:"onload,omitempty"`
+}
 type AdminObject struct {
 	Model       any                       `json:"-"`
 	Group       string                    `json:"group"`          // Group name
@@ -54,6 +57,8 @@ type AdminObject struct {
 	Fields      []AdminField              `json:"fields"`
 	EditPage    string                    `json:"editpage,omitempty"`
 	ListPage    string                    `json:"listpage,omitempty"`
+	Scripts     []AdminScript             `json:"scripts,omitempty"`
+	Styles      []string                  `json:"styles,omitempty"`
 
 	AccessCheck  AdminAccessCheck `json:"-"` // Access control function
 	GetDB        GetDB            `json:"-"`

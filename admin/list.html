@@ -43,17 +43,33 @@
                     </div>
                     <table class="min-w-full border-separate border-spacing-0 shadow">
                         <thead>
-                            <tr>
+                            <tr class="relative">
                                 <!-- Column headers -->
-                                <th scope="col"
-                                    class="sticky top-0 z-10 border-b border-gray-300  relative px-7 sm:w-12 sm:px-6">
-                                    <input type="checkbox" x-on:click="selectAllResult"
+                                <th scope="col" class="sticky  border-b border-gray-300  relative px-7 sm:w-12 sm:px-6">
+                                    <input type="checkbox" x-on:click="$store.queryresult.selectAll()"
+                                        id="btn_selectall"
                                         class="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
                                 </th>
                                 <template x-for="col in $store.current.shows">
                                     <th scope="col" x-text="col.headerName"
-                                        class="sticky top-0 z-10 border-b border-gray-300  bg-opacity-75 py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
+                                        class="sticky  border-b border-gray-300  bg-opacity-75 py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
                                     </th>
+                                </template>
+                                <template x-if="$store.queryresult.selected">
+                                    <div
+                                        class="absolute top-0 left-14 flex h-12 items-center space-x-3 bg-gray-50 sm:left-12">
+                                        <span class="font-semibold" x-text="$store.queryresult.selected"></span>
+                                        <span>Selected</span>
+                                        <a href="#" @click="$store.queryresult.selectResult($event)"
+                                            class="text-gray-600">or
+                                            Select result(<span class="font-semibold"
+                                                x-text="$store.queryresult.total"></span>)</a>
+                                        <template x-for="action in $store.current.actions">
+                                            <button type="button" x-text="action.name" :class="action.class"
+                                                @click="action.onclick()"
+                                                class="inline-flex items-center rounded px-2 py-1 text-sm font-semibold shadow-sm"></button>
+                                        </template>
+                                    </div>
                                 </template>
                             </tr>
                         </thead>
@@ -63,6 +79,7 @@
                                 <tr class="bg-white hover:bg-gray-50">
                                     <td class="border-b border-gray-200 relative px-7 sm:w-12 sm:px-6">
                                         <input type="checkbox" x-model="row.selected"
+                                            @click="$store.queryresult.onselect($event, row)"
                                             class="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
                                     </td>
                                     <template x-for="col in row">
