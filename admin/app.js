@@ -43,6 +43,10 @@ class Queryresult {
                     return d.toLocaleString()
                 }
             }
+            // if value is object
+            if (typeof value == 'object') {
+                return JSON.stringify(value)
+            }
             return value
         }
 
