@@ -2,7 +2,9 @@ package carrot
 
 import (
 	"bytes"
+	"embed"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -12,6 +14,69 @@ import (
 	"github.com/gin-gonic/gin/render"
 	"gorm.io/gorm"
 )
+
+//go:embed static
+var embedAssets embed.FS
+
+//go:embed templates
+var embedTempaltes embed.FS
+
+//go:embed admin
+var embedAdminAssets embed.FS
+
+type CombindEmbedFS struct {
+	embedfs   embed.FS
+	assertDir string
+	embedRoot string
+}
+
+func NewCombindEmbedFS(assertDir, embedRoot string, embedfs embed.FS) *CombindEmbedFS {
+	return &CombindEmbedFS{
+		embedfs:   embedfs,
+		assertDir: assertDir,
+		embedRoot: embedRoot,
+	}
+}
+
+func (c *CombindEmbedFS) Open(name string) (http.File, error) {
+	if c.assertDir != "" {
+		f, err := os.Open(filepath.Join(c.assertDir, name))
+		if err == nil {
+			return f, nil
+		}
+	}
+	ef, err := c.embedfs.Open(filepath.Join(c.embedRoot, name))
+	return EmbedFile{ef}, err
+}
+
+type EmbedFile struct {
+	f fs.File
+}
+
+// Close implements http.File
+func (ef EmbedFile) Close() error {
+	return ef.f.Close()
+}
+
+// Read implements http.File
+func (ef EmbedFile) Read(p []byte) (n int, err error) {
+	return ef.f.Read(p)
+}
+
+// Seek implements http.File
+func (ef EmbedFile) Seek(offset int64, whence int) (int64, error) {
+	return offset, nil
+}
+
+// Readdir implements http.File
+func (ef EmbedFile) Readdir(count int) ([]fs.FileInfo, error) {
+	return nil, nil
+}
+
+// Stat implements http.File
+func (ef EmbedFile) Stat() (fs.FileInfo, error) {
+	return ef.f.Stat()
+}
 
 func GetRenderPageContext(c *gin.Context) map[string]any {
 	db := c.MustGet(DbField).(*gorm.DB)
@@ -37,7 +102,6 @@ func GetRenderPageContext(c *gin.Context) map[string]any {
 }
 
 func HintAssetsRoot(dirName string) string {
-	var p string
 	for _, dir := range []string{".", ".."} {
 		testDirName := filepath.Join(os.ExpandEnv(dir), dirName)
 		st, err := os.Stat(testDirName)
@@ -46,7 +110,7 @@ func HintAssetsRoot(dirName string) string {
 			return testDirName
 		}
 	}
-	return p
+	return ""
 }
 
 type StaticAssets struct {
@@ -68,10 +132,9 @@ func (as *StaticAssets) InitStaticAssets(r *gin.Engine) {
 		staticPrefix = "/static"
 	}
 	staticDir := HintAssetsRoot("static")
-	if staticDir != "" {
-		Warning("static serving at", staticPrefix, "->", staticDir)
-		r.StaticFS(staticPrefix, http.Dir(staticDir))
-	}
+
+	Warning("static serving at", staticPrefix, "->", staticDir)
+	r.StaticFS(staticPrefix, NewCombindEmbedFS(staticDir, "admin", embedAssets))
 }
 
 // pongo2.TemplateLoader
@@ -81,14 +144,18 @@ func (as *StaticAssets) Abs(base, name string) string {
 	if err == nil {
 		return testFileName
 	}
-	return ""
+	return name
 }
 
 // pongo2.TemplateLoader Get returns an io.Reader where the template's content can be read from.
 func (as *StaticAssets) Get(path string) (io.Reader, error) {
 	buf, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		ef, err := embedTempaltes.Open(filepath.Join("templates", path))
+		if err != nil {
+			return nil, err
+		}
+		return ef, err
 	}
 	return bytes.NewReader(buf), nil
 }

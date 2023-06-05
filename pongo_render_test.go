@@ -88,6 +88,17 @@ func TestPongoRender(t *testing.T) {
 		assert.Contains(t, w.Body.String(), "MOCK_TEST")
 		assert.Contains(t, w.Body.String(), "Coming soon")
 	}
+	{
+		// using embed templates
+		as.TemplateDir = ""
+
+		w := httptest.NewRecorder()
+		err := as.Instance("index.html", map[string]any{
+			"sitename": "test",
+		}).Render(w)
+		assert.Nil(t, err)
+		assert.Contains(t, w.Body.String(), "Coming soon")
+	}
 }
 
 func TestCarrotFilters(t *testing.T) {

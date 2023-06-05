@@ -11,6 +11,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/inflection"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	"gorm.io/gorm"
 )
 
@@ -161,7 +163,7 @@ func RegisterAdmins(r *gin.RouterGroup, db *gorm.DB, adminAssetsRoot string, obj
 	r.POST("/admin.json", func(ctx *gin.Context) {
 		handleAdminIndex(ctx, handledObjects)
 	})
-	r.StaticFS("/", http.Dir(adminAssetsRoot))
+	r.StaticFS("/", NewCombindEmbedFS(adminAssetsRoot, "admin", embedAdminAssets))
 }
 
 func handleAdminIndex(c *gin.Context, objects []*AdminObject) {
@@ -295,8 +297,10 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 		}
 
 		if field.Label == "" {
-			field.Label = f.Name
+			field.Label = strings.ReplaceAll(field.Name, "_", " ")
 		}
+
+		field.Label = cases.Title(language.Und).String(field.Label)
 
 		switch f.Type.Kind() {
 		case reflect.Ptr:
