@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/mitchellh/mapstructure"
 	"gorm.io/gorm"
 )
 
@@ -48,7 +49,7 @@ type GetDB func(c *gin.Context, isCreate bool) *gorm.DB // designed for group
 type PrepareQuery func(db *gorm.DB, c *gin.Context) (*gorm.DB, *QueryForm, error)
 
 type (
-	BeforeCreateFunc func(ctx *gin.Context, vptr any) error
+	BeforeCreateFunc func(ctx *gin.Context, vptr any, vals map[string]any) error
 	BeforeDeleteFunc func(ctx *gin.Context, vptr any) error
 	BeforeUpdateFunc func(ctx *gin.Context, vptr any, vals map[string]any) error
 	BeforeRenderFunc func(ctx *gin.Context, vptr any) error
@@ -348,15 +349,21 @@ func handleGetObject(c *gin.Context, obj *WebObject) {
 }
 
 func handleCreateObject(c *gin.Context, obj *WebObject) {
+	var vals map[string]any
+	if err := c.BindJSON(&vals); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
 	val := reflect.New(obj.modelElem).Interface()
 
-	if err := c.BindJSON(&val); err != nil {
+	if err := mapstructure.Decode(vals, val); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	if obj.BeforeCreate != nil {
-		if err := obj.BeforeCreate(c, val); err != nil {
+		if err := obj.BeforeCreate(c, val, vals); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}

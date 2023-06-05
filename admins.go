@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/inflection"
+	"github.com/mitchellh/mapstructure"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"gorm.io/gorm"
@@ -60,7 +61,7 @@ type AdminObject struct {
 	Searchables []string                  `json:"searchables"`           // Searchable fields
 	Requireds   []string                  `json:"requireds,omitempty"`   // Required fields
 	Attributes  map[string]AdminAttribute `json:"attributes"`            // Field's extra attributes
-	PrimaryKey  string                    `json:"primaryKey"`            // Primary key name
+	PrimaryKey  []string                  `json:"primaryKey"`            // Primary key name
 	PluralName  string                    `json:"pluralName"`
 	Fields      []AdminField              `json:"fields"`
 	EditPage    string                    `json:"editpage,omitempty"`
@@ -207,13 +208,11 @@ func (obj *AdminObject) BuildPermissions(db *gorm.DB, user *User) {
 
 // RegisterAdmin registers admin routes
 //
-//   - GET /admin/{objectslug}/{:pk} -> Get object json
 //   - POST /admin/{objectslug} -> Query objects
 //   - PUT /admin/{objectslug} -> Create One
-//   - PATCH /admin/{objectslug}/{pk} -> Update One
-//   - DELETE /admin/{objectslug}/{pk} -> Delete One
-//   - POST /admin/{objectslug}/_/{action}/:name -> Action
-//   - POST /admin/{objectslug}/_/{render}/*filepath -> render html with object
+//   - PATCH /admin/{objectslug}} -> Update One
+//   - DELETE /admin/{objectslug} -> Delete One
+//   - POST /admin/{objectslug}/:name -> Action
 func (obj *AdminObject) RegisterAdmin(r gin.IRoutes) {
 	r = r.Use(func(ctx *gin.Context) {
 		if obj.AccessCheck != nil {
@@ -226,12 +225,11 @@ func (obj *AdminObject) RegisterAdmin(r gin.IRoutes) {
 		ctx.Next()
 	})
 
-	r.POST("/:pk", obj.handleGetOne)
-	r.POST("/", obj.handleQuery)
+	r.POST("/", obj.handleQueryOrGetOne)
 	r.PUT("/", obj.handleCreate)
-	r.PATCH(":pk", obj.handleUpdate)
-	r.DELETE(":pk", obj.handleDelete)
-	r.POST("_/action/:name", obj.handleAction)
+	r.PATCH("/", obj.handleUpdate)
+	r.DELETE("/", obj.handleDelete)
+	r.POST("/_/:name", obj.handleAction)
 }
 
 func (obj *AdminObject) asColNames(db *gorm.DB, fields []string) []string {
@@ -270,7 +268,7 @@ func (obj *AdminObject) Build(db *gorm.DB) error {
 	if err != nil {
 		return err
 	}
-	if obj.PrimaryKey == "" {
+	if len(obj.PrimaryKey) <= 0 {
 		return fmt.Errorf("%s not has primaryKey", obj.Name)
 	}
 	return nil
@@ -318,9 +316,9 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 			field.Type = "datetime"
 		}
 
-		if obj.PrimaryKey == "" && strings.Contains(gormTag, "primarykey") {
+		if strings.Contains(gormTag, "primarykey") || strings.Contains(gormTag, "uniqueindex") {
 			field.Primary = true
-			obj.PrimaryKey = field.Name
+			obj.PrimaryKey = append(obj.PrimaryKey, field.Name)
 			if strings.Contains(field.Type, "int") {
 				field.IsAutoID = true
 			}
@@ -354,10 +352,28 @@ func (obj *AdminObject) MarshalOne(val interface{}) (map[string]any, error) {
 	return result, nil
 }
 
+func (obj *AdminObject) getPrimaryValues(c *gin.Context) map[string]any {
+	var result = make(map[string]any)
+	for _, field := range obj.PrimaryKey {
+		if v := c.Query(field); v != "" {
+			result[field] = v
+		}
+	}
+	return result
+}
+
 func (obj *AdminObject) handleGetOne(c *gin.Context) {
 	db := getDbConnection(c, obj.GetDB, false)
 	modelObj := reflect.New(obj.modelElem).Interface()
-	result := db.Where(obj.PrimaryKey, c.Param("pk")).First(modelObj)
+	keys := obj.getPrimaryValues(c)
+	if len(keys) <= 0 {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": "invalid primary key",
+		})
+		return
+	}
+
+	result := db.Where(keys).First(modelObj)
 
 	if result.Error != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
@@ -421,7 +437,7 @@ func (obj *AdminObject) QueryObjects(db *gorm.DB, form *QueryForm, ctx *gin.Cont
 	db = db.Table(obj.tableName)
 
 	var c int64
-	if err := db.Count(&c).Error; err != nil {
+	if err := db.Debug().Count(&c).Error; err != nil {
 		return r, err
 	}
 	if c <= 0 {
@@ -458,7 +474,12 @@ func (obj *AdminObject) QueryObjects(db *gorm.DB, form *QueryForm, ctx *gin.Cont
 }
 
 // Query many objects with filter/limit/offset/order/search
-func (obj *AdminObject) handleQuery(c *gin.Context) {
+func (obj *AdminObject) handleQueryOrGetOne(c *gin.Context) {
+	if c.Request.ContentLength <= 0 {
+		obj.handleGetOne(c)
+		return
+	}
+
 	db, form, err := DefaultPrepareQuery(getDbConnection(c, obj.GetDB, false), c)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
@@ -479,32 +500,43 @@ func (obj *AdminObject) handleQuery(c *gin.Context) {
 }
 
 func (obj *AdminObject) handleCreate(c *gin.Context) {
-	//TODO: using gorm fields to create object
-	val := reflect.New(obj.modelElem).Interface()
+	var vals map[string]any
+	if err := c.BindJSON(&vals); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
-	if err := c.BindJSON(&val); err != nil {
+	elmObj := reflect.New(obj.modelElem).Interface()
+
+	if err := mapstructure.Decode(vals, elmObj); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	if obj.BeforeCreate != nil {
-		if err := obj.BeforeCreate(c, val); err != nil {
+		if err := obj.BeforeCreate(c, elmObj, vals); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 	}
 
-	result := getDbConnection(c, obj.GetDB, true).Create(val)
+	result := getDbConnection(c, obj.GetDB, true).Create(elmObj)
 	if result.Error != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, val)
+	c.JSON(http.StatusOK, elmObj)
 }
 
 func (obj *AdminObject) handleUpdate(c *gin.Context) {
-	key := c.Param("pk")
+	keys := obj.getPrimaryValues(c)
+	if len(keys) <= 0 {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": "invalid primary key",
+		})
+		return
+	}
 
 	var inputVals map[string]any
 	if err := c.BindJSON(&inputVals); err != nil {
@@ -516,8 +548,6 @@ func (obj *AdminObject) handleUpdate(c *gin.Context) {
 
 	var vals map[string]any = map[string]any{}
 
-	// can't edit primaryKey
-	delete(inputVals, obj.PrimaryKey)
 	fields := map[string]AdminField{}
 	for _, v := range obj.Fields {
 		fields[v.Name] = v
@@ -558,7 +588,7 @@ func (obj *AdminObject) handleUpdate(c *gin.Context) {
 
 	if obj.BeforeUpdate != nil {
 		val := reflect.New(obj.modelElem).Interface()
-		if err := db.First(val, obj.PrimaryKey, key).Error; err != nil {
+		if err := db.Where(keys).First(val).Error; err != nil {
 			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "not found"})
 			return
 		}
@@ -569,7 +599,7 @@ func (obj *AdminObject) handleUpdate(c *gin.Context) {
 	}
 
 	model := reflect.New(obj.modelElem).Interface()
-	result := db.Model(model).Where(obj.PrimaryKey, key).Updates(vals)
+	result := db.Model(model).Where(keys).Updates(vals)
 	if result.Error != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
 		return
@@ -579,13 +609,19 @@ func (obj *AdminObject) handleUpdate(c *gin.Context) {
 }
 
 func (obj *AdminObject) handleDelete(c *gin.Context) {
-	key := c.Param("pk")
+	keys := obj.getPrimaryValues(c)
+	if len(keys) <= 0 {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": "invalid primary key",
+		})
+		return
+	}
 	db := getDbConnection(c, obj.GetDB, false)
 
 	//pkColName := db.NamingStrategy.ColumnName(obj.tableName, obj.PrimaryKeyName)
 	val := reflect.New(obj.modelElem).Interface()
 
-	r := db.Take(val, key)
+	r := db.Where(keys).Take(val)
 
 	// for gorm delete hook, need to load model first.
 	if r.Error != nil {
@@ -604,7 +640,7 @@ func (obj *AdminObject) handleDelete(c *gin.Context) {
 		}
 	}
 
-	r = db.Where(obj.PrimaryKey, key).Delete(val)
+	r = db.Where(keys).Delete(val)
 	if r.Error != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": r.Error.Error()})
 		return

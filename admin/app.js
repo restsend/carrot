@@ -48,7 +48,7 @@ class Queryresult {
 
         let current = Alpine.store('current')
         this.rows = items.map(item => {
-            item.primaryValue = item[current.primaryKey]
+            item.primaryValue = current.getPrimaryValue(item)
             return item
         })
 
@@ -156,7 +156,7 @@ class Queryresult {
         Alpine.store('showedit', false)
         Alpine.store('confirmdelete', [])
 
-        this.dodelete(keys).then(() => {
+        Alpine.store('current').dodelete(keys).then(() => {
             Alpine.store('doing', { pos: 0 })
 
             this.items.forEach(row => {
@@ -170,21 +170,6 @@ class Queryresult {
             Alpine.store('error', `Delete fail : ${err.toString()}`)
         })
     }
-
-    async dodelete(keys) {
-        let path = Alpine.store('current').path
-        for (let i = 0; i < keys.length; i++) {
-            Alpine.store('doing', { pos: i + 1, total: keys.length })
-            let resp = await fetch(`${path}/${keys[i]}`, {
-                method: 'DELETE',
-            })
-            if (resp.status != 200) {
-                Alpine.store('error', `Delete fail : ${err.toString()}`)
-                break
-            }
-        }
-    }
-
     canceldelete(event, row) {
         event.preventDefault()
         Alpine.store('confirmdelete', [])
@@ -207,7 +192,7 @@ class AdminObject {
         let requireds = meta.requireds || []
         this.fields = fields.map(f => {
             f.headerName = f.name.toUpperCase().replace(/_/g, ' ')
-            f.primary = f.name === this.primaryKey
+            f.primary = f.primary
             f.required = requireds.includes(f.name)
             f.defaultvalue = () => {
                 switch (f.type) {
@@ -291,6 +276,15 @@ class AdminObject {
             return a
         })
     }
+
+    getPrimaryValue(row) {
+        let vals = {}
+        this.primaryKey.forEach(key => {
+            vals[key] = row[key]
+        })
+        return vals
+    }
+
     get showsearch() {
         return this.searchables.length > 0
     }
@@ -298,13 +292,13 @@ class AdminObject {
         return this.filterables.length > 0
     }
 
-    async dosave(key, vals) {
+    async dosave(keys, vals) {
         let values = {}
         vals.forEach(v => {
             values[v.name] = v.value
         })
-
-        let resp = await fetch(`${this.path}/${key}`, {
+        let params = new URLSearchParams(keys).toString()
+        let resp = await fetch(`${this.path}/?${params}`, {
             method: 'PATCH',
             body: JSON.stringify(values),
         })
@@ -329,6 +323,21 @@ class AdminObject {
         }
         return await resp.json()
     }
+
+    async dodelete(keys) {
+        for (let i = 0; i < keys.length; i++) {
+            Alpine.store('doing', { pos: i + 1, total: keys.length })
+            let params = new URLSearchParams(keys[i]).toString()
+            let resp = await fetch(`${this.path}/?${params}`, {
+                method: 'DELETE',
+            })
+            if (resp.status != 200) {
+                Alpine.store('error', `Delete fail : ${err.toString()}`)
+                break
+            }
+        }
+    }
+
 }
 
 const adminapp = () => ({
@@ -481,12 +490,13 @@ const adminapp = () => ({
             newf.value = row[f.name]
             return newf
         })
-
+        console.log('editobject', row)
         this.$store.editobj = {
             mode: 'edit',
             title: `Edit ${this.$store.current.name}`,
             fields: fields,
-            primaryValue: row[this.$store.current.primaryKey],
+            primaryValue: row.primaryValue,
+            //primaryValue: this.$store.current.getPrimaryValue(row),
             dosave: (ev) => {
                 // update row
                 this.$store.current.dosave(this.$store.editobj.primaryValue, this.$store.editobj.fields).then(() => {

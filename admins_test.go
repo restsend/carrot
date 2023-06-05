@@ -15,7 +15,7 @@ func TestAdminObjects(t *testing.T) {
 	objs := GetCarrotAdminObjects()
 	err := objs[0].Build(db)
 	assert.Nil(t, err)
-	assert.Equal(t, "id", objs[0].PrimaryKey)
+	assert.Equal(t, []string{"id", "email"}, objs[0].PrimaryKey)
 	user := User{
 		ID:    1,
 		Phone: "+1234567890",
@@ -103,7 +103,7 @@ func TestAdminCRUD(t *testing.T) {
 	{
 		db.Model(&User{}).Where("email", "bob@restsend.com").UpdateColumn("is_staff", false)
 		db.Model(&User{}).Where("email", "bob@restsend.com").UpdateColumn("is_super_user", false)
-		err := client.CallPut("/admin/config/", gin.H{
+		err := client.CallPut("/admin/config/?id=1024", gin.H{
 			"id": 1024,
 		}, nil)
 		assert.NotNil(t, err)
@@ -133,8 +133,7 @@ func TestAdminCRUD(t *testing.T) {
 	}
 	{
 		var r bool
-		err := client.CallPatch("/admin/config/1024", gin.H{
-			"id":    1024,
+		err := client.CallPatch("/admin/config/?id=1024", gin.H{
 			"key":   "test2",
 			"value": "mock2",
 		}, &r)
@@ -190,7 +189,7 @@ func TestAdminCRUD(t *testing.T) {
 		db.Model(&Config{}).Count(&totalcount)
 
 		var r bool
-		err := client.CallDelete("/admin/config/1024", nil, &r)
+		err := client.CallDelete("/admin/config/?id=1024", nil, &r)
 		assert.Nil(t, err)
 		assert.True(t, r)
 
@@ -208,8 +207,8 @@ func TestAdminSingle(t *testing.T) {
 		Key:   "Carrot Admin Unittest",
 		Value: "mock"})
 
-	w := client.Post(http.MethodPost, "/admin/config/1024", nil)
-	assert.Equal(t, w.Code, 200)
+	w := client.Post(http.MethodPost, "/admin/config/?id=1024", nil)
+	assert.Equal(t, 200, w.Code)
 
 	body := w.Body.String()
 	assert.Contains(t, body, `"key":"Carrot`)
