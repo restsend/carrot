@@ -202,13 +202,34 @@ class AdminObject {
                 switch (f.type) {
                     case 'bool': return false
                     case 'int': return 0
+                    case 'uint': return 0
                     case 'float': return 0.0
                     case 'datetime': return new Date().toISOString()
                     case 'string': return ''
                     default: return null
                 }
             }
-            return f
+
+            // convert value from string to type
+            f.unmarshal = (value) => {
+                if (value === null || value === undefined) {
+                    return value
+                }
+                switch (f.type) {
+                    case 'bool':
+                    case 'int':
+                    case 'uint':
+                    case 'float':
+                    case 'datetime':
+                    case 'string':
+                        return value
+                    default:
+                        if (typeof value === 'string') {
+                            return JSON.parse(value)
+                        }
+                        return value
+                }
+            }
         })
 
         let filter_fields = (names) => {
@@ -299,7 +320,7 @@ class AdminObject {
     async dosave(keys, vals) {
         let values = {}
         vals.forEach(v => {
-            values[v.name] = v.value
+            values[v.name] = v.unmarshal(v.value)
         })
         let params = new URLSearchParams(keys).toString()
         let resp = await fetch(`${this.path}/?${params}`, {
@@ -315,7 +336,7 @@ class AdminObject {
     async docreate(vals) {
         let values = {}
         vals.forEach(v => {
-            values[v.name] = v.value
+            values[v.name] = v.unmarshal(v.value)
         })
 
         let resp = await fetch(`${this.path}/`, {
@@ -494,13 +515,12 @@ const adminapp = () => ({
             newf.value = row[f.name]
             return newf
         })
-        console.log('editobject', row)
+
         this.$store.editobj = {
             mode: 'edit',
             title: `Edit ${this.$store.current.name}`,
             fields: fields,
             primaryValue: row.primaryValue,
-            //primaryValue: this.$store.current.getPrimaryValue(row),
             dosave: (ev) => {
                 // update row
                 this.$store.current.dosave(this.$store.editobj.primaryValue, this.$store.editobj.fields).then(() => {
