@@ -27,10 +27,14 @@ type AdminAccessCheck func(c *gin.Context, obj *AdminObject) error
 type AdminAttribute struct {
 }
 type AdminField struct {
+	Label     string         `json:"label"` // Label of the object
+	Required  bool           `json:"required,omitempty"`
 	Name      string         `json:"name"`
 	Type      string         `json:"type"`
 	Tag       string         `json:"tag,omitempty"`
 	Attr      AdminAttribute `json:"attr"`
+	CanNull   bool           `json:"canNull,omitempty"`
+	IsArray   bool           `json:"isArray,omitempty"`
 	Primary   bool           `json:"primary,omitempty"`
 	IsAutoID  bool           `json:"isAutoId,omitempty"`
 	elemType  reflect.Type   `json:"-"`
@@ -42,23 +46,26 @@ type AdminScript struct {
 }
 type AdminObject struct {
 	Model       any                       `json:"-"`
-	Group       string                    `json:"group"`          // Group name
-	Name        string                    `json:"name"`           // Name of the object
-	Desc        string                    `json:"desc,omitempty"` // Description
-	Path        string                    `json:"path"`           // Path prefix
-	Shows       []string                  `json:"shows"`          // Show fields
-	Editables   []string                  `json:"editables"`      // Editable fields
-	Filterables []string                  `json:"filterables"`    // Filterable fields
-	Orderables  []string                  `json:"orderables"`     // Orderable fields
-	Searchables []string                  `json:"searchables"`    // Searchable fields
-	Attributes  map[string]AdminAttribute `json:"attributes"`     // Field's extra attributes
-	PrimaryKey  string                    `json:"primaryKey"`     // Primary key name
+	Group       string                    `json:"group"`                 // Group name
+	Name        string                    `json:"name"`                  // Name of the object
+	Placeholder string                    `json:"placeholder,omitempty"` // Placeholder of the object
+	Desc        string                    `json:"desc,omitempty"`        // Description
+	Path        string                    `json:"path"`                  // Path prefix
+	Shows       []string                  `json:"shows"`                 // Show fields
+	Editables   []string                  `json:"editables"`             // Editable fields
+	Filterables []string                  `json:"filterables"`           // Filterable fields
+	Orderables  []string                  `json:"orderables"`            // Orderable fields
+	Searchables []string                  `json:"searchables"`           // Searchable fields
+	Requireds   []string                  `json:"requireds,omitempty"`   // Required fields
+	Attributes  map[string]AdminAttribute `json:"attributes"`            // Field's extra attributes
+	PrimaryKey  string                    `json:"primaryKey"`            // Primary key name
 	PluralName  string                    `json:"pluralName"`
 	Fields      []AdminField              `json:"fields"`
 	EditPage    string                    `json:"editpage,omitempty"`
 	ListPage    string                    `json:"listpage,omitempty"`
 	Scripts     []AdminScript             `json:"scripts,omitempty"`
 	Styles      []string                  `json:"styles,omitempty"`
+	Permissions map[string]bool           `json:"permissions,omitempty"`
 
 	AccessCheck  AdminAccessCheck `json:"-"` // Access control function
 	GetDB        GetDB            `json:"-"`
@@ -86,7 +93,7 @@ func GetCarrotAdminObjects() []AdminObject {
 			Group:       "Settings",
 			Name:        "User",
 			Desc:        "Builtin user management system",
-			Shows:       []string{"ID", "Email", "Username", "FirstName", "ListName", "IsStaff", "IsSuperUser", "Enabled", "Actived", "Source", "Locale", "Timezone", "FirstName", "ListName"},
+			Shows:       []string{"ID", "Email", "Username", "FirstName", "ListName", "IsStaff", "IsSuperUser", "Enabled", "Actived", "Source", "Locale", "Timezone", "LastLogin", "LastLoginIP"},
 			Editables:   []string{"Email", "Password", "Username", "FirstName", "ListName", "IsStaff", "IsSuperUser", "Enabled", "Actived", "Source", "Locale", "Timezone"},
 			Filterables: []string{"CreatedAt", "UpdatedAt", "Username", "IsStaff", "IsSuperUser", "Enabled", "Actived"},
 			Orderables:  []string{"CreatedAt", "UpdatedAt", "Enabled", "Actived"},
@@ -102,6 +109,7 @@ func GetCarrotAdminObjects() []AdminObject {
 			Editables:   []string{"Key", "Value", "Desc"},
 			Orderables:  []string{"Key"},
 			Searchables: []string{"Key", "Value", "Desc"},
+			Requireds:   []string{"Key", "Value"},
 			AccessCheck: superAccessCheck,
 		},
 	}
@@ -165,7 +173,10 @@ func handleAdminIndex(c *gin.Context, objects []*AdminObject) {
 				continue
 			}
 		}
-		viewObjects = append(viewObjects, *obj)
+		db := getDbConnection(c, obj.GetDB, false)
+		val := *obj
+		val.BuildPermissions(db, CurrentUser(c))
+		viewObjects = append(viewObjects, val)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -173,6 +184,23 @@ func handleAdminIndex(c *gin.Context, objects []*AdminObject) {
 		"user":    CurrentUser(c),
 		"site":    GetRenderPageContext(c),
 	})
+}
+
+func (obj *AdminObject) BuildPermissions(db *gorm.DB, user *User) {
+	obj.Permissions = map[string]bool{}
+	if user.IsSuperUser {
+		obj.Permissions["can_create"] = true
+		obj.Permissions["can_update"] = true
+		obj.Permissions["can_delete"] = true
+		obj.Permissions["can_action"] = true
+		return
+	}
+
+	//TODO: build permissions with group settings
+	obj.Permissions["can_create"] = true
+	obj.Permissions["can_update"] = true
+	obj.Permissions["can_delete"] = true
+	obj.Permissions["can_action"] = true
 }
 
 // RegisterAdmin registers admin routes
@@ -234,6 +262,7 @@ func (obj *AdminObject) Build(db *gorm.DB) error {
 	obj.Orderables = obj.asColNames(db, obj.Orderables)
 	obj.Searchables = obj.asColNames(db, obj.Searchables)
 	obj.Filterables = obj.asColNames(db, obj.Filterables)
+	obj.Requireds = obj.asColNames(db, obj.Requireds)
 
 	err := obj.parseFields(db, rt)
 	if err != nil {
@@ -260,9 +289,29 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 		field := AdminField{
 			Name:      db.NamingStrategy.ColumnName(obj.tableName, f.Name),
 			Tag:       gormTag,
-			Type:      f.Type.Name(),
 			elemType:  f.Type,
 			fieldName: f.Name,
+			Label:     f.Tag.Get("label"),
+		}
+
+		if field.Label == "" {
+			field.Label = f.Name
+		}
+
+		switch f.Type.Kind() {
+		case reflect.Ptr:
+			field.Type = f.Type.Elem().Name()
+			field.CanNull = true
+		case reflect.Slice:
+			field.Type = f.Type.Elem().Name()
+			field.CanNull = true
+			field.IsArray = true
+		default:
+			field.Type = f.Type.Name()
+		}
+
+		if field.Type == "NullTime" || field.Type == "Time" {
+			field.Type = "datetime"
 		}
 
 		if obj.PrimaryKey == "" && strings.Contains(gormTag, "primarykey") {
@@ -426,6 +475,7 @@ func (obj *AdminObject) handleQuery(c *gin.Context) {
 }
 
 func (obj *AdminObject) handleCreate(c *gin.Context) {
+	//TODO: using gorm fields to create object
 	val := reflect.New(obj.modelElem).Interface()
 
 	if err := c.BindJSON(&val); err != nil {
@@ -550,7 +600,7 @@ func (obj *AdminObject) handleDelete(c *gin.Context) {
 		}
 	}
 
-	r = db.Delete(val)
+	r = db.Where(obj.PrimaryKey, key).Delete(val)
 	if r.Error != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": r.Error.Error()})
 		return
