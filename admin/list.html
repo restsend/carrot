@@ -99,7 +99,7 @@
                                     </template>
                                     <template x-for="col in $store.current.shows">
                                         <th scope="col" x-text="col.headerName"
-                                            class="sticky  border-b border-gray-300  bg-opacity-75 py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
+                                            class="sticky w-72 border-b border-gray-300  bg-opacity-75 py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
                                         </th>
                                     </template>
                                     <!--Selected action bar-->
@@ -133,7 +133,7 @@
                                             </td>
                                         </template>
                                         <template x-for="(col,colidx) in row">
-                                            <td class="whitespace-nowrap border-b border-gray-200 py-3 pl-4 pr-3 text-sm
+                                            <td class="w-72 truncate whitespace-nowrap border-b border-gray-200 py-3 pl-4 pr-3 text-sm
                                             text-gray-900 sm:pl-6 lg:pl-8">
                                                 <template x-if="colidx === 0">
                                                     <a href="#" x-text="col.value"

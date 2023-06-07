@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -221,4 +222,44 @@ func TestAdminSingle(t *testing.T) {
 }
 
 func TestAdminAction(t *testing.T) {
+}
+
+func TestAdminFieldMarshal(t *testing.T) {
+	type ProductModel struct {
+		Name  string `json:"name" gorm:"size:40"`
+		Image string `json:"image" gorm:"size:200"`
+	}
+
+	type ProductItem struct {
+		ID         uint          `json:"id" gorm:"primaryKey"`
+		Name       string        `json:"name" gorm:"size:40"`
+		CreatedAt  time.Time     `json:"created_at"`
+		UpdatedAt  *time.Time    `json:"updated_at"`
+		ModelPtr   *ProductModel `json:"model_ptr"`
+		ModelValue ProductModel  `json:"model_value"`
+	}
+
+	obj := AdminObject{
+		Model: &ProductItem{},
+		Path:  "unittest",
+	}
+	db, _ := InitDatabase(nil, "", "")
+	MakeMigrates(db, []any{&ProductItem{}})
+	err := obj.Build(db)
+	assert.Nil(t, err)
+	v, err := obj.UnmarshalFrom(nil, map[string]any{
+		"id":         1024,
+		"name":       "mock item",
+		"created_at": "2020-01-01T00:00:00Z",
+		"updated_at": "2020-01-01T00:00:00Z",
+		"model_ptr": map[string]any{
+			"name": "test", "image": "http://test.com",
+		},
+		"model_value": map[string]any{
+			"name": "test2", "image": "http://test.com",
+		},
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, "test", v.(*ProductItem).ModelPtr.Name)
+	assert.Equal(t, "test2", v.(*ProductItem).ModelValue.Name)
 }

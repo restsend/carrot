@@ -339,7 +339,7 @@ func (f *AdminField) convertValue(source any) (any, error) {
 	if srcType == f.elemType {
 		return source, nil
 	}
-	var value any
+	var targetType reflect.Type = f.elemType
 	var err error
 	switch f.Type {
 	case "int", "int8", "int16", "int32", "int64":
@@ -347,50 +347,50 @@ func (f *AdminField) convertValue(source any) (any, error) {
 		if err != nil {
 			return nil, err
 		}
-		value = reflect.ValueOf(v).Convert(f.elemType).Interface()
+		return reflect.ValueOf(v).Convert(targetType).Interface(), nil
 	case "uint", "uint8", "uint16", "uint32", "uint64":
 		v, err := strconv.ParseUint(fmt.Sprintf("%v", source), 10, 64)
 		if err != nil {
 			return nil, err
 		}
-		value = reflect.ValueOf(v).Convert(f.elemType).Interface()
+		return reflect.ValueOf(v).Convert(targetType).Interface(), nil
 	case "float32", "float64":
 		v, err := strconv.ParseFloat(fmt.Sprintf("%v", source), 64)
 		if err != nil {
 			return nil, err
 		}
-		value = reflect.ValueOf(v).Convert(f.elemType).Interface()
+		return reflect.ValueOf(v).Convert(targetType).Interface(), nil
 	case "bool":
-		value, err = strconv.ParseBool(fmt.Sprintf("%v", source))
+		v, err := strconv.ParseBool(fmt.Sprintf("%v", source))
+		if err != nil {
+			return nil, err
+		}
+		return reflect.ValueOf(v).Interface(), nil
 	case "string":
-		value = fmt.Sprintf("%v", source)
+		return fmt.Sprintf("%v", source), nil
 	case "datetime":
 		if fmt.Sprintf("%v", source) == "" {
-			value = time.Time{}
+			return &time.Time{}, nil
 		} else {
 			tv := fmt.Sprintf("%v", source)
 			for _, tf := range []string{time.RFC3339, time.RFC3339Nano, time.DateTime, time.DateOnly, time.RFC1123} {
-				value, err = time.Parse(tf, tv)
+				t, err := time.Parse(tf, tv)
 				if err == nil {
-					break
+					return &t, nil
 				}
 			}
 		}
+		return nil, fmt.Errorf("invalid datetime format %v", source)
 	default:
 		var data []byte
 		data, err = json.Marshal(source)
 		if err != nil {
 			return nil, err
 		}
-		value = reflect.New(f.elemType).Interface()
+		value := reflect.New(targetType).Interface()
 		err = json.Unmarshal(data, value)
+		return value, err
 	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	return value, nil
 }
 
 func (obj *AdminObject) UnmarshalFrom(keys, vals map[string]any) (any, error) {
@@ -424,15 +424,21 @@ func (obj *AdminObject) UnmarshalFrom(keys, vals map[string]any) (any, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid type: %s except: %s actual: %s error:%v", field.Name, field.Type, reflect.TypeOf(val).Name(), err)
 		}
+
 		target := elemObj.Elem().FieldByName(field.fieldName)
-		if field.IsPtr {
-			if target.IsNil() {
-				target.Set(reflect.New(field.elemType))
-			}
-			target.Elem().Set(reflect.ValueOf(fieldValue))
+		targetValue := reflect.ValueOf(fieldValue)
+
+		if target.Kind() == reflect.Ptr {
+			ptrValue := reflect.New(reflect.PointerTo(field.elemType))
+			ptrValue.Elem().Set(targetValue)
+			targetValue = ptrValue.Elem()
 		} else {
-			target.Set(reflect.ValueOf(fieldValue))
+			if targetValue.Kind() == reflect.Ptr {
+				targetValue = targetValue.Elem()
+			}
 		}
+
+		target.Set(targetValue)
 	}
 	return elemObj.Interface(), nil
 }
