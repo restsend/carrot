@@ -373,7 +373,7 @@ func (f *AdminField) convertValue(source any) (any, error) {
 			return &time.Time{}, nil
 		} else {
 			tv := fmt.Sprintf("%v", source)
-			for _, tf := range []string{time.RFC3339, time.RFC3339Nano, time.DateTime, time.DateOnly, time.RFC1123} {
+			for _, tf := range []string{time.RFC3339, time.RFC3339Nano, "2006-01-02 15:04:05", "2006-01-02", time.RFC1123} {
 				t, err := time.Parse(tf, tv)
 				if err == nil {
 					return &t, nil
