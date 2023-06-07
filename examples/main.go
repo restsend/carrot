@@ -1,6 +1,8 @@
 package main
 
 import (
+	"database/sql/driver"
+	"encoding/json"
 	"errors"
 	"flag"
 	"math/rand"
@@ -11,23 +13,46 @@ import (
 	"gorm.io/gorm"
 )
 
-type Product struct {
-	UUID      string    `json:"id" gorm:"primarykey"`
-	GroupID   int       `json:"-"`
-	Name      string    `json:"name"`
+type ProductItem struct {
+	ID        uint      `json:"id" gorm:"primarykey"`
 	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-	Enabled   bool      `json:"enabled"`
+	ProductID uint      `json:"-"`
+	Product   Product   `json:"product"`
+	Name      string    `json:"name" gorm:"size:128"`
+	Unit      string    `json:"unit"`
+	Price     int       `json:"price"`
+}
+type ProductModel struct {
+	Name  string `json:"name" gorm:"size:40"`
+	Image string `json:"image" gorm:"size:200"`
 }
 
-type User struct {
+func (m *ProductModel) Scan(value interface{}) error {
+	return json.Unmarshal(value.([]byte), m)
+}
+
+func (m *ProductModel) Value() (driver.Value, error) {
+	return json.Marshal(m)
+}
+
+type Product struct {
+	UUID      string        `json:"id" gorm:"primarykey;size:20""`
+	GroupID   int           `json:"-"`
+	Name      string        `json:"name" gorm:"size:200"`
+	CreatedAt time.Time     `json:"createdAt"`
+	UpdatedAt time.Time     `json:"updatedAt"`
+	Enabled   bool          `json:"enabled"`
+	Model     *ProductModel `json:"model"`
+}
+
+type Customer struct {
 	ID        uint       `json:"id" gorm:"primarykey"`
 	CreatedAt time.Time  `json:"createdAt"`
 	UpdatedAt time.Time  `json:"updatedAt"`
-	Name      string     `json:"name"`
+	Name      string     `json:"name" gorm:"size:32"`
 	Age       int        `json:"age"`
 	Enabled   bool       `json:"enabled"`
-	LastLogin *time.Time `json:"lastLogin,omitempty"`
+	OpenedAt  *time.Time `json:"openedAt,omitempty"`
 }
 
 func main() {
@@ -78,6 +103,12 @@ func main() {
 		carrot.Info("user logined: ", user.GetVisibleName())
 	})
 
+	carrot.MakeMigrates(db, []any{
+		&Product{},
+		&ProductItem{},
+		&Customer{},
+	})
+
 	objs := GetWebObjects(db)
 	carrot.RegisterObjects(r.Group("/"), objs)
 
@@ -92,23 +123,48 @@ func main() {
 			http://localhost:8080/admin
 	*/
 	adminobjs := carrot.GetCarrotAdminObjects()
+	productAdmins := []carrot.AdminObject{
+		{
+			Model:       &Product{},
+			Group:       "Product",
+			Name:        "Product",
+			Desc:        "Product is a thing that can be sold or bought ",
+			Shows:       []string{"UUID", "Name", "Enabled", "Model", "CreatedAt", "UpdatedAt"},
+			Editables:   []string{"UUID", "Name", "Enabled", "Model"},
+			Searchables: []string{"UUID", "Name", "Model"},
+			Filterables: []string{"Enabled", "CreatedAt", "UpdatedAt"},
+		},
+		{
+			Model:       &ProductItem{},
+			Group:       "Product",
+			Name:        "ProductItem",
+			Desc:        "A item of product",
+			Shows:       []string{"ID", "ProductID", "Name", "Unit", "Price", "CreatedAt"},
+			Editables:   []string{"ProductID", "Name", "Unit", "Price"},
+			Searchables: []string{"Name"},
+			Filterables: []string{"Unit", "Price", "CreatedAt"},
+		},
+		{
+			Model:       &Customer{},
+			Group:       "Product",
+			Name:        "Customer",
+			Desc:        "A simple CRM system",
+			Shows:       []string{"ID", "Name", "Age", "Enabled", "OpenedAt", "CreatedAt", "UpdatedAt"},
+			Editables:   []string{"ID", "Name", "Enabled", "OpenedAt"},
+			Searchables: []string{"Name"},
+			Filterables: []string{"Enabled", "CreatedAt", "UpdatedAt"},
+		},
+	}
+	adminobjs = append(adminobjs, productAdmins...)
 	carrot.RegisterAdmins(r.Group("/admin"), db, carrot.HintAssetsRoot("admin"), adminobjs)
 	r.Run(":8080")
 }
 
 func GetWebObjects(db *gorm.DB) []carrot.WebObject {
 	return []carrot.WebObject{
-		// Basic Demo
-		// Check API File: user.http
-		// PUT 		http://localhost:8890/user
-		// GET 		http://localhost:8890/user/:key
-		// PATCH	http://localhost:8890/user/:key
-		// POST 	http://localhost:8890/user
-		// DELETE http://localhost:8890/user/:key
-		// DELETE http://localhost:8890/user
 		{
-			Name:        "user",
-			Model:       &User{},
+			Name:        "customer",
+			Model:       &Customer{},
 			Searchables: []string{"Name", "Enabled"},
 			Editables:   []string{"Name", "Age", "Enabled"},
 			Filterables: []string{"Name", "CreatedAt", "Age", "Enabled"},
@@ -117,14 +173,6 @@ func GetWebObjects(db *gorm.DB) []carrot.WebObject {
 				return db
 			},
 		},
-		// Advanced Demo
-		// Check API File: product.http
-		// PUT 		http://localhost:8890/product
-		// GET 		http://localhost:8890/product/:key
-		// PATCH	http://localhost:8890/product/:key
-		// POST 	http://localhost:8890/product
-		// DELETE http://localhost:8890/product/:key
-		// DELETE http://localhost:8890/product
 		{
 			Name:        "product",
 			Model:       &Product{},

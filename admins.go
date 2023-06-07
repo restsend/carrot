@@ -2,16 +2,18 @@ package carrot
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"path"
 	"reflect"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/inflection"
-	"github.com/mitchellh/mapstructure"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"gorm.io/gorm"
@@ -40,6 +42,7 @@ type AdminField struct {
 	IsArray   bool           `json:"isArray,omitempty"`
 	Primary   bool           `json:"primary,omitempty"`
 	IsAutoID  bool           `json:"isAutoId,omitempty"`
+	IsPtr     bool           `json:"isPtr,omitempty"`
 	elemType  reflect.Type   `json:"-"`
 	fieldName string         `json:"-"`
 }
@@ -293,7 +296,9 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 			fieldName: f.Name,
 			Label:     f.Tag.Get("label"),
 		}
-
+		if field.elemType.Kind() == reflect.Ptr {
+			field.elemType = field.elemType.Elem()
+		}
 		if field.Label == "" {
 			field.Label = strings.ReplaceAll(field.Name, "_", " ")
 		}
@@ -304,6 +309,7 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 		case reflect.Ptr:
 			field.Type = f.Type.Elem().Name()
 			field.CanNull = true
+			field.IsPtr = true
 		case reflect.Slice:
 			field.Type = f.Type.Elem().Name()
 			field.CanNull = true
@@ -326,6 +332,109 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 		obj.Fields = append(obj.Fields, field)
 	}
 	return nil
+}
+
+func (f *AdminField) convertValue(source any) (any, error) {
+	srcType := reflect.TypeOf(source)
+	if srcType == f.elemType {
+		return source, nil
+	}
+	var value any
+	var err error
+	switch f.Type {
+	case "int", "int8", "int16", "int32", "int64":
+		v, err := strconv.ParseInt(fmt.Sprintf("%v", source), 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		value = reflect.ValueOf(v).Convert(f.elemType).Interface()
+	case "uint", "uint8", "uint16", "uint32", "uint64":
+		v, err := strconv.ParseUint(fmt.Sprintf("%v", source), 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		value = reflect.ValueOf(v).Convert(f.elemType).Interface()
+	case "float32", "float64":
+		v, err := strconv.ParseFloat(fmt.Sprintf("%v", source), 64)
+		if err != nil {
+			return nil, err
+		}
+		value = reflect.ValueOf(v).Convert(f.elemType).Interface()
+	case "bool":
+		value, err = strconv.ParseBool(fmt.Sprintf("%v", source))
+	case "string":
+		value = fmt.Sprintf("%v", source)
+	case "datetime":
+		if fmt.Sprintf("%v", source) == "" {
+			value = time.Time{}
+		} else {
+			tv := fmt.Sprintf("%v", source)
+			for _, tf := range []string{time.RFC3339, time.RFC3339Nano, time.DateTime, time.DateOnly, time.RFC1123} {
+				value, err = time.Parse(tf, tv)
+				if err == nil {
+					break
+				}
+			}
+		}
+	default:
+		var data []byte
+		data, err = json.Marshal(source)
+		if err != nil {
+			return nil, err
+		}
+		value = reflect.New(f.elemType).Interface()
+		err = json.Unmarshal(data, value)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return value, nil
+}
+
+func (obj *AdminObject) UnmarshalFrom(keys, vals map[string]any) (any, error) {
+	elemObj := reflect.New(obj.modelElem)
+	if len(obj.Editables) > 0 {
+		editables := make(map[string]bool)
+		for _, v := range obj.Editables {
+			editables[v] = true
+		}
+		for k := range vals {
+			if _, ok := editables[k]; !ok {
+				delete(vals, k)
+			}
+		}
+	}
+
+	for k, v := range keys {
+		vals[k] = v
+	}
+
+	for _, field := range obj.Fields {
+		val, ok := vals[field.Name]
+		if !ok {
+			continue
+		}
+
+		if val == nil {
+			continue
+		}
+		fieldValue, err := field.convertValue(val)
+		if err != nil {
+			return nil, fmt.Errorf("invalid type: %s except: %s actual: %s error:%v", field.Name, field.Type, reflect.TypeOf(val).Name(), err)
+		}
+		target := elemObj.Elem().FieldByName(field.fieldName)
+		if field.IsPtr {
+			if target.IsNil() {
+				target.Set(reflect.New(field.elemType))
+			}
+			target.Elem().Set(reflect.ValueOf(fieldValue))
+		} else {
+			target.Set(reflect.ValueOf(fieldValue))
+		}
+	}
+	return elemObj.Interface(), nil
 }
 
 func (obj *AdminObject) MarshalOne(val interface{}) (map[string]any, error) {
@@ -437,7 +546,7 @@ func (obj *AdminObject) QueryObjects(db *gorm.DB, form *QueryForm, ctx *gin.Cont
 	db = db.Table(obj.tableName)
 
 	var c int64
-	if err := db.Debug().Count(&c).Error; err != nil {
+	if err := db.Count(&c).Error; err != nil {
 		return r, err
 	}
 	if c <= 0 {
@@ -506,9 +615,8 @@ func (obj *AdminObject) handleCreate(c *gin.Context) {
 		return
 	}
 
-	elmObj := reflect.New(obj.modelElem).Interface()
-
-	if err := mapstructure.Decode(vals, elmObj); err != nil {
+	elmObj, err := obj.UnmarshalFrom(nil, vals)
+	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -545,49 +653,13 @@ func (obj *AdminObject) handleUpdate(c *gin.Context) {
 	}
 
 	db := getDbConnection(c, obj.GetDB, false)
-
-	var vals map[string]any = map[string]any{}
-
-	fields := map[string]AdminField{}
-	for _, v := range obj.Fields {
-		fields[v.Name] = v
-	}
-
-	for k, v := range inputVals {
-		if v == nil {
-			continue
-		}
-		// Check the kind to be edited.
-		f, ok := fields[k]
-		if !ok {
-			continue
-		}
-
-		if !checkType(f.elemType.Kind(), reflect.TypeOf(v).Kind()) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("%s type not match", k)})
-			return
-		}
-
-		vals[f.Name] = v
-	}
-	// if no editable fields, then all fields are editable
-	if len(obj.Editables) > 0 {
-		stripVals := make(map[string]any)
-		for _, k := range obj.Editables {
-			if v, ok := vals[k]; ok {
-				stripVals[k] = v
-			}
-		}
-		vals = stripVals
-	}
-
-	if len(vals) == 0 {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "not changed"})
+	val, err := obj.UnmarshalFrom(keys, inputVals)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	if obj.BeforeUpdate != nil {
-		val := reflect.New(obj.modelElem).Interface()
 		if err := db.Where(keys).First(val).Error; err != nil {
 			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "not found"})
 			return
@@ -598,8 +670,7 @@ func (obj *AdminObject) handleUpdate(c *gin.Context) {
 		}
 	}
 
-	model := reflect.New(obj.modelElem).Interface()
-	result := db.Model(model).Where(keys).Updates(vals)
+	result := db.Where(keys).Save(val)
 	if result.Error != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
 		return
@@ -617,10 +688,7 @@ func (obj *AdminObject) handleDelete(c *gin.Context) {
 		return
 	}
 	db := getDbConnection(c, obj.GetDB, false)
-
-	//pkColName := db.NamingStrategy.ColumnName(obj.tableName, obj.PrimaryKeyName)
 	val := reflect.New(obj.modelElem).Interface()
-
 	r := db.Where(keys).Take(val)
 
 	// for gorm delete hook, need to load model first.

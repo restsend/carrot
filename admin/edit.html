@@ -44,7 +44,11 @@
                                         <template x-if="field.htmltype == 'text'">
                                             <input type="text" :class="field.extraclass" x-model="field.value"
                                                 class="block rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                                                x-placeholder="field.placeholder">
+                                                x-placeholder="field.placeholder" />
+                                        </template>
+                                        <template x-if="field.htmltype == 'json'">
+                                            <textarea rows="3" x-model="field.value"
+                                                class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"></textarea>
                                         </template>
                                     </div>
                                 </div>
