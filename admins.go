@@ -106,7 +106,7 @@ func GetCarrotAdminObjects() []AdminObject {
 			Filterables: []string{"CreatedAt", "UpdatedAt", "Username", "IsStaff", "IsSuperUser", "Enabled", "Actived"},
 			Orderables:  []string{"CreatedAt", "UpdatedAt", "Enabled", "Actived"},
 			Searchables: []string{"Username", "Email", "FirstName", "ListName"},
-			Orders:      []Order{{"CreatedAt", "desc"}},
+			Orders:      []Order{{"CreatedAt", OrderOpDesc}},
 			AccessCheck: superAccessCheck,
 		},
 		{
