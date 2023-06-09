@@ -41,6 +41,7 @@ type AdminField struct {
 	CanNull   bool           `json:"canNull,omitempty"`
 	IsArray   bool           `json:"isArray,omitempty"`
 	Primary   bool           `json:"primary,omitempty"`
+	Foreign   bool           `json:"foreign,omitempty"`
 	IsAutoID  bool           `json:"isAutoId,omitempty"`
 	IsPtr     bool           `json:"isPtr,omitempty"`
 	elemType  reflect.Type   `json:"-"`
@@ -325,16 +326,26 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 			field.Type = f.Type.Name()
 		}
 
-		if field.Type == "NullTime" || field.Type == "Time" {
-			field.Type = "datetime"
-		}
-
-		if strings.Contains(gormTag, "primarykey") || strings.Contains(gormTag, "uniqueindex") {
+		if strings.Contains(gormTag, "primarykey") || strings.Contains(gormTag, "unique") {
 			field.Primary = true
 			obj.PrimaryKey = append(obj.PrimaryKey, field.Name)
 			if strings.Contains(field.Type, "int") {
 				field.IsAutoID = true
 			}
+		}
+
+		// ignore `belongs to` and `has one` relation
+		if strings.Contains(gormTag, "foreignkey") {
+			field.Foreign = true
+		}
+
+		hintForeignKey := fmt.Sprintf("%sID", field.Type)
+		if _, ok := rt.FieldByName(hintForeignKey); ok {
+			field.Foreign = true
+		}
+
+		if field.Type == "NullTime" || field.Type == "Time" {
+			field.Type = "datetime"
 		}
 		obj.Fields = append(obj.Fields, field)
 	}
@@ -576,6 +587,10 @@ func (obj *AdminObject) QueryObjects(db *gorm.DB, form *QueryForm, ctx *gin.Cont
 
 	selected := []string{}
 	for _, v := range obj.Fields {
+
+		if v.Foreign {
+			continue
+		}
 		selected = append(selected, v.Name)
 	}
 

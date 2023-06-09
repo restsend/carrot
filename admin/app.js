@@ -75,11 +75,22 @@ class Queryresult {
             current.shows.forEach(field => {
                 row.push({
                     get value() {
-                        return valueformat(item[field.name], field)
+                        if (this._value) { return this._value }
+                        this._value = valueformat(item[field.name], field)
+                        return this._value
                     },
                     name: field.name,
                     primary: field.primary,
                     selected: false,
+                    get class() {
+                        let v = this.value;
+                        if (field.htmltype == 'text' || field.htmltype == 'json') {
+                            if (typeof v === 'string' && v.length > 40) {
+                                console.log('truncate long text')
+                                return 'w-72'
+                            }
+                        }
+                    },
                 })
             })
             return row
@@ -552,7 +563,6 @@ const adminapp = () => ({
             let newf = { ...f }
             if (f.htmltype === 'json') {
                 newf.value = JSON.stringify(row[f.name])
-                console.log('json value', newf.value)
             } else {
                 newf.value = row[f.name]
             }
