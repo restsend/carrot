@@ -36,7 +36,7 @@ func (m *ProductModel) Value() (driver.Value, error) {
 }
 
 type Product struct {
-	UUID      string        `json:"id" gorm:"primarykey;size:20""`
+	UUID      string        `json:"id" gorm:"primarykey;size:20"`
 	GroupID   int           `json:"-"`
 	Name      string        `json:"name" gorm:"size:200"`
 	CreatedAt time.Time     `json:"createdAt"`

@@ -133,7 +133,7 @@
                                             </td>
                                         </template>
                                         <template x-for="(col,colidx) in row">
-                                            <td class="w-72 truncate whitespace-nowrap border-b border-gray-200 py-3 pl-4 pr-3 text-sm
+                                            <td class="w-72 whitespace-nowrap border-b border-gray-200 py-3 pl-4 pr-3 text-sm
                                             text-gray-900 sm:pl-6 lg:pl-8">
                                                 <template x-if="colidx === 0">
                                                     <a href="#" x-text="col.value"
@@ -142,7 +142,7 @@
                                                 </template>
                                                 <template x-if="colidx !== 0">
                                                     <!-- Render cell value -->
-                                                    <span x-html="col.value"></span>
+                                                    <div class="w-72 truncate" x-html="col.value"></div>
                                                 </template>
                                             </td>
                                         </template>

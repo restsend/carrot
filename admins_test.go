@@ -122,8 +122,7 @@ func TestAdminCRUD(t *testing.T) {
 	{
 		db.Model(&User{}).Where("email", "bob@restsend.com").UpdateColumn("is_super_user", true)
 		var r Config
-		err := client.CallPut("/admin/config/", gin.H{
-			"id":    1024,
+		err := client.CallPut("/admin/config/?id=1024", gin.H{
 			"key":   "test",
 			"value": "mock",
 		}, &r)

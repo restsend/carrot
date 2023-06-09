@@ -58,9 +58,10 @@ type AdminObject struct {
 	Desc        string                    `json:"desc,omitempty"`        // Description
 	Path        string                    `json:"path"`                  // Path prefix
 	Shows       []string                  `json:"shows"`                 // Show fields
+	Orders      []Order                   `json:"-"`                     // Default orders of the object
 	Editables   []string                  `json:"editables"`             // Editable fields
 	Filterables []string                  `json:"filterables"`           // Filterable fields
-	Orderables  []string                  `json:"orderables"`            // Orderable fields
+	Orderables  []string                  `json:"orderables"`            // Orderable fields, can override Orders
 	Searchables []string                  `json:"searchables"`           // Searchable fields
 	Requireds   []string                  `json:"requireds,omitempty"`   // Required fields
 	Attributes  map[string]AdminAttribute `json:"attributes"`            // Field's extra attributes
@@ -104,6 +105,7 @@ func GetCarrotAdminObjects() []AdminObject {
 			Filterables: []string{"CreatedAt", "UpdatedAt", "Username", "IsStaff", "IsSuperUser", "Enabled", "Actived"},
 			Orderables:  []string{"CreatedAt", "UpdatedAt", "Enabled", "Actived"},
 			Searchables: []string{"Username", "Email", "FirstName", "ListName"},
+			Orders:      []Order{{"CreatedAt", "desc"}},
 			AccessCheck: superAccessCheck,
 		},
 		{
@@ -266,6 +268,11 @@ func (obj *AdminObject) Build(db *gorm.DB) error {
 	obj.Searchables = obj.asColNames(db, obj.Searchables)
 	obj.Filterables = obj.asColNames(db, obj.Filterables)
 	obj.Requireds = obj.asColNames(db, obj.Requireds)
+
+	for idx := range obj.Orders {
+		o := &obj.Orders[idx]
+		o.Name = db.NamingStrategy.ColumnName(obj.tableName, o.Name)
+	}
 
 	err := obj.parseFields(db, rt)
 	if err != nil {
@@ -530,7 +537,14 @@ func (obj *AdminObject) QueryObjects(db *gorm.DB, form *QueryForm, ctx *gin.Cont
 		}
 	}
 
-	for _, v := range form.Orders {
+	var orders []Order
+	if len(form.Orders) > 0 {
+		orders = form.Orders
+	} else {
+		orders = obj.Orders
+	}
+
+	for _, v := range orders {
 		if q := v.GetQuery(); q != "" {
 			db = db.Order(fmt.Sprintf("`%s`.%s", obj.tableName, q))
 		}
@@ -615,13 +629,14 @@ func (obj *AdminObject) handleQueryOrGetOne(c *gin.Context) {
 }
 
 func (obj *AdminObject) handleCreate(c *gin.Context) {
+	keys := obj.getPrimaryValues(c)
 	var vals map[string]any
 	if err := c.BindJSON(&vals); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	elmObj, err := obj.UnmarshalFrom(nil, vals)
+	elmObj, err := obj.UnmarshalFrom(keys, vals)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
