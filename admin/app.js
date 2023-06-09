@@ -53,14 +53,15 @@ class Queryresult {
                     return d.toLocaleString()
                 }
             }
+
+            if (value === null || value === undefined) {
+                return ''
+            }
             // if value is object
             if (typeof value == 'object') {
                 return JSON.stringify(value)
             }
 
-            if (value === null || value === undefined) {
-                return ''
-            }
             return value.toString()
         }
 
@@ -86,7 +87,6 @@ class Queryresult {
                         let v = this.value;
                         if (field.htmltype == 'text' || field.htmltype == 'json') {
                             if (typeof v === 'string' && v.length > 40) {
-                                console.log('truncate long text')
                                 return 'w-72'
                             }
                         }
