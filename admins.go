@@ -658,7 +658,7 @@ func (obj *AdminObject) handleCreate(c *gin.Context) {
 	}
 
 	if obj.BeforeCreate != nil {
-		if err := obj.BeforeCreate(c, elmObj, vals); err != nil {
+		if err := obj.BeforeCreate(c, elmObj); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}

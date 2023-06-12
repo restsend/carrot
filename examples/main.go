@@ -183,7 +183,7 @@ func GetWebObjects(db *gorm.DB) []carrot.WebObject {
 			GetDB: func(c *gin.Context, isCreate bool) *gorm.DB {
 				return db
 			},
-			BeforeCreate: func(ctx *gin.Context, vptr any, vals map[string]any) error {
+			BeforeCreate: func(ctx *gin.Context, vptr any) error {
 				p := (vptr).(*Product)
 				p.UUID = carrot.RandText(8)
 				p.GroupID = rand.Intn(5)
