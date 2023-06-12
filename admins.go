@@ -339,7 +339,7 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 			field.Foreign = true
 		}
 
-		hintForeignKey := fmt.Sprintf("%sID", field.Type)
+		hintForeignKey := fmt.Sprintf("%sID", f.Name)
 		if _, ok := rt.FieldByName(hintForeignKey); ok {
 			field.Foreign = true
 		}
