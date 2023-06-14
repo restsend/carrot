@@ -173,35 +173,37 @@ class Queryresult {
         event.preventDefault()
         console.log('edit', row)
     }
+
     ondelete_one(event) {
-        Alpine.store('confirmdelete', [Alpine.store('editobj').primaryValue])
+        Alpine.store('confirmaction', { action: { name: 'Delete', label: 'Delete' }, keys: [Alpine.store('editobj').primaryValue] })
     }
 
-    ondelete(event, key) {
+    doaction(event) {
         event.preventDefault()
-        let keys = Alpine.store('confirmdelete')
+        let { action, keys } = Alpine.store('confirmaction')
 
         Alpine.store('editobj', { mode: '' })
         Alpine.store('showedit', false)
-        Alpine.store('confirmdelete', [])
+        Alpine.store('confirmaction', {})
 
-        Alpine.store('current').dodelete(keys).then(() => {
+        Alpine.store('current').doaction(action, keys).then(() => {
             Alpine.store('doing', { pos: 0 })
 
             this.items.forEach(row => {
                 row.selected = false
             })
             this.selected = 0
-            Alpine.store('info', `Delete done`)
+            Alpine.store('info', `${action.name} all records done`)
             this.refresh()
         }).catch(err => {
             Alpine.store('doing', { pos: 0 })
-            Alpine.store('error', `Delete fail : ${err.toString()}`)
+            Alpine.store('error', `${action.name} fail : ${err.toString()}`)
         })
     }
-    canceldelete(event, row) {
+
+    cancelaction(event, row) {
         event.preventDefault()
-        Alpine.store('confirmdelete', [])
+        Alpine.store('confirmaction', {})
     }
 }
 
@@ -319,30 +321,33 @@ class AdminObject {
         // check user can delete
         if (this.permissions.can_delete) {
             actions.push({
+                method: 'DELETE',
                 name: 'Delete',
+                label: 'Delete',
                 class: 'bg-red-500 hover:bg-red-700 text-white ',
-                onclick: () => {
-                    let keys = []
-                    let queryresult = Alpine.store('queryresult')
-                    for (let i = 0; i < queryresult.items.length; i++) {
-                        if (queryresult.items[i].selected) {
-                            keys.push(queryresult.rows[i].primaryValue)
-                        }
-                    }
-                    Alpine.store('confirmdelete', keys)
-                }
             })
         }
-        this.actions = actions.map(a => {
-            if (!a.onclick) {
-                a.onclick = () => {
-                    console.log('action', a.name)
+
+        this.actions = actions.map(action => {
+            let path = this.path
+            if (action.path) {
+                path = `${path}/_/${action.path}`
+            }
+            action.path = path
+            action.onclick = () => {
+                let keys = []
+                let queryresult = Alpine.store('queryresult')
+                for (let i = 0; i < queryresult.items.length; i++) {
+                    if (queryresult.items[i].selected) {
+                        keys.push(queryresult.rows[i].primaryValue)
+                    }
                 }
+                Alpine.store('confirmaction', { action: action, keys })
             }
-            if (!a.class) {
-                a.class = 'bg-white text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50'
+            if (!action.class) {
+                action.class = 'bg-white text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50'
             }
-            return a
+            return action
         })
     }
 
@@ -407,6 +412,19 @@ class AdminObject {
         }
     }
 
+    async doaction(action, keys) {
+        for (let i = 0; i < keys.length; i++) {
+            Alpine.store('doing', { pos: i + 1, total: keys.length, action })
+            let params = new URLSearchParams(keys[i]).toString()
+            let resp = await fetch(`${action.path}/?${params}`, {
+                method: action.method || 'POST',
+            })
+            if (resp.status != 200) {
+                Alpine.store('error', `${action.name} fail : ${err.toString()}`)
+                break
+            }
+        }
+    }
 }
 
 const adminapp = () => ({
@@ -420,7 +438,7 @@ const adminapp = () => ({
         Alpine.store('showedit', false)
         Alpine.store('switching', false)
         Alpine.store('loading', true)
-        Alpine.store('confirmdelete', [])
+        Alpine.store('confirmaction', {})
         Alpine.store('doing', { pos: 0 })
         Alpine.store('error', '')
         Alpine.store('info', '')

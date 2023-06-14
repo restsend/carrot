@@ -193,12 +193,12 @@ func TestAuthPassword(t *testing.T) {
 	}
 
 	var hash string
-	sid := Sig().Connect(SigUserResetpassword, func(sender any, params ...any) {
+	sid := Sig().Connect(SigUserResetPassword, func(sender any, params ...any) {
 		assert.Equal(t, len(params), 3)
 		hash = params[0].(string)
 	})
 	defer func() {
-		Sig().Disconnect(SigUserResetpassword, sid)
+		Sig().Disconnect(SigUserResetPassword, sid)
 	}()
 	{
 		form := ResetPasswordForm{
@@ -293,7 +293,7 @@ func TestAuthActivation(t *testing.T) {
 
 	{
 		bob, _ := GetUserByEmail(db, "bob@example.org")
-		assert.False(t, bob.Actived)
+		assert.False(t, bob.Activated)
 
 		token := EncodeHashToken(bob, time.Now().Add(-10*time.Second).Unix(), true)
 		w := client.Get(fmt.Sprintf("/auth/activation?token=%s&next=https://bad.org", token))
@@ -321,6 +321,6 @@ func TestAuthActivation(t *testing.T) {
 		w := client.Get("/auth/activation?token=" + hash)
 		assert.Equal(t, w.Code, http.StatusFound)
 		u, _ := GetUserByEmail(db, "bob@example.org")
-		assert.True(t, u.Actived)
+		assert.True(t, u.Activated)
 	}
 }

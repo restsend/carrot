@@ -29,6 +29,7 @@ type AdminQueryResult struct {
 
 // Access control
 type AdminAccessCheck func(c *gin.Context, obj *AdminObject) error
+type AdminActionHandler func(db *gorm.DB, c *gin.Context, obj any) (any, error)
 type AdminAttribute struct {
 }
 type AdminField struct {
@@ -51,6 +52,15 @@ type AdminScript struct {
 	Src    string `json:"src"`
 	Onload bool   `json:"onload,omitempty"`
 }
+type AdminAction struct {
+	Path    string             `json:"path"`
+	Name    string             `json:"name"`
+	Label   string             `json:"label,omitempty"`
+	Icon    string             `json:"icon,omitempty"`
+	Class   string             `json:"class,omitempty"`
+	Handler AdminActionHandler `json:"-"`
+}
+
 type AdminObject struct {
 	Model       any                       `json:"-"`
 	Group       string                    `json:"group"`                 // Group name
@@ -74,6 +84,7 @@ type AdminObject struct {
 	Scripts     []AdminScript             `json:"scripts,omitempty"`
 	Styles      []string                  `json:"styles,omitempty"`
 	Permissions map[string]bool           `json:"permissions,omitempty"`
+	Actions     []AdminAction             `json:"actions,omitempty"`
 
 	AccessCheck  AdminAccessCheck `json:"-"` // Access control function
 	GetDB        GetDB            `json:"-"`
@@ -101,13 +112,35 @@ func GetCarrotAdminObjects() []AdminObject {
 			Group:       "Settings",
 			Name:        "User",
 			Desc:        "Builtin user management system",
-			Shows:       []string{"ID", "Email", "Username", "FirstName", "ListName", "IsStaff", "IsSuperUser", "Enabled", "Actived", "Profile", "Source", "Locale", "Timezone", "LastLogin", "LastLoginIP"},
-			Editables:   []string{"Email", "Password", "Username", "FirstName", "ListName", "IsStaff", "IsSuperUser", "Enabled", "Actived", "Profile", "Source", "Locale", "Timezone"},
-			Filterables: []string{"CreatedAt", "UpdatedAt", "Username", "IsStaff", "IsSuperUser", "Enabled", "Actived"},
-			Orderables:  []string{"CreatedAt", "UpdatedAt", "Enabled", "Actived"},
+			Shows:       []string{"ID", "Email", "Username", "FirstName", "ListName", "IsStaff", "IsSuperUser", "Enabled", "Activated", "Profile", "Source", "Locale", "Timezone", "LastLogin", "LastLoginIP"},
+			Editables:   []string{"Email", "Password", "Username", "FirstName", "ListName", "IsStaff", "IsSuperUser", "Enabled", "Activated", "Profile", "Source", "Locale", "Timezone"},
+			Filterables: []string{"CreatedAt", "UpdatedAt", "Username", "IsStaff", "IsSuperUser", "Enabled", "Activated "},
+			Orderables:  []string{"CreatedAt", "UpdatedAt", "Enabled", "Activated"},
 			Searchables: []string{"Username", "Email", "FirstName", "ListName"},
 			Orders:      []Order{{"UpdatedAt", OrderOpDesc}},
 			AccessCheck: superAccessCheck,
+			Actions: []AdminAction{
+				{
+					Path:  "toggle_enabled",
+					Name:  "Toggle enabled",
+					Label: "Toggle user enabled/disabled",
+					Handler: func(db *gorm.DB, c *gin.Context, obj any) (any, error) {
+						user := obj.(*User)
+						err := UpdateUserFields(db, user, map[string]any{"Enabled": !user.Enabled})
+						return user.Enabled, err
+					},
+				},
+				{
+					Path:  "toggle_staff",
+					Name:  "Toggle staff",
+					Label: "Toggle user is staff or not",
+					Handler: func(db *gorm.DB, c *gin.Context, obj any) (any, error) {
+						user := obj.(*User)
+						err := UpdateUserFields(db, user, map[string]any{"IsStaff": !user.IsStaff})
+						return user.IsStaff, err
+					},
+				},
+			},
 		},
 		{
 			Model:       &Config{},
@@ -281,6 +314,16 @@ func (obj *AdminObject) Build(db *gorm.DB) error {
 	}
 	if len(obj.PrimaryKey) <= 0 {
 		return fmt.Errorf("%s not has primaryKey", obj.Name)
+	}
+
+	for idx := range obj.Actions {
+		action := &obj.Actions[idx]
+		if action.Name == "" {
+			continue
+		}
+		if action.Path == "" {
+			action.Path = strings.ToLower(action.Name)
+		}
 	}
 	return nil
 }
@@ -753,5 +796,37 @@ func (obj *AdminObject) handleDelete(c *gin.Context) {
 }
 
 func (obj *AdminObject) handleAction(c *gin.Context) {
-	c.AbortWithStatus(http.StatusNotImplemented)
+
+	for _, action := range obj.Actions {
+		if action.Path != c.Param("name") {
+			continue
+		}
+
+		keys := obj.getPrimaryValues(c)
+		if len(keys) <= 0 {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+				"error": "invalid primary key",
+			})
+			return
+		}
+		db := getDbConnection(c, obj.GetDB, false)
+		modelObj := reflect.New(obj.modelElem).Interface()
+		result := db.Where(keys).First(modelObj)
+
+		if result.Error != nil {
+			if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+				c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "not found"})
+			} else {
+				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+			}
+			return
+		}
+		r, err := action.Handler(db, c, modelObj)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		c.JSON(http.StatusOK, r)
+		return
+	}
+	c.AbortWithStatus(http.StatusBadRequest)
 }

@@ -176,26 +176,26 @@ func TestAdminCRUD(t *testing.T) {
 		var result AdminQueryResult
 		err := client.CallPost("/admin/user/", &form, &result)
 		assert.Nil(t, err)
-		var totalcount int64
-		err = db.Model(&User{}).Count(&totalcount).Error
+		var totalCount int64
+		err = db.Model(&User{}).Count(&totalCount).Error
 		assert.Nil(t, err)
-		assert.Equal(t, int(totalcount), result.TotalCount)
+		assert.Equal(t, int(totalCount), result.TotalCount)
 		assert.Equal(t, 1, len(result.Items))
 		first := result.Items[0]
 		assert.Contains(t, first, "email")
 	}
 	{
-		var totalcount int64
-		db.Model(&Config{}).Count(&totalcount)
+		var totalCount int64
+		db.Model(&Config{}).Count(&totalCount)
 
 		var r bool
 		err := client.CallDelete("/admin/config/?id=1024", nil, &r)
 		assert.Nil(t, err)
 		assert.True(t, r)
 
-		var totalcount2 int64
-		db.Model(&Config{}).Count(&totalcount2)
-		assert.Equal(t, totalcount-1, totalcount2)
+		var totalCount2 int64
+		db.Model(&Config{}).Count(&totalCount2)
+		assert.Equal(t, totalCount-1, totalCount2)
 	}
 }
 
@@ -221,6 +221,30 @@ func TestAdminSingle(t *testing.T) {
 }
 
 func TestAdminAction(t *testing.T) {
+	_, db, client := createAdminTest()
+	CreateUser(db, "alice@restsend.com", "1")
+	{
+		var r bool
+		err := client.CallPost("/admin/user/_/toggle_enabled?email=alice@restsend.com", nil, &r)
+		assert.Nil(t, err)
+		assert.False(t, r)
+		u, _ := GetUserByEmail(db, "alice@restsend.com")
+		assert.False(t, u.Enabled)
+	}
+	{
+		var r bool
+		err := client.CallPost("/admin/user/_/toggle_staff?email=alice@restsend.com", nil, &r)
+		assert.Nil(t, err)
+		assert.True(t, r)
+		u, _ := GetUserByEmail(db, "alice@restsend.com")
+		assert.True(t, u.IsStaff)
+	}
+	{
+		var r bool
+		err := client.CallPost("/admin/user/_/bad_action?email=alice@restsend.com", nil, &r)
+		assert.Contains(t, err.Error(), "400 Bad Request")
+		assert.False(t, r)
+	}
 }
 
 func TestAdminFieldMarshal(t *testing.T) {

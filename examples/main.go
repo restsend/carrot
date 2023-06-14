@@ -77,7 +77,7 @@ func main() {
 			}
 		}
 		u.IsStaff = true
-		u.Actived = true
+		u.Activated = true
 		u.Enabled = true
 		u.IsSuperUser = true
 		db.Save(u)

@@ -23,8 +23,8 @@ const (
 	SigUserCreate = "user.create"
 	//SigUserVerifyEmail: user *User, hash, clientIp, userAgent string
 	SigUserVerifyEmail = "user.verifyemail"
-	//SigUserResetpassword: user *User, hash, clientIp, userAgent string
-	SigUserResetpassword = "user.resetpassword"
+	//SigUserResetPassword: user *User, hash, clientIp, userAgent string
+	SigUserResetPassword = "user.resetpassword"
 )
 
 func InTimezone(c *gin.Context, timezone string) {
@@ -182,10 +182,10 @@ func IsExistsByEmail(db *gorm.DB, email string) bool {
 
 func CreateUser(db *gorm.DB, email, password string) (*User, error) {
 	user := User{
-		Email:    email,
-		Password: HashPassword(password),
-		Enabled:  true,
-		Actived:  false,
+		Email:     email,
+		Password:  HashPassword(password),
+		Enabled:   true,
+		Activated: false,
 	}
 
 	result := db.Create(&user)

@@ -49,7 +49,7 @@ func (p Profile) Value() (driver.Value, error) {
 }
 
 type User struct {
-	ID        uint      `json:"-" gorm:"primarykey"`
+	ID        uint      `json:"-" gorm:"primaryKey"`
 	CreatedAt time.Time `json:"-" gorm:"autoCreateTime"`
 	UpdatedAt time.Time `json:"-" gorm:"autoUpdateTime"`
 
@@ -62,7 +62,7 @@ type User struct {
 	IsSuperUser bool       `json:"-"`
 	IsStaff     bool       `json:"-"`
 	Enabled     bool       `json:"-"`
-	Actived     bool       `json:"-"`
+	Activated   bool       `json:"-"`
 	LastLogin   *time.Time `json:"lastLogin,omitempty"`
 	LastLoginIP string     `json:"-" gorm:"size:128"`
 
@@ -74,7 +74,7 @@ type User struct {
 }
 
 type Group struct {
-	ID        uint      `json:"-" gorm:"primarykey"`
+	ID        uint      `json:"-" gorm:"primaryKey"`
 	CreatedAt time.Time `json:"-" gorm:"autoCreateTime"`
 	UpdatedAt time.Time `json:"-"`
 	Name      string    `json:"name" gorm:"size:200"`
@@ -82,7 +82,7 @@ type Group struct {
 }
 
 type GroupMember struct {
-	ID      uint   `json:"-" gorm:"primarykey"`
+	ID      uint   `json:"-" gorm:"primaryKey"`
 	UserID  uint   `json:"-"`
 	User    User   `json:"user"`
 	GroupID uint   `json:"-"`
@@ -91,7 +91,7 @@ type GroupMember struct {
 }
 
 type GroupPermission struct {
-	ID      uint   `json:"-" gorm:"primarykey"`
+	ID      uint   `json:"-" gorm:"primaryKey"`
 	GroupID uint   `json:"groupId"`
 	Group   Group  `json:"-"`
 	Content string `json:"content" gorm:"size:200"`

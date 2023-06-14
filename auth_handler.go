@@ -196,9 +196,9 @@ func handleUserSignup(c *gin.Context) {
 
 	r := gin.H{
 		"email":      user.Email,
-		"activation": user.Actived,
+		"activation": user.Activated,
 	}
-	if !user.Actived && GetBoolValue(db, KEY_USER_ACTIVATED) {
+	if !user.Activated && GetBoolValue(db, KEY_USER_ACTIVATED) {
 		sendHashMail(db, user, SigUserVerifyEmail, KEY_VERIFY_EMAIL_EXPIRED, "180d", c.ClientIP(), c.Request.UserAgent())
 		r["expired"] = "180d"
 	} else {
@@ -264,7 +264,7 @@ func handleUserSignin(c *gin.Context) {
 		return
 	}
 
-	if GetBoolValue(db, KEY_USER_ACTIVATED) && !user.Actived {
+	if GetBoolValue(db, KEY_USER_ACTIVATED) && !user.Activated {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 			"error": "waiting for activation",
 		})
@@ -313,7 +313,7 @@ func handleUserResendActivation(c *gin.Context) {
 		return
 	}
 
-	if GetBoolValue(db, KEY_USER_ACTIVATED) && !user.Actived {
+	if GetBoolValue(db, KEY_USER_ACTIVATED) && !user.Activated {
 		sendHashMail(db, user, SigUserVerifyEmail, KEY_VERIFY_EMAIL_EXPIRED, "180d", c.ClientIP(), c.Request.UserAgent())
 	}
 	c.JSON(http.StatusOK, gin.H{"expired": "180d"})
@@ -339,9 +339,9 @@ func handleUserActivation(c *gin.Context) {
 		return
 	}
 
-	user.Actived = true
+	user.Activated = true
 	UpdateUserFields(db, user, map[string]any{
-		"Actived": true,
+		"Activated": true,
 	})
 
 	InTimezone(c, user.Timezone)
@@ -372,7 +372,7 @@ func handleUserChangePassword(c *gin.Context) {
 	}
 
 	db := c.MustGet(DbField).(*gorm.DB)
-	if GetBoolValue(db, KEY_USER_ACTIVATED) && !user.Actived {
+	if GetBoolValue(db, KEY_USER_ACTIVATED) && !user.Activated {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 			"error": "waiting for activation",
 		})
@@ -405,14 +405,14 @@ func handleUserResetPassword(c *gin.Context) {
 		return
 	}
 
-	if GetBoolValue(db, KEY_USER_ACTIVATED) && !user.Actived {
+	if GetBoolValue(db, KEY_USER_ACTIVATED) && !user.Activated {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 			"error": "waiting for activation",
 		})
 		return
 	}
 
-	sendHashMail(db, user, SigUserResetpassword, KEY_RESET_PASSWD_EXPIRED, "30m", c.ClientIP(), c.Request.UserAgent())
+	sendHashMail(db, user, SigUserResetPassword, KEY_RESET_PASSWD_EXPIRED, "30m", c.ClientIP(), c.Request.UserAgent())
 	c.JSON(http.StatusOK, gin.H{"expired": "30m"})
 }
 
@@ -439,7 +439,7 @@ func handleUserResetPasswordDone(c *gin.Context) {
 		return
 	}
 
-	if GetBoolValue(db, KEY_USER_ACTIVATED) && !user.Actived {
+	if GetBoolValue(db, KEY_USER_ACTIVATED) && !user.Activated {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 			"error": "waiting for activation",
 		})
