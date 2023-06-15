@@ -203,7 +203,7 @@ func RegisterAdmins(r *gin.RouterGroup, db *gorm.DB, adminAssetsRoot string, obj
 	r.POST("/admin.json", func(ctx *gin.Context) {
 		handleAdminIndex(ctx, handledObjects)
 	})
-	r.StaticFS("/", NewCombindEmbedFS(adminAssetsRoot, "admin", embedAdminAssets))
+	r.StaticFS("/", NewCombineEmbedFS(adminAssetsRoot, "admin", embedAdminAssets))
 }
 
 func handleAdminIndex(c *gin.Context, objects []*AdminObject) {

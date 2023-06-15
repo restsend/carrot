@@ -19,26 +19,26 @@ import (
 var embedAssets embed.FS
 
 //go:embed templates
-var embedTempaltes embed.FS
+var embedTemplates embed.FS
 
 //go:embed admin
 var embedAdminAssets embed.FS
 
-type CombindEmbedFS struct {
+type CombineEmbedFS struct {
 	embedfs   embed.FS
 	assertDir string
 	embedRoot string
 }
 
-func NewCombindEmbedFS(assertDir, embedRoot string, embedfs embed.FS) *CombindEmbedFS {
-	return &CombindEmbedFS{
+func NewCombineEmbedFS(assertDir, embedRoot string, embedfs embed.FS) *CombineEmbedFS {
+	return &CombineEmbedFS{
 		embedfs:   embedfs,
 		assertDir: assertDir,
 		embedRoot: embedRoot,
 	}
 }
 
-func (c *CombindEmbedFS) Open(name string) (http.File, error) {
+func (c *CombineEmbedFS) Open(name string) (http.File, error) {
 	if c.assertDir != "" {
 		f, err := os.Open(filepath.Join(c.assertDir, name))
 		if err == nil {
@@ -134,7 +134,7 @@ func (as *StaticAssets) InitStaticAssets(r *gin.Engine) {
 	staticDir := HintAssetsRoot("static")
 
 	Warning("static serving at", staticPrefix, "->", staticDir)
-	r.StaticFS(staticPrefix, NewCombindEmbedFS(staticDir, "admin", embedAssets))
+	r.StaticFS(staticPrefix, NewCombineEmbedFS(staticDir, "admin", embedAssets))
 }
 
 // pongo2.TemplateLoader
@@ -151,7 +151,7 @@ func (as *StaticAssets) Abs(base, name string) string {
 func (as *StaticAssets) Get(path string) (io.Reader, error) {
 	buf, err := os.ReadFile(path)
 	if err != nil {
-		ef, err := embedTempaltes.Open(filepath.Join("templates", path))
+		ef, err := embedTemplates.Open(filepath.Join("templates", path))
 		if err != nil {
 			return nil, err
 		}
