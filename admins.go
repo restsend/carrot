@@ -30,23 +30,30 @@ type AdminQueryResult struct {
 // Access control
 type AdminAccessCheck func(c *gin.Context, obj *AdminObject) error
 type AdminActionHandler func(db *gorm.DB, c *gin.Context, obj any) (any, error)
+type AdminSelectOption struct {
+	Label string `json:"label"`
+	Value any    `json:"value"`
+}
+
 type AdminAttribute struct {
+	Default any                 `json:"default,omitempty"`
+	Choices []AdminSelectOption `json:"choices,omitempty"`
 }
 type AdminField struct {
-	Label     string         `json:"label"` // Label of the object
-	Required  bool           `json:"required,omitempty"`
-	Name      string         `json:"name"`
-	Type      string         `json:"type"`
-	Tag       string         `json:"tag,omitempty"`
-	Attr      AdminAttribute `json:"attr"`
-	CanNull   bool           `json:"canNull,omitempty"`
-	IsArray   bool           `json:"isArray,omitempty"`
-	Primary   bool           `json:"primary,omitempty"`
-	Foreign   bool           `json:"foreign,omitempty"`
-	IsAutoID  bool           `json:"isAutoId,omitempty"`
-	IsPtr     bool           `json:"isPtr,omitempty"`
-	elemType  reflect.Type   `json:"-"`
-	fieldName string         `json:"-"`
+	Label     string          `json:"label"` // Label of the object
+	Required  bool            `json:"required,omitempty"`
+	Name      string          `json:"name"`
+	Type      string          `json:"type"`
+	Tag       string          `json:"tag,omitempty"`
+	Attribute *AdminAttribute `json:"attribute,omitempty"`
+	CanNull   bool            `json:"canNull,omitempty"`
+	IsArray   bool            `json:"isArray,omitempty"`
+	Primary   bool            `json:"primary,omitempty"`
+	Foreign   bool            `json:"foreign,omitempty"`
+	IsAutoID  bool            `json:"isAutoId,omitempty"`
+	IsPtr     bool            `json:"isPtr,omitempty"`
+	elemType  reflect.Type    `json:"-"`
+	fieldName string          `json:"-"`
 }
 type AdminScript struct {
 	Src    string `json:"src"`
@@ -62,38 +69,38 @@ type AdminAction struct {
 }
 
 type AdminObject struct {
-	Model       any                       `json:"-"`
-	Group       string                    `json:"group"`                 // Group name
-	Name        string                    `json:"name"`                  // Name of the object
-	Placeholder string                    `json:"placeholder,omitempty"` // Placeholder of the object
-	Desc        string                    `json:"desc,omitempty"`        // Description
-	Path        string                    `json:"path"`                  // Path prefix
-	Shows       []string                  `json:"shows"`                 // Show fields
-	Orders      []Order                   `json:"-"`                     // Default orders of the object
-	Editables   []string                  `json:"editables"`             // Editable fields
-	Filterables []string                  `json:"filterables"`           // Filterable fields
-	Orderables  []string                  `json:"orderables"`            // Orderable fields, can override Orders
-	Searchables []string                  `json:"searchables"`           // Searchable fields
-	Requireds   []string                  `json:"requireds,omitempty"`   // Required fields
-	Attributes  map[string]AdminAttribute `json:"attributes"`            // Field's extra attributes
-	PrimaryKey  []string                  `json:"primaryKey"`            // Primary key name
-	PluralName  string                    `json:"pluralName"`
-	Fields      []AdminField              `json:"fields"`
-	EditPage    string                    `json:"editpage,omitempty"`
-	ListPage    string                    `json:"listpage,omitempty"`
-	Scripts     []AdminScript             `json:"scripts,omitempty"`
-	Styles      []string                  `json:"styles,omitempty"`
-	Permissions map[string]bool           `json:"permissions,omitempty"`
-	Actions     []AdminAction             `json:"actions,omitempty"`
+	Model       any             `json:"-"`
+	Group       string          `json:"group"`                 // Group name
+	Name        string          `json:"name"`                  // Name of the object
+	Placeholder string          `json:"placeholder,omitempty"` // Placeholder of the object
+	Desc        string          `json:"desc,omitempty"`        // Description
+	Path        string          `json:"path"`                  // Path prefix
+	Shows       []string        `json:"shows"`                 // Show fields
+	Orders      []Order         `json:"-"`                     // Default orders of the object
+	Editables   []string        `json:"editables"`             // Editable fields
+	Filterables []string        `json:"filterables"`           // Filterable fields
+	Orderables  []string        `json:"orderables"`            // Orderable fields, can override Orders
+	Searchables []string        `json:"searchables"`           // Searchable fields
+	Requireds   []string        `json:"requireds,omitempty"`   // Required fields
+	PrimaryKey  []string        `json:"primaryKey"`            // Primary key name
+	PluralName  string          `json:"pluralName"`
+	Fields      []AdminField    `json:"fields"`
+	EditPage    string          `json:"editpage,omitempty"`
+	ListPage    string          `json:"listpage,omitempty"`
+	Scripts     []AdminScript   `json:"scripts,omitempty"`
+	Styles      []string        `json:"styles,omitempty"`
+	Permissions map[string]bool `json:"permissions,omitempty"`
+	Actions     []AdminAction   `json:"actions,omitempty"`
 
-	AccessCheck  AdminAccessCheck `json:"-"` // Access control function
-	GetDB        GetDB            `json:"-"`
-	BeforeCreate BeforeCreateFunc `json:"-"`
-	BeforeRender BeforeRenderFunc `json:"-"`
-	BeforeUpdate BeforeUpdateFunc `json:"-"`
-	BeforeDelete BeforeDeleteFunc `json:"-"`
-	tableName    string           `json:"-"`
-	modelElem    reflect.Type     `json:"-"`
+	Attributes   map[string]AdminAttribute `json:"-"` // Field's extra attributes
+	AccessCheck  AdminAccessCheck          `json:"-"` // Access control function
+	GetDB        GetDB                     `json:"-"`
+	BeforeCreate BeforeCreateFunc          `json:"-"`
+	BeforeRender BeforeRenderFunc          `json:"-"`
+	BeforeUpdate BeforeUpdateFunc          `json:"-"`
+	BeforeDelete BeforeDeleteFunc          `json:"-"`
+	tableName    string                    `json:"-"`
+	modelElem    reflect.Type              `json:"-"`
 }
 
 // Returns all admin objects
@@ -139,6 +146,36 @@ func GetCarrotAdminObjects() []AdminObject {
 						err := UpdateUserFields(db, user, map[string]any{"IsStaff": !user.IsStaff})
 						return user.IsStaff, err
 					},
+				},
+			},
+		},
+		{
+			Model:       &Group{},
+			Group:       "Settings",
+			Name:        "Group",
+			Desc:        "A group describes a group of users. One user can be part of many groups and one group can have many users", //
+			Shows:       []string{"ID", "Name", "Extra", "UpdatedAt", "CreatedAt"},
+			Editables:   []string{"ID", "Name", "Extra", "UpdatedAt"},
+			Orderables:  []string{"UpdatedAt"},
+			Searchables: []string{"Name"},
+			Requireds:   []string{"Name"},
+			AccessCheck: superAccessCheck,
+		},
+		{
+			Model:       &GroupMember{},
+			Group:       "Settings",
+			Name:        "GroupMember",
+			Desc:        "Group members", //
+			Shows:       []string{"ID", "UserID", "GroupID", "Role", "CreatedAt"},
+			Editables:   []string{"ID", "UserID", "GroupID", "Role"},
+			Orderables:  []string{"CreatedAt"},
+			Searchables: []string{"UserID", "GroupID"},
+			Requireds:   []string{"UserID", "GroupID", "Role"},
+			AccessCheck: superAccessCheck,
+			Attributes: map[string]AdminAttribute{
+				"Role": {
+					Default: GroupRoleMember,
+					Choices: []AdminSelectOption{{"Admin", GroupRoleAdmin}, {"Member", GroupRoleMember}},
 				},
 			},
 		},
@@ -389,6 +426,10 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 
 		if field.Type == "NullTime" || field.Type == "Time" {
 			field.Type = "datetime"
+		}
+
+		if attr, ok := obj.Attributes[f.Name]; ok {
+			field.Attribute = &attr
 		}
 		obj.Fields = append(obj.Fields, field)
 	}

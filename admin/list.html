@@ -147,7 +147,8 @@
                                                 </template>
                                                 <template x-if="colidx !== 0">
                                                     <!-- Render cell value -->
-                                                    <div class="truncate" :class="col.class" x-html="col.value"></div>
+                                                    <div class="truncate" :class="col.show_class" x-html="col.value">
+                                                    </div>
                                                 </template>
                                             </td>
                                         </template>

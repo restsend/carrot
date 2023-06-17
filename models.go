@@ -22,7 +22,7 @@ const (
 )
 
 type Config struct {
-	ID    uint   `json:"id" gorm:"primarykey"`
+	ID    uint   `json:"id" gorm:"primaryKey"`
 	Key   string `json:"key" gorm:"size:128;uniqueIndex"`
 	Desc  string `json:"desc" gorm:"size:200"`
 	Value string
@@ -82,12 +82,13 @@ type Group struct {
 }
 
 type GroupMember struct {
-	ID      uint   `json:"-" gorm:"primaryKey"`
-	UserID  uint   `json:"-"`
-	User    User   `json:"user"`
-	GroupID uint   `json:"-"`
-	Group   Group  `json:"group"`
-	Role    string `json:"role"`
+	ID        uint      `json:"-" gorm:"primaryKey"`
+	CreatedAt time.Time `json:"-" gorm:"autoCreateTime"`
+	UserID    uint      `json:"-"`
+	User      User      `json:"user"`
+	GroupID   uint      `json:"-"`
+	Group     Group     `json:"group"`
+	Role      string    `json:"role" gorm:"size:60"`
 }
 
 type GroupPermission struct {

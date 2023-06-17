@@ -37,34 +37,6 @@ class Queryresult {
         let items = data.items || []
         this.count = items.length
 
-        // build items for table view
-        let valueformat = (value, field) => {
-            switch (field.type) {
-                case 'string':
-                    return escapeHTML(value)
-                case 'bool': {
-                    if (value === true) return IconYes
-                    if (value === false) return IconNo
-                    return IconUnknown
-                }
-                case 'datetime': {
-                    if (!value) return ''
-                    let d = new Date(value)
-                    return d.toLocaleString()
-                }
-            }
-
-            if (value === null || value === undefined) {
-                return ''
-            }
-            // if value is object
-            if (typeof value == 'object') {
-                return JSON.stringify(value)
-            }
-
-            return value.toString()
-        }
-
         let current = Alpine.store('current')
         this.rows = items.map(item => {
             item.primaryValue = current.getPrimaryValue(item)
@@ -75,22 +47,11 @@ class Queryresult {
             let row = []
             current.shows.forEach(field => {
                 row.push({
-                    get value() {
-                        if (this._value) { return this._value }
-                        this._value = valueformat(item[field.name], field)
-                        return this._value
-                    },
+                    value: field.format(item[field.name]),
                     name: field.name,
                     primary: field.primary,
                     selected: false,
-                    get class() {
-                        let v = this.value;
-                        if (field.htmltype == 'text' || field.htmltype == 'json') {
-                            if (typeof v === 'string' && v.length > 40) {
-                                return 'w-72'
-                            }
-                        }
-                    },
+                    show_class: field.show_class(item[field.name]),
                 })
             })
             return row
@@ -169,11 +130,6 @@ class Queryresult {
         })
     }
 
-    onedit(event, row) {
-        event.preventDefault()
-        console.log('edit', row)
-    }
-
     ondelete_one(event) {
         Alpine.store('confirmaction', { action: { name: 'Delete', label: 'Delete' }, keys: [Alpine.store('editobj').primaryValue] })
     }
@@ -221,10 +177,47 @@ class AdminObject {
 
         let fields = meta.fields || []
         let requireds = meta.requireds || []
+
+        const fn_build_filed_htmltype = (f) => {
+            let edit_class = ''
+            let htmltype = ''
+            switch (f.type) {
+                case 'bool': {
+                    htmltype = 'checkbox'
+                    break
+                }
+                case 'uint':
+                case 'int':
+                case 'float':
+                case 'datetime':
+                case 'string':
+                    htmltype = 'text'
+                    break
+                default: {
+                    htmltype = 'json'
+                }
+            }
+
+            let fsize = 0
+            if (/size:(\d+)/.test(f.tag || '')) {
+                fsize = parseInt(f.tag.match(/size:(\d+)/)[1])
+            }
+
+            if (fsize > 64) {
+                edit_class = 'w-full'
+            } else if (f.type === 'string' && fsize === 0) {
+                htmltype = 'textarea'
+            } else if (f.attribute && f.attribute.choices) {
+                htmltype = 'select'
+            }
+            return { htmltype, edit_class: edit_class }
+        }
+
         this.fields = fields.map(f => {
             f.headerName = f.name.toUpperCase().replace(/_/g, ' ')
             f.primary = f.primary
             f.required = requireds.includes(f.name)
+
             f.defaultvalue = () => {
                 switch (f.type) {
                     case 'bool': return false
@@ -235,6 +228,53 @@ class AdminObject {
                     case 'string': return ''
                     default: return null
                 }
+            }
+
+            f.show_class = (value) => {
+                if (typeof value === 'object') {
+                    return 'w-72'
+                }
+                if (f.htmltype == 'text' || f.htmltype == 'json') {
+                    if (typeof value === 'string' && value.length > 40) {
+                        return 'w-72'
+                    }
+                }
+            }
+
+            const { htmltype, edit_class: edit_class } = fn_build_filed_htmltype(f)
+            f.htmltype = htmltype
+            f.edit_class = edit_class
+
+            f.format = (value) => {
+                if (f.attribute) {
+                    let opt = f.attribute.choices.find(opt => opt.value == value)
+                    if (opt) { return opt.label }
+                }
+
+                switch (f.type) {
+                    case 'string':
+                        return escapeHTML(value)
+                    case 'bool': {
+                        if (value === true) return IconYes
+                        if (value === false) return IconNo
+                        return IconUnknown
+                    }
+                    case 'datetime': {
+                        if (!value) return ''
+                        let d = new Date(value)
+                        return d.toLocaleString()
+                    }
+                }
+
+                if (value === null || value === undefined) {
+                    return ''
+                }
+                // if value is object
+                if (typeof value == 'object') {
+                    return JSON.stringify(value)
+                }
+
+                return value.toString()
             }
 
             // convert value from string to type
@@ -282,40 +322,6 @@ class AdminObject {
         this.searchables = filter_fields(meta.searchables)
         this.filterables = filter_fields(meta.filterables)
         this.orderables = filter_fields(meta.orderables)
-
-
-        this.editables = this.editables.map(f => {
-            f.extraclass = ''
-            switch (f.type) {
-                case 'bool': {
-                    f.htmltype = 'checkbox'
-                    break
-                }
-                case 'uint':
-                case 'int':
-                case 'float':
-                case 'datetime':
-                case 'string':
-                    f.htmltype = 'text'
-                    break
-                default: {
-                    f.htmltype = 'json'
-                }
-            }
-
-            let fsize = 0
-            if (/size:(\d+)/.test(f.tag || '')) {
-                fsize = parseInt(f.tag.match(/size:(\d+)/)[1])
-            }
-
-            if (fsize > 64) {
-                f.extraclass = 'w-full'
-            } else if (f.type === 'string' && fsize === 0) {
-                f.htmltype = 'textarea'
-            }
-
-            return f
-        })
 
         let actions = meta.actions || []
         // check user can delete
@@ -446,7 +452,7 @@ const adminapp = () => ({
         this.$router.config({ mode: 'hash', base: '/admin/' })
         let resp = await fetch('./admin.json', {
             method: 'POST',
-            cache: "no-cache",
+            cache: "no-store",
         })
         let meta = await resp.json()
         this.site = meta.site
@@ -501,7 +507,7 @@ const adminapp = () => ({
         this.$router.push(obj.path)
 
         fetch(obj.listpage || './list.html', {
-            cache: "no-cache",
+            cache: "no-store",
         }).then(resp => {
             resp.text().then(text => {
                 let hasonload = this.injectHtml(this.$refs.querycontent, text, obj)
@@ -561,7 +567,7 @@ const adminapp = () => ({
         let obj = this.$store.current
 
         fetch(obj.editpage || './edit.html', {
-            cache: "no-cache",
+            cache: "no-store",
         }).then(resp => {
             resp.text().then(text => {
                 this.injectHtml(this.$refs.editcontent, text, obj)
@@ -605,7 +611,9 @@ const adminapp = () => ({
 
         let obj = this.$store.current
 
-        fetch(obj.editpage || './edit.html').then(resp => {
+        fetch(obj.editpage || './edit.html', {
+            cache: "no-store",
+        }).then(resp => {
             resp.text().then(text => {
                 this.injectHtml(this.$refs.editcontent, text, obj)
             })
