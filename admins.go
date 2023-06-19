@@ -510,7 +510,10 @@ func (obj *AdminObject) UnmarshalFrom(keys, vals map[string]any) (any, error) {
 	}
 
 	for k, v := range keys {
-		vals[k] = v
+		// if primary key in editables, then ignore it
+		if _, ok := vals[k]; !ok {
+			vals[k] = v
+		}
 	}
 
 	for _, field := range obj.Fields {
