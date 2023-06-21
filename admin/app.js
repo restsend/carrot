@@ -9,6 +9,9 @@ const IconUnknown = `<span class="text-gray-600"><svg xmlns="http://www.w3.org/2
 </svg></span>`
 
 function escapeHTML(s) {
+    if (!s) {
+        return ''
+    }
     s = s.replace(/&/g, '&amp;')
     s = s.replace(/</g, '&lt;')
     s = s.replace(/>/g, '&gt;')
