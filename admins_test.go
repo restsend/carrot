@@ -2,6 +2,8 @@ package carrot
 
 import (
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
 	"testing"
 	"time"
@@ -10,6 +12,30 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gorm.io/gorm"
 )
+
+type ProductModel struct {
+	Name  string `json:"name" gorm:"size:40"`
+	Image string `json:"image" gorm:"size:200"`
+}
+
+type ProductItem struct {
+	ID         uint          `json:"id" gorm:"primaryKey"`
+	Name       string        `json:"name" gorm:"size:40"`
+	CreatedAt  time.Time     `json:"created_at"`
+	UpdatedAt  *time.Time    `json:"updated_at"`
+	ModelPtr   *ProductModel `json:"model_ptr"`
+	ModelValue ProductModel  `json:"model_value"`
+}
+
+type Product struct {
+	UUID          string      `json:"id" gorm:"primarykey;size:20"`
+	ProductItemID uint        `json:"-"`
+	Item          ProductItem `json:"product_item"`
+}
+
+func (item ProductItem) String() string {
+	return fmt.Sprintf("%d (%s)", item.ID, item.Name)
+}
 
 func TestAdminObjects(t *testing.T) {
 	db, _ := InitDatabase(nil, "", "")
@@ -225,7 +251,7 @@ func TestAdminAction(t *testing.T) {
 	CreateUser(db, "alice@restsend.com", "1")
 	{
 		var r bool
-		err := client.CallPost("/admin/user/_/toggle_enabled?email=alice@restsend.com", nil, &r)
+		err := client.CallPost("/admin/user/toggle_enabled?email=alice@restsend.com", nil, &r)
 		assert.Nil(t, err)
 		assert.False(t, r)
 		u, _ := GetUserByEmail(db, "alice@restsend.com")
@@ -233,7 +259,7 @@ func TestAdminAction(t *testing.T) {
 	}
 	{
 		var r bool
-		err := client.CallPost("/admin/user/_/toggle_staff?email=alice@restsend.com", nil, &r)
+		err := client.CallPost("/admin/user/toggle_staff?email=alice@restsend.com", nil, &r)
 		assert.Nil(t, err)
 		assert.True(t, r)
 		u, _ := GetUserByEmail(db, "alice@restsend.com")
@@ -241,26 +267,13 @@ func TestAdminAction(t *testing.T) {
 	}
 	{
 		var r bool
-		err := client.CallPost("/admin/user/_/bad_action?email=alice@restsend.com", nil, &r)
+		err := client.CallPost("/admin/user/bad_action?email=alice@restsend.com", nil, &r)
 		assert.Contains(t, err.Error(), "400 Bad Request")
 		assert.False(t, r)
 	}
 }
 
 func TestAdminFieldMarshal(t *testing.T) {
-	type ProductModel struct {
-		Name  string `json:"name" gorm:"size:40"`
-		Image string `json:"image" gorm:"size:200"`
-	}
-
-	type ProductItem struct {
-		ID         uint          `json:"id" gorm:"primaryKey"`
-		Name       string        `json:"name" gorm:"size:40"`
-		CreatedAt  time.Time     `json:"created_at"`
-		UpdatedAt  *time.Time    `json:"updated_at"`
-		ModelPtr   *ProductModel `json:"model_ptr"`
-		ModelValue ProductModel  `json:"model_value"`
-	}
 
 	obj := AdminObject{
 		Model: &ProductItem{},
@@ -285,4 +298,35 @@ func TestAdminFieldMarshal(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "test", v.(*ProductItem).ModelPtr.Name)
 	assert.Equal(t, "test2", v.(*ProductItem).ModelValue.Name)
+}
+
+func TestAdminForeign(t *testing.T) {
+	productObj := AdminObject{
+		Model: &Product{},
+		Path:  "unittest",
+	}
+	db, _ := InitDatabase(nil, "", "")
+	MakeMigrates(db, []any{&ProductItem{}, &Product{}})
+
+	err := productObj.Build(db)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(productObj.Fields))
+	assert.Equal(t, "item", productObj.Fields[1].Name)
+	assert.Equal(t, "product_item_id", productObj.Fields[1].Foreign.Field)
+	assert.Equal(t, "productitem", productObj.Fields[1].Foreign.Path)
+
+	p := Product{
+		UUID:          "test",
+		ProductItemID: 1024,
+		Item: ProductItem{
+			ID:   1024,
+			Name: "item one",
+		},
+	}
+	log.Println(p.Item)
+	assert.Equal(t, "1024 (item one)", fmt.Sprintf("%v", p.Item))
+	vals, err := productObj.MarshalOne(&p)
+	assert.Nil(t, err)
+	assert.Equal(t, "1024 (item one)", vals["item"].(AdminValue).Label)
+	assert.Equal(t, uint(1024), vals["item"].(AdminValue).Value)
 }

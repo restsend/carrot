@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"math/rand"
 	"time"
 
@@ -16,7 +17,7 @@ import (
 type ProductItem struct {
 	ID        uint      `json:"id" gorm:"primarykey"`
 	CreatedAt time.Time `json:"createdAt"`
-	ProductID uint      `json:"-"`
+	ProductID string    `json:"-"`
 	Product   Product   `json:"product"`
 	Name      string    `json:"name" gorm:"size:128"`
 	Unit      string    `json:"unit"`
@@ -43,6 +44,10 @@ type Product struct {
 	UpdatedAt time.Time     `json:"updatedAt"`
 	Enabled   bool          `json:"enabled"`
 	Model     *ProductModel `json:"model"`
+}
+
+func (p Product) String() string {
+	return fmt.Sprintf("%s (%s)", p.Name, p.UUID)
 }
 
 type Customer struct {
@@ -139,8 +144,8 @@ func main() {
 			Group:       "Product",
 			Name:        "ProductItem",
 			Desc:        "A item of product",
-			Shows:       []string{"ID", "ProductID", "Name", "Unit", "Price", "CreatedAt"},
-			Editables:   []string{"ProductID", "Name", "Unit", "Price"},
+			Shows:       []string{"ID", "Product", "Name", "Unit", "Price", "CreatedAt"},
+			Editables:   []string{"Product", "Name", "Unit", "Price"},
 			Searchables: []string{"Name"},
 			Filterables: []string{"Unit", "Price", "CreatedAt"},
 		},

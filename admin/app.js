@@ -213,6 +213,9 @@ class AdminObject {
             } else if (f.attribute && f.attribute.choices) {
                 htmltype = 'select'
             }
+            if (f.foreign) {
+                htmltype = 'foreign'
+            }
             return { htmltype, edit_class: edit_class }
         }
 
@@ -253,7 +256,9 @@ class AdminObject {
                     let opt = f.attribute.choices.find(opt => opt.value == value)
                     if (opt) { return opt.label }
                 }
-
+                if (f.foreign) {
+                    return value.label || value.value
+                }
                 switch (f.type) {
                     case 'string':
                         return escapeHTML(value)
@@ -285,6 +290,11 @@ class AdminObject {
                 if (value === null || value === undefined) {
                     return value
                 }
+
+                if (f.foreign) {
+                    return value
+                }
+
                 switch (f.type) {
                     case 'bool':
                         if (value === 'true') { return true }
@@ -305,10 +315,8 @@ class AdminObject {
                         return value
                     default:
                         if (typeof value === 'string') {
-                            console.log('unmarshal parse', f.type, value)
                             return JSON.parse(value)
                         }
-                        console.log('unmarshal raw', f.type, value)
                         return value
                 }
             }
@@ -340,7 +348,7 @@ class AdminObject {
         this.actions = actions.map(action => {
             let path = this.path
             if (action.path) {
-                path = `${path}/_/${action.path}`
+                path = `${path}/${action.path}`
             }
             action.path = path
             action.onclick = () => {
@@ -502,6 +510,8 @@ const adminapp = () => ({
         let elm = document.getElementById('querycontent')
         if (elm) elm.innerHTML = ''
 
+        this.closeedit()
+
         this.$store.queryresult.reset()
         this.$store.switching = true
         this.$store.current = obj
@@ -549,7 +559,13 @@ const adminapp = () => ({
         this.$store.showedit = true
         let fields = this.$store.current.editables.map(f => {
             let newf = { ...f }
-            newf.value = f.defaultvalue()
+            if (f.foreign) {
+                newf.value = row[f.name].value
+                newf.values = []
+
+            } else {
+                newf.value = f.defaultvalue()
+            }
             return newf
         })
         this.$store.editobj = {
@@ -588,10 +604,30 @@ const adminapp = () => ({
 
         let fields = this.$store.current.editables.map(f => {
             let newf = { ...f }
-            if (f.htmltype === 'json') {
-                newf.value = JSON.stringify(row[f.name])
+            if (f.foreign) {
+                newf.value = row[f.name].value
+                newf.values = []
+                let path = this.$store.current.path
+                path = path.substring(0, path.lastIndexOf('/')) + '/' + f.foreign.path
+                fetch(path, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        foreign: true
+                    }),
+                }).then(resp => {
+                    resp.json().then(data => {
+                        data.items.forEach(item => {
+                            newf.values.push(item)
+                        })
+                        console.log(newf.values)
+                    })
+                })
             } else {
-                newf.value = row[f.name]
+                if (f.htmltype === 'json') {
+                    newf.value = JSON.stringify(row[f.name])
+                } else {
+                    newf.value = row[f.name]
+                }
             }
             return newf
         })

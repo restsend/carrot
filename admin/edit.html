@@ -33,8 +33,10 @@
                                             <span class="text-red-600">*</span>
                                         </template>
                                         <span class="text-gray-700" x-text="field.label"></span>
+                                        <!--
                                         <span :class="field.htmltype == 'checkbox'?'ml-1':''" class="text-gray-300"
                                             x-text="field.name"></span>
+                                        -->
                                     </label>
                                     <div class="mt-2">
                                         <template x-if="field.htmltype == 'textarea'">
@@ -54,6 +56,15 @@
                                             <select x-model="field.value">
                                                 <option value="" disabled>Select A Option</option>
                                                 <template x-for="opt in field.attribute.choices" :key="opt.value">
+                                                    <option :value="opt.value" x-text="opt.label"
+                                                        :selected="opt.value == field.value"></option>
+                                                </template>
+                                            </select>
+                                        </template>
+                                        <template x-if="field.htmltype == 'foreign'">
+                                            <select x-model="field.value">
+                                                <option value="" disabled>Select A Value</option>
+                                                <template x-for="opt in field.values" :key="opt.value">
                                                     <option :value="opt.value" x-text="opt.label"
                                                         :selected="opt.value == field.value"></option>
                                                 </template>

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"path"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type AdminQueryResult struct {
@@ -25,6 +27,7 @@ type AdminQueryResult struct {
 	Limit      int              `json:"limit,omitempty"`
 	Keyword    string           `json:"keyword,omitempty"`
 	Items      []map[string]any `json:"items"`
+	objects    []any            `json:"-"`
 }
 
 // Access control
@@ -39,6 +42,17 @@ type AdminAttribute struct {
 	Default any                 `json:"default,omitempty"`
 	Choices []AdminSelectOption `json:"choices,omitempty"`
 }
+type AdminForeign struct {
+	Path       string `json:"path"`
+	Field      string `json:"field"`
+	fieldName  string `json:"-"`
+	foreignKey string `json:"-"`
+}
+type AdminValue struct {
+	Value any    `json:"value"`
+	Label string `json:"label,omitempty"`
+}
+
 type AdminField struct {
 	Label     string          `json:"label"` // Label of the object
 	Required  bool            `json:"required,omitempty"`
@@ -49,7 +63,7 @@ type AdminField struct {
 	CanNull   bool            `json:"canNull,omitempty"`
 	IsArray   bool            `json:"isArray,omitempty"`
 	Primary   bool            `json:"primary,omitempty"`
-	Foreign   bool            `json:"foreign,omitempty"`
+	Foreign   *AdminForeign   `json:"foreign,omitempty"`
 	IsAutoID  bool            `json:"isAutoId,omitempty"`
 	IsPtr     bool            `json:"isPtr,omitempty"`
 	elemType  reflect.Type    `json:"-"`
@@ -101,6 +115,7 @@ type AdminObject struct {
 	BeforeDelete BeforeDeleteFunc          `json:"-"`
 	tableName    string                    `json:"-"`
 	modelElem    reflect.Type              `json:"-"`
+	ignores      map[string]bool           `json:"-"`
 }
 
 // Returns all admin objects
@@ -305,7 +320,7 @@ func (obj *AdminObject) RegisterAdmin(r gin.IRoutes) {
 	r.PUT("/", obj.handleCreate)
 	r.PATCH("/", obj.handleUpdate)
 	r.DELETE("/", obj.handleDelete)
-	r.POST("/_/:name", obj.handleAction)
+	r.POST("/:name", obj.handleAction)
 }
 
 func (obj *AdminObject) asColNames(db *gorm.DB, fields []string) []string {
@@ -345,6 +360,7 @@ func (obj *AdminObject) Build(db *gorm.DB) error {
 		o.Name = db.NamingStrategy.ColumnName(obj.tableName, o.Name)
 	}
 
+	obj.ignores = map[string]bool{}
 	err := obj.parseFields(db, rt)
 	if err != nil {
 		return err
@@ -414,14 +430,40 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 			}
 		}
 
+		foreignKey := ""
 		// ignore `belongs to` and `has one` relation
+		if f.Type.Kind() == reflect.Struct || (f.Type.Kind() == reflect.Ptr && f.Type.Elem().Kind() == reflect.Struct) {
+			hintForeignKey := fmt.Sprintf("%sID", field.Type)
+			if _, ok := rt.FieldByName(hintForeignKey); ok {
+				foreignKey = hintForeignKey
+			}
+		}
 		if strings.Contains(gormTag, "foreignkey") {
-			field.Foreign = true
+			//extract foreign key from gorm tag with regex
+			//example: foreignkey:UserRefer
+			var re = regexp.MustCompile(`foreignkey:([a-zA-Z0-9]+)`)
+			matches := re.FindStringSubmatch(gormTag)
+			if len(matches) > 1 {
+				foreignKey = strings.TrimSpace(matches[1])
+			}
 		}
 
-		hintForeignKey := fmt.Sprintf("%sID", f.Name)
-		if _, ok := rt.FieldByName(hintForeignKey); ok {
-			field.Foreign = true
+		if foreignKey != "" {
+			obj.ignores[foreignKey] = true
+			for k := range obj.Fields {
+				if obj.Fields[k].fieldName == foreignKey {
+					// remove foreign key from fields
+					obj.Fields = append(obj.Fields[:k], obj.Fields[k+1:]...)
+					break
+				}
+			}
+
+			field.Foreign = &AdminForeign{
+				Field:      db.NamingStrategy.ColumnName(obj.tableName, foreignKey),
+				Path:       strings.ToLower(f.Type.Name()),
+				foreignKey: foreignKey,
+				fieldName:  f.Name,
+			}
 		}
 
 		if field.Type == "NullTime" || field.Type == "Time" {
@@ -525,14 +567,19 @@ func (obj *AdminObject) UnmarshalFrom(keys, vals map[string]any) (any, error) {
 		if val == nil {
 			continue
 		}
-		fieldValue, err := field.convertValue(val)
-		if err != nil {
-			return nil, fmt.Errorf("invalid type: %s except: %s actual: %s error:%v", field.Name, field.Type, reflect.TypeOf(val).Name(), err)
+		var target reflect.Value
+		var targetValue reflect.Value
+		if field.Foreign != nil {
+			target = elemObj.Elem().FieldByName(field.Foreign.foreignKey)
+			targetValue = reflect.ValueOf(val)
+		} else {
+			fieldValue, err := field.convertValue(val)
+			if err != nil {
+				return nil, fmt.Errorf("invalid type: %s except: %s actual: %s error:%v", field.Name, field.Type, reflect.TypeOf(val).Name(), err)
+			}
+			target = elemObj.Elem().FieldByName(field.fieldName)
+			targetValue = reflect.ValueOf(fieldValue)
 		}
-
-		target := elemObj.Elem().FieldByName(field.fieldName)
-		targetValue := reflect.ValueOf(fieldValue)
-
 		if target.Kind() == reflect.Ptr {
 			ptrValue := reflect.New(reflect.PointerTo(field.elemType))
 			ptrValue.Elem().Set(targetValue)
@@ -555,19 +602,25 @@ func (obj *AdminObject) MarshalOne(val interface{}) (map[string]any, error) {
 		rv = rv.Elem()
 	}
 	for _, field := range obj.Fields {
-		var fieldval any
-		if v := rv.MethodByName(field.fieldName); v.IsValid() {
-			r := v.Call(nil)
-			if len(r) > 0 {
-				fieldval = r[0].Interface()
+		var fieldVal any
+		if field.Foreign != nil {
+			v := AdminValue{
+				Value: rv.FieldByName(field.Foreign.foreignKey).Interface(),
 			}
+			fv := rv.FieldByName(field.Foreign.fieldName)
+			if fv.IsValid() {
+				if sv, ok := fv.Interface().(fmt.Stringer); ok {
+					v.Label = sv.String()
+				}
+			}
+			fieldVal = v
 		} else {
 			v := rv.FieldByName(field.fieldName)
 			if v.IsValid() {
-				fieldval = v.Interface()
+				fieldVal = v.Interface()
 			}
 		}
-		result[field.Name] = fieldval
+		result[field.Name] = fieldVal
 	}
 	return result, nil
 }
@@ -593,7 +646,7 @@ func (obj *AdminObject) handleGetOne(c *gin.Context) {
 		return
 	}
 
-	result := db.Where(keys).First(modelObj)
+	result := db.Preload(clause.Associations).Where(keys).First(modelObj)
 
 	if result.Error != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
@@ -674,21 +727,22 @@ func (obj *AdminObject) QueryObjects(db *gorm.DB, form *QueryForm, ctx *gin.Cont
 
 	selected := []string{}
 	for _, v := range obj.Fields {
-
-		if v.Foreign {
-			continue
+		if v.Foreign != nil {
+			selected = append(selected, v.Foreign.Field)
+		} else {
+			selected = append(selected, v.Name)
 		}
-		selected = append(selected, v.Name)
 	}
 
 	vals := reflect.New(reflect.SliceOf(obj.modelElem))
-	result := db.Select(selected).Offset(form.Pos).Limit(form.Limit).Find(vals.Interface())
+	result := db.Preload(clause.Associations).Select(selected).Offset(form.Pos).Limit(form.Limit).Find(vals.Interface())
 	if result.Error != nil {
 		return r, result.Error
 	}
 
 	for i := 0; i < vals.Elem().Len(); i++ {
 		modelObj := vals.Elem().Index(i).Interface()
+		r.objects = append(r.objects, modelObj)
 		if obj.BeforeRender != nil {
 			err := obj.BeforeRender(ctx, modelObj)
 			if err != nil {
@@ -718,15 +772,31 @@ func (obj *AdminObject) handleQueryOrGetOne(c *gin.Context) {
 		})
 		return
 	}
-
 	r, err := obj.QueryObjects(db, form, c)
+
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
 		return
 	}
-
+	if form.ForeignMode {
+		var items []map[string]any
+		for i := 0; i < len(r.Items); i++ {
+			item := map[string]any{}
+			for _, v := range obj.Fields {
+				if v.Primary {
+					item["value"] = r.Items[i][v.Name]
+				}
+				iv := r.objects[i]
+				if sv, ok := iv.(fmt.Stringer); ok {
+					item["label"] = sv.String()
+				}
+			}
+			items = append(items, item)
+		}
+		r.Items = items
+	}
 	c.JSON(http.StatusOK, r)
 }
 

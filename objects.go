@@ -108,8 +108,9 @@ type QueryForm struct {
 	Keyword      string   `json:"keyword,omitempty"`
 	Filters      []Filter `json:"filters,omitempty"`
 	Orders       []Order  `json:"orders,omitempty"`
-	ViewFields   []string `json:"-"` // for view
-	searchFields []string `json:"-"` // for keyword
+	ForeignMode  bool     `json:"foreign"` // for foreign key
+	ViewFields   []string `json:"-"`       // for view
+	searchFields []string `json:"-"`       // for keyword
 }
 
 type QueryResult[T any] struct {
