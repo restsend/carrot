@@ -3,6 +3,7 @@ package carrot
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -97,6 +98,18 @@ type GroupPermission struct {
 	Group   Group  `json:"-"`
 	Content string `json:"content" gorm:"size:200"`
 	Code    string `json:"code" gorm:"size:200"`
+}
+
+func (u User) String() string {
+	n := u.GetVisibleName()
+	if n != "" {
+		return fmt.Sprintf("%s(%s)", u.Email, n)
+	}
+	return u.Email
+}
+
+func (g Group) String() string {
+	return fmt.Sprintf("%s(%d)", g.Name, g.ID)
 }
 
 func (u *User) GetVisibleName() string {

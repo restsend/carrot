@@ -181,11 +181,11 @@ func GetCarrotAdminObjects() []AdminObject {
 			Group:       "Settings",
 			Name:        "GroupMember",
 			Desc:        "Group members", //
-			Shows:       []string{"ID", "UserID", "GroupID", "Role", "CreatedAt"},
-			Editables:   []string{"ID", "UserID", "GroupID", "Role"},
+			Shows:       []string{"ID", "User", "Group", "Role", "CreatedAt"},
+			Editables:   []string{"ID", "User", "Group", "Role"},
 			Orderables:  []string{"CreatedAt"},
-			Searchables: []string{"UserID", "GroupID"},
-			Requireds:   []string{"UserID", "GroupID", "Role"},
+			Searchables: []string{"User", "Group"},
+			Requireds:   []string{"User", "Group", "Role"},
 			AccessCheck: superAccessCheck,
 			Attributes: map[string]AdminAttribute{
 				"Role": {
@@ -248,6 +248,15 @@ func RegisterAdmins(r *gin.RouterGroup, db *gorm.DB, adminAssetsRoot string, obj
 
 		objr := r.Group(obj.Path)
 		obj.Path = path.Join(r.BasePath(), obj.Path)
+
+		for idx := range obj.Fields {
+			f := &obj.Fields[idx]
+			if f.Foreign == nil {
+				continue
+			}
+			f.Foreign.Path = path.Join(r.BasePath(), f.Foreign.Path)
+		}
+
 		obj.RegisterAdmin(objr)
 		handledObjects = append(handledObjects, obj)
 	}
@@ -422,12 +431,15 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 			field.Type = f.Type.Name()
 		}
 
-		if strings.Contains(gormTag, "primarykey") || strings.Contains(gormTag, "unique") {
+		if strings.Contains(gormTag, "primarykey") {
 			field.Primary = true
-			obj.PrimaryKey = append(obj.PrimaryKey, field.Name)
 			if strings.Contains(field.Type, "int") {
 				field.IsAutoID = true
 			}
+		}
+
+		if strings.Contains(gormTag, "primarykey") || strings.Contains(gormTag, "unique") {
+			obj.PrimaryKey = append(obj.PrimaryKey, field.Name)
 		}
 
 		foreignKey := ""
@@ -478,14 +490,14 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 	return nil
 }
 
-func (f *AdminField) convertValue(source any) (any, error) {
+func convertValue(elemType reflect.Type, source any) (any, error) {
 	srcType := reflect.TypeOf(source)
-	if srcType == f.elemType {
+	if srcType == elemType {
 		return source, nil
 	}
-	var targetType reflect.Type = f.elemType
+	var targetType reflect.Type = elemType
 	var err error
-	switch f.Type {
+	switch elemType.Name() {
 	case "int", "int8", "int16", "int32", "int64":
 		v, err := strconv.ParseInt(fmt.Sprintf("%v", source), 10, 64)
 		if err != nil {
@@ -569,17 +581,20 @@ func (obj *AdminObject) UnmarshalFrom(keys, vals map[string]any) (any, error) {
 		}
 		var target reflect.Value
 		var targetValue reflect.Value
+		var targetType = field.elemType
 		if field.Foreign != nil {
 			target = elemObj.Elem().FieldByName(field.Foreign.foreignKey)
-			targetValue = reflect.ValueOf(val)
+			targetType = target.Type()
 		} else {
-			fieldValue, err := field.convertValue(val)
-			if err != nil {
-				return nil, fmt.Errorf("invalid type: %s except: %s actual: %s error:%v", field.Name, field.Type, reflect.TypeOf(val).Name(), err)
-			}
 			target = elemObj.Elem().FieldByName(field.fieldName)
-			targetValue = reflect.ValueOf(fieldValue)
 		}
+
+		fieldValue, err := convertValue(targetType, val)
+		if err != nil {
+			return nil, fmt.Errorf("invalid type: %s except: %s actual: %s error:%v", field.Name, field.Type, reflect.TypeOf(val).Name(), err)
+		}
+		targetValue = reflect.ValueOf(fieldValue)
+
 		if target.Kind() == reflect.Ptr {
 			ptrValue := reflect.New(reflect.PointerTo(field.elemType))
 			ptrValue.Elem().Set(targetValue)
@@ -589,7 +604,6 @@ func (obj *AdminObject) UnmarshalFrom(keys, vals map[string]any) (any, error) {
 				targetValue = targetValue.Elem()
 			}
 		}
-
 		target.Set(targetValue)
 	}
 	return elemObj.Interface(), nil
@@ -735,7 +749,11 @@ func (obj *AdminObject) QueryObjects(db *gorm.DB, form *QueryForm, ctx *gin.Cont
 	}
 
 	vals := reflect.New(reflect.SliceOf(obj.modelElem))
-	result := db.Preload(clause.Associations).Select(selected).Offset(form.Pos).Limit(form.Limit).Find(vals.Interface())
+	tx := db.Preload(clause.Associations).Select(selected).Offset(form.Pos)
+	if form.Limit > 0 {
+		tx = tx.Limit(form.Limit)
+	}
+	result := tx.Find(vals.Interface())
 	if result.Error != nil {
 		return r, result.Error
 	}
@@ -772,6 +790,11 @@ func (obj *AdminObject) handleQueryOrGetOne(c *gin.Context) {
 		})
 		return
 	}
+
+	if form.ForeignMode {
+		form.Limit = 0 // TODO: support foreign mode limit
+	}
+
 	r, err := obj.QueryObjects(db, form, c)
 
 	if err != nil {

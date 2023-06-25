@@ -383,7 +383,7 @@ class AdminObject {
         return this.filterables.length > 0
     }
 
-    async dosave(keys, vals) {
+    async doSave(keys, vals) {
         let values = {}
         vals.forEach(v => {
             values[v.name] = v.unmarshal(v.value)
@@ -399,7 +399,7 @@ class AdminObject {
         return await resp.json()
     }
 
-    async docreate(vals) {
+    async doCreate(vals) {
         let values = {}
         vals.forEach(v => {
             values[v.name] = v.unmarshal(v.value)
@@ -510,7 +510,7 @@ const adminapp = () => ({
         let elm = document.getElementById('querycontent')
         if (elm) elm.innerHTML = ''
 
-        this.closeedit()
+        this.closeEdit()
 
         this.$store.queryresult.reset()
         this.$store.switching = true
@@ -552,6 +552,22 @@ const adminapp = () => ({
         return hasonload
     },
 
+    loadForiegnValues(f, isCreate = false) {
+        fetch(f.foreign.path, {
+            method: 'POST',
+            body: JSON.stringify({
+                foreign: true
+            }),
+        }).then(resp => {
+            resp.json().then(data => {
+                if (data.items.length > 0 && isCreate) {
+                    f.value = data.items[0].value
+                }
+                f.values.push(...data.items)
+            })
+        })
+    },
+
     addobject(event) {
         if (event) {
             event.preventDefault()
@@ -560,25 +576,23 @@ const adminapp = () => ({
         let fields = this.$store.current.editables.map(f => {
             let newf = { ...f }
             if (f.foreign) {
-                newf.value = row[f.name].value
-                newf.values = []
-
-            } else {
-                newf.value = f.defaultvalue()
+                newf.values = Alpine.reactive([])
+                this.loadForiegnValues(newf, true)
             }
+            newf.value = f.defaultvalue()
             return newf
         })
         this.$store.editobj = {
             mode: 'create',
             title: `Add ${this.$store.current.name}`,
             fields: fields,
-            docreate: (ev) => {
+            doCreate: (ev) => {
                 // create row
-                this.$store.current.docreate(this.$store.editobj.fields).then(() => {
-                    this.closeedit(ev)
+                this.$store.current.doCreate(this.$store.editobj.fields).then(() => {
+                    this.closeEdit(ev)
                     this.$store.queryresult.refresh()
                 }).catch(err => {
-                    this.closeedit(ev)
+                    this.closeEdit(ev)
                 })
             },
         }
@@ -606,22 +620,8 @@ const adminapp = () => ({
             let newf = { ...f }
             if (f.foreign) {
                 newf.value = row[f.name].value
-                newf.values = []
-                let path = this.$store.current.path
-                path = path.substring(0, path.lastIndexOf('/')) + '/' + f.foreign.path
-                fetch(path, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        foreign: true
-                    }),
-                }).then(resp => {
-                    resp.json().then(data => {
-                        data.items.forEach(item => {
-                            newf.values.push(item)
-                        })
-                        console.log(newf.values)
-                    })
-                })
+                newf.values = Alpine.reactive([])
+                this.loadForiegnValues(newf)
             } else {
                 if (f.htmltype === 'json') {
                     newf.value = JSON.stringify(row[f.name])
@@ -637,13 +637,13 @@ const adminapp = () => ({
             title: `Edit ${this.$store.current.name}`,
             fields: fields,
             primaryValue: row.primaryValue,
-            dosave: (ev) => {
+            doSave: (ev) => {
                 // update row
-                this.$store.current.dosave(this.$store.editobj.primaryValue, this.$store.editobj.fields).then(() => {
-                    this.closeedit(ev)
+                this.$store.current.doSave(this.$store.editobj.primaryValue, this.$store.editobj.fields).then(() => {
+                    this.closeEdit(ev)
                     this.$store.queryresult.refresh()
                 }).catch(err => {
-                    this.closeedit(ev)
+                    this.closeEdit(ev)
                 })
             },
         }
@@ -661,7 +661,7 @@ const adminapp = () => ({
         })
 
     },
-    closeedit(event) {
+    closeEdit(event) {
         if (event) {
             event.preventDefault()
         }
