@@ -21,6 +21,8 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+const KEY_ADMIN_DASHBOARD = "ADMIN_DASHBOARD"
+
 type AdminQueryResult struct {
 	TotalCount int              `json:"total,omitempty"`
 	Pos        int              `json:"pos,omitempty"`
@@ -280,11 +282,13 @@ func handleAdminIndex(c *gin.Context, objects []*AdminObject) {
 		val.BuildPermissions(db, CurrentUser(c))
 		viewObjects = append(viewObjects, val)
 	}
-
+	siteCtx := GetRenderPageContext(c)
+	db := getDbConnection(c, nil, false)
+	siteCtx["dashboard"] = GetValue(db, KEY_ADMIN_DASHBOARD)
 	c.JSON(http.StatusOK, gin.H{
 		"objects": viewObjects,
 		"user":    CurrentUser(c),
-		"site":    GetRenderPageContext(c),
+		"site":    siteCtx,
 	})
 }
 

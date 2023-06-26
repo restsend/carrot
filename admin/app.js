@@ -478,6 +478,20 @@ const adminapp = () => ({
             if (obj) {
                 this.switchobject(null, obj)
             }
+        } else {
+            if (this.site.dashboard) {
+                fetch(this.site.dashboard, {
+                    cache: "no-store",
+                }).then(resp => {
+                    this.$store.switching = true
+                    resp.text().then(text => {
+                        if (text) {
+                            this.injectHtml(this.$refs.querycontent, text, null)
+                        }
+                        this.$store.switching = false
+                    })
+                })
+            }
         }
         this.$store.loading = false
     },
@@ -533,6 +547,9 @@ const adminapp = () => ({
     injectHtml(elm, html, obj) {
         elm.innerHTML = html
         let hasonload = false
+        if (!obj) {
+            return hasonload
+        }
 
         obj.scripts.forEach(s => {
             if (!s.onload && this.loadscripts[s.src]) {
