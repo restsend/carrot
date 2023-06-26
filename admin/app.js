@@ -120,9 +120,7 @@ class Queryresult {
             limit: this.countPerPage,
         }
         let path = Alpine.store('current').path
-        if (path[-1] != '/') {
-            path += '/'
-        }
+
         fetch(path, {
             method: 'POST',
             body: JSON.stringify(query),

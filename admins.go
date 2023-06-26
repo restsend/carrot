@@ -247,14 +247,13 @@ func RegisterAdmins(r *gin.RouterGroup, db *gorm.DB, adminAssetsRoot string, obj
 		}
 
 		objr := r.Group(obj.Path)
-		obj.Path = path.Join(r.BasePath(), obj.Path)
-
+		obj.Path = path.Join(r.BasePath(), obj.Path) + "/"
 		for idx := range obj.Fields {
 			f := &obj.Fields[idx]
 			if f.Foreign == nil {
 				continue
 			}
-			f.Foreign.Path = path.Join(r.BasePath(), f.Foreign.Path)
+			f.Foreign.Path = path.Join(r.BasePath(), f.Foreign.Path) + "/"
 		}
 
 		obj.RegisterAdmin(objr)
@@ -627,6 +626,9 @@ func (obj *AdminObject) MarshalOne(val interface{}) (map[string]any, error) {
 					v.Label = sv.String()
 				}
 			}
+			if v.Label == "" {
+				v.Label = fmt.Sprintf("%v", v.Value)
+			}
 			fieldVal = v
 		} else {
 			v := rv.FieldByName(field.fieldName)
@@ -807,14 +809,21 @@ func (obj *AdminObject) handleQueryOrGetOne(c *gin.Context) {
 		var items []map[string]any
 		for i := 0; i < len(r.Items); i++ {
 			item := map[string]any{}
+			var valueVal any
 			for _, v := range obj.Fields {
 				if v.Primary {
-					item["value"] = r.Items[i][v.Name]
+					valueVal = r.Items[i][v.Name]
 				}
-				iv := r.objects[i]
-				if sv, ok := iv.(fmt.Stringer); ok {
-					item["label"] = sv.String()
-				}
+			}
+			if valueVal == nil {
+				continue
+			}
+			item["value"] = valueVal
+			iv := r.objects[i]
+			if sv, ok := iv.(fmt.Stringer); ok {
+				item["label"] = sv.String()
+			} else {
+				item["label"] = fmt.Sprintf("%v", valueVal)
 			}
 			items = append(items, item)
 		}
