@@ -175,7 +175,7 @@ class AdminObject {
         this.pluralName = meta.pluralName
         this.scripts = meta.scripts || []
         this.style = meta.style || []
-
+        this.icon = meta.icon
         let fields = meta.fields || []
         let requireds = meta.requireds || []
 

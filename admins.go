@@ -54,6 +54,10 @@ type AdminValue struct {
 	Value any    `json:"value"`
 	Label string `json:"label,omitempty"`
 }
+type AdminIcon struct {
+	Url string `json:"url,omitempty"`
+	SVG string `json:"svg,omitempty"`
+}
 
 type AdminField struct {
 	Label     string          `json:"label"` // Label of the object
@@ -107,6 +111,7 @@ type AdminObject struct {
 	Styles      []string        `json:"styles,omitempty"`
 	Permissions map[string]bool `json:"permissions,omitempty"`
 	Actions     []AdminAction   `json:"actions,omitempty"`
+	Icon        *AdminIcon      `json:"icon,omitempty"`
 
 	Attributes   map[string]AdminAttribute `json:"-"` // Field's extra attributes
 	AccessCheck  AdminAccessCheck          `json:"-"` // Access control function
@@ -142,6 +147,7 @@ func GetCarrotAdminObjects() []AdminObject {
 			Orderables:  []string{"CreatedAt", "UpdatedAt", "Enabled", "Activated"},
 			Searchables: []string{"Username", "Email", "FirstName", "ListName"},
 			Orders:      []Order{{"UpdatedAt", OrderOpDesc}},
+			Icon:        &AdminIcon{Url: "./icon_user.svg"},
 			AccessCheck: superAccessCheck,
 			Actions: []AdminAction{
 				{
@@ -176,6 +182,7 @@ func GetCarrotAdminObjects() []AdminObject {
 			Orderables:  []string{"UpdatedAt"},
 			Searchables: []string{"Name"},
 			Requireds:   []string{"Name"},
+			Icon:        &AdminIcon{Url: "./icon_group.svg"},
 			AccessCheck: superAccessCheck,
 		},
 		{
@@ -188,6 +195,7 @@ func GetCarrotAdminObjects() []AdminObject {
 			Orderables:  []string{"CreatedAt"},
 			Searchables: []string{"User", "Group"},
 			Requireds:   []string{"User", "Group", "Role"},
+			Icon:        &AdminIcon{Url: "./icon_members.svg"},
 			AccessCheck: superAccessCheck,
 			Attributes: map[string]AdminAttribute{
 				"Role": {
@@ -206,6 +214,7 @@ func GetCarrotAdminObjects() []AdminObject {
 			Orderables:  []string{"Key"},
 			Searchables: []string{"Key", "Value", "Desc"},
 			Requireds:   []string{"Key", "Value"},
+			Icon:        &AdminIcon{Url: "./icon_config.svg"},
 			AccessCheck: superAccessCheck,
 		},
 	}
