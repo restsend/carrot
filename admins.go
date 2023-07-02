@@ -46,6 +46,7 @@ type AdminSelectOption struct {
 type AdminAttribute struct {
 	Default any                 `json:"default,omitempty"`
 	Choices []AdminSelectOption `json:"choices,omitempty"`
+	Widget  string              `json:"widget,omitempty"`
 }
 type AdminForeign struct {
 	Path       string `json:"path"`

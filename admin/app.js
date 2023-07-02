@@ -171,6 +171,8 @@ class AdminObject {
         this.name = meta.name
         this.path = meta.path
         this.group = meta.group
+        this.listpage = meta.listpage || 'list.html'
+        this.editpage = meta.editpage || 'edit.html'
         this.primaryKey = meta.primaryKey
         this.pluralName = meta.pluralName
         this.scripts = meta.scripts || []
@@ -250,7 +252,7 @@ class AdminObject {
             f.edit_class = edit_class
 
             f.format = (value) => {
-                if (f.attribute) {
+                if (f.attribute && f.attribute.choices) {
                     let opt = f.attribute.choices.find(opt => opt.value == value)
                     if (opt) { return opt.label }
                 }
@@ -551,7 +553,7 @@ const adminapp = () => ({
 
         this.$router.push(obj.path)
 
-        fetch(obj.listpage || './list.html', {
+        fetch(obj.listpage, {
             cache: "no-store",
         }).then(resp => {
             resp.text().then(text => {
@@ -638,7 +640,7 @@ const adminapp = () => ({
 
         let obj = this.$store.current
 
-        fetch(obj.editpage || './edit.html', {
+        fetch(obj.editpage, {
             cache: "no-store",
         }).then(resp => {
             resp.text().then(text => {

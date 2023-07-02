@@ -8,6 +8,7 @@
   <script src="//unpkg.com/@shaun/alpinejs-router@1.x.x/dist/cdn.min.js" defer></script>
   <script src="//unpkg.com/alpinejs" defer></script>
   <script src="./app.js"></script>
+  <script src="./widget.js"></script>
 </head>
 
 <body class="h-full">
@@ -19,7 +20,7 @@
 
   <div x-data="adminapp()" x-cloak>
     <template x-if="$store.loading">
-      <span x-show="">Loading...</span>
+      <span>Loading...</span>
     </template>
     <template x-if="!$store.loading">
       <div>
@@ -47,7 +48,15 @@
                   </template>
               </template>
               <div x-show="!$store.showedit" id="querycontent"></div>
-              <div x-show="$store.showedit" id="editcontent"></div>
+              <div x-show="$store.showedit && $store.editobj">
+                <div class="px-6 py-6">
+                  <div class="flex space-x-4 px-2">
+                    <a href="#" @click="closeEdit($event)" class="font-medium text-indigo-600">Back</a>
+                    <h3 class="text-base font-semibold leading-6 text-gray-900" x-text="$store.editobj.title"></h3>
+                  </div>
+                  <div id="editcontent"></div>
+                </div>
+              </div>
             </div>
           </div>
         </main>
