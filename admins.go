@@ -23,6 +23,8 @@ import (
 
 const KEY_ADMIN_DASHBOARD = "ADMIN_DASHBOARD"
 
+type AdminBuildContext func(*gin.Context, map[string]any) map[string]any
+
 type AdminQueryResult struct {
 	TotalCount int              `json:"total,omitempty"`
 	Pos        int              `json:"pos,omitempty"`
@@ -35,6 +37,7 @@ type AdminQueryResult struct {
 // Access control
 type AdminAccessCheck func(c *gin.Context, obj *AdminObject) error
 type AdminActionHandler func(db *gorm.DB, c *gin.Context, obj any) (any, error)
+
 type AdminSelectOption struct {
 	Label string `json:"label"`
 	Value any    `json:"value"`
@@ -220,9 +223,8 @@ func GetCarrotAdminObjects() []AdminObject {
 	}
 }
 
-// RegisterAdmins registers admin routes
-func RegisterAdmins(r *gin.RouterGroup, db *gorm.DB, adminAssetsRoot string, objs []AdminObject) {
-	r.Use(func(ctx *gin.Context) {
+func WithAdminAuth() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
 		user := CurrentUser(ctx)
 		if user == nil {
 			db := ctx.MustGet(DbField).(*gorm.DB)
@@ -240,8 +242,11 @@ func RegisterAdmins(r *gin.RouterGroup, db *gorm.DB, adminAssetsRoot string, obj
 			ctx.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "forbidden"})
 			return
 		}
-	})
+		ctx.Next()
+	}
+}
 
+func BuildAdminObjects(r *gin.RouterGroup, db *gorm.DB, objs []AdminObject) []*AdminObject {
 	handledObjects := make([]*AdminObject, 0)
 	exists := make(map[string]bool)
 	for idx := range objs {
@@ -270,14 +275,24 @@ func RegisterAdmins(r *gin.RouterGroup, db *gorm.DB, adminAssetsRoot string, obj
 		obj.RegisterAdmin(objr)
 		handledObjects = append(handledObjects, obj)
 	}
+	return handledObjects
+}
 
+// RegisterAdmins registers admin routes
+func RegisterAdmins(r *gin.RouterGroup, db *gorm.DB, adminAssetsRoot string, objs []AdminObject) {
+	r.Use(WithAdminAuth())
+
+	handledObjects := BuildAdminObjects(r, db, objs)
 	r.POST("/admin.json", func(ctx *gin.Context) {
-		handleAdminIndex(ctx, handledObjects)
+		HandleAdminIndex(ctx, handledObjects, func(ctx *gin.Context, m map[string]any) map[string]any {
+			m["dashboard"] = GetValue(db, KEY_ADMIN_DASHBOARD)
+			return m
+		})
 	})
 	r.StaticFS("/", NewCombineEmbedFS(adminAssetsRoot, "admin", embedAdminAssets))
 }
 
-func handleAdminIndex(c *gin.Context, objects []*AdminObject) {
+func HandleAdminIndex(c *gin.Context, objects []*AdminObject, buildContext AdminBuildContext) {
 	var viewObjects []AdminObject
 	for _, obj := range objects {
 		if obj.AccessCheck != nil {
@@ -291,10 +306,12 @@ func handleAdminIndex(c *gin.Context, objects []*AdminObject) {
 		val.BuildPermissions(db, CurrentUser(c))
 		viewObjects = append(viewObjects, val)
 	}
+
 	siteCtx := GetRenderPageContext(c)
-	db := getDbConnection(c, nil, false)
-	siteCtx["dashboard"] = GetValue(db, KEY_ADMIN_DASHBOARD)
-	
+	if buildContext != nil {
+		siteCtx = buildContext(c, siteCtx)
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"objects": viewObjects,
 		"user":    CurrentUser(c),
