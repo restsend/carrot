@@ -19,7 +19,7 @@
 
   <div x-data="adminapp()" x-cloak>
     <template x-if="$store.loading">
-      <span>Loading...</span>
+      <span x-show="">Loading...</span>
     </template>
     <template x-if="!$store.loading">
       <div>
@@ -46,8 +46,8 @@
                     </div>
                   </template>
               </template>
-              <div x-show="!$store.showedit" x-ref="querycontent"></div>
-              <div x-show="$store.showedit" x-ref="editcontent"></div>
+              <div x-show="!$store.showedit" id="querycontent"></div>
+              <div x-show="$store.showedit" id="editcontent"></div>
             </div>
           </div>
         </main>

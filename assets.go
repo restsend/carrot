@@ -16,13 +16,13 @@ import (
 )
 
 //go:embed static
-var embedAssets embed.FS
+var EmbedAssets embed.FS
 
 //go:embed templates
-var embedTemplates embed.FS
+var EmbedTemplates embed.FS
 
 //go:embed admin
-var embedAdminAssets embed.FS
+var EmbedAdminAssets embed.FS
 
 type CombineEmbedFS struct {
 	embedfs   embed.FS
@@ -134,7 +134,7 @@ func (as *StaticAssets) InitStaticAssets(r *gin.Engine) {
 	staticDir := HintAssetsRoot("static")
 
 	Warning("static serving at", staticPrefix, "->", staticDir)
-	r.StaticFS(staticPrefix, NewCombineEmbedFS(staticDir, "admin", embedAssets))
+	r.StaticFS(staticPrefix, NewCombineEmbedFS(staticDir, "admin", EmbedAssets))
 }
 
 // pongo2.TemplateLoader
@@ -151,7 +151,7 @@ func (as *StaticAssets) Abs(base, name string) string {
 func (as *StaticAssets) Get(path string) (io.Reader, error) {
 	buf, err := os.ReadFile(path)
 	if err != nil {
-		ef, err := embedTemplates.Open(filepath.Join("templates", path))
+		ef, err := EmbedTemplates.Open(filepath.Join("templates", path))
 		if err != nil {
 			return nil, err
 		}

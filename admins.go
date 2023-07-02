@@ -289,7 +289,7 @@ func RegisterAdmins(r *gin.RouterGroup, db *gorm.DB, adminAssetsRoot string, obj
 			return m
 		})
 	})
-	r.StaticFS("/", NewCombineEmbedFS(adminAssetsRoot, "admin", embedAdminAssets))
+	r.StaticFS("/", NewCombineEmbedFS(adminAssetsRoot, "admin", EmbedAdminAssets))
 }
 
 func HandleAdminIndex(c *gin.Context, objects []*AdminObject, buildContext AdminBuildContext) {

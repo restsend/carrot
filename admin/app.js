@@ -496,7 +496,8 @@ const adminapp = () => ({
                     this.$store.switching = true
                     resp.text().then(text => {
                         if (text) {
-                            this.injectHtml(this.$refs.querycontent, text, null)
+                            let elm = document.getElementById('querycontent')
+                            this.injectHtml(elm, text, null)
                         }
                         this.$store.switching = false
                     })
@@ -539,7 +540,8 @@ const adminapp = () => ({
             this.$store.current.active = false
         }
 
-        this.$refs.querycontent.innerHTML = ''
+        let elm = document.getElementById('querycontent')
+        elm.innerHTML = ''
         this.closeEdit()
 
         this.$store.queryresult.reset()
@@ -553,7 +555,7 @@ const adminapp = () => ({
             cache: "no-store",
         }).then(resp => {
             resp.text().then(text => {
-                let hasOnload = this.injectHtml(this.$refs.querycontent, text, obj)
+                let hasOnload = this.injectHtml(elm, text, obj)
                 if (!hasOnload) {
                     this.$store.queryresult.refresh()
                 }
@@ -640,7 +642,8 @@ const adminapp = () => ({
             cache: "no-store",
         }).then(resp => {
             resp.text().then(text => {
-                this.injectHtml(this.$refs.editcontent, text, obj)
+                let elm = document.getElementById('editcontent')
+                this.injectHtml(elm, text, obj)
             })
         }).catch(err => {
             this.$store.showedit = false
@@ -691,7 +694,8 @@ const adminapp = () => ({
             cache: "no-store",
         }).then(resp => {
             resp.text().then(text => {
-                this.injectHtml(this.$refs.editcontent, text, obj)
+                let elm = document.getElementById('editcontent')
+                this.injectHtml(elm, text, obj)
             })
         }).catch(err => {
             this.$store.showedit = false
