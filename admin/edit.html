@@ -8,9 +8,7 @@
                         <input type="checkbox" :class="field.edit_class" x-model="field.value"
                             class="mr-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600" />
                     </template>
-                    <template x-if="field.required">
-                        <span class="text-red-600">*</span>
-                    </template>
+                    <span class="text-red-600" x-show="field.required">*</span>
                     <span class="text-gray-700" x-text="field.label"></span>
                 </label>
                 <div class="mt-2">
