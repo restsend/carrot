@@ -1,0 +1,64 @@
+<div class="flex grow flex-col gap-y-5 overflow-y-auto border-r border-gray-200 bg-white px-6">
+  <div class="flex h-16 shrink-0 items-center">
+    <a href="."><img class="h-8 w-auto" :src="site.logo_url" :alt="site.sitename" /></a>
+  </div>
+  <nav class="flex flex-1 flex-col">
+    <ul role="list" class="flex flex-1 flex-col gap-y-7">
+      <template x-for="group in navmenus">
+        <li>
+          <div class="text-xs font-semibold leading-6 text-gray-400" x-text="group.name"></div>
+          <ul role="list" class="-mx-2 mt-2 space-y-1">
+            <template x-for="item in group.items">
+              <li>
+                <!-- Current: "bg-gray-50 text-indigo-600", Default: "text-gray-700 hover:text-indigo-600 hover:bg-gray-50" -->
+                <a href="#" x-on:click="switchObject($event, item)"
+                  class="text-gray-700 hover:text-indigo-600 hover:bg-gray-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
+                  :class="item.active?'text-indigo-600 bg-gray-50':''">
+                  <template x-if="item.icon">
+                    <template x-if="item.icon.url">
+                      <img :src="item.icon.url" :alt="item.icon.alt"
+                        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-[0.625rem] font-medium bg-white text-gray-400 border-gray-200 group-hover:border-indigo-600 group-hover:text-indigo-600" />
+                    </template>
+                    <template x-if="item.icon.svg">
+                      <span x-html="item.icon.svg"
+                        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-[0.625rem] font-medium bg-white text-gray-400 border-gray-200 group-hover:border-indigo-600 group-hover:text-indigo-600"></span>
+                    </template>
+                  </template>
+                  <template x-if="!item.icon">
+                    <span x-text="item.pluralName[0]"
+                      class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-[0.625rem] font-medium bg-white text-gray-400 border-gray-200 group-hover:border-indigo-600 group-hover:text-indigo-600"></span>
+                  </template>
+                  <span class="truncate" x-text="item.pluralName"></span>
+                </a>
+              </li>
+            </template>
+          </ul>
+        </li>
+      </template>
+      <li class="-mx-6 mt-auto">
+        <span
+          class="flex justify-between items-center px-6 py-3 text-sm font-semibold leading-6 text-gray-900 hover:bg-gray-50">
+          <div class="flex items-center gap-x-4">
+            <template x-if="user.avatar">
+              <img class="h-8 w-8 rounded-full bg-gray-50" :src="user.avatar" alt="" />
+            </template>
+            <template x-if="!user.avatar">
+              <span
+                class="uppercase flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-[0.625rem] font-medium bg-white text-gray-400 border-indigo-400"
+                x-text="user.name[0]"></span>
+            </template>
+            <span class="sr-only" x-text="user.name"></span>
+            <span aria-hidden="true" x-text="user.name"></span>
+          </div>
+          <a href="/auth/logout?next=/" class="flex flex-end text-sm leading-6 text-gray-900 hover:bg-gray-50">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+              stroke="currentColor" class="w-6 h-6">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+            </svg>
+          </a>
+        </span>
+      </li>
+    </ul>
+  </nav>
+</div>

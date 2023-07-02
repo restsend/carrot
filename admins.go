@@ -294,6 +294,7 @@ func handleAdminIndex(c *gin.Context, objects []*AdminObject) {
 	siteCtx := GetRenderPageContext(c)
 	db := getDbConnection(c, nil, false)
 	siteCtx["dashboard"] = GetValue(db, KEY_ADMIN_DASHBOARD)
+	
 	c.JSON(http.StatusOK, gin.H{
 		"objects": viewObjects,
 		"user":    CurrentUser(c),

@@ -18,7 +18,7 @@ function escapeHTML(s) {
     return s
 }
 
-class Queryresult {
+class QueryResult {
     constructor() {
         this.reset()
     }
@@ -131,11 +131,11 @@ class Queryresult {
         })
     }
 
-    ondelete_one(event) {
+    onDeleteOne(event) {
         Alpine.store('confirmaction', { action: { name: 'Delete', label: 'Delete' }, keys: [Alpine.store('editobj').primaryValue] })
     }
 
-    doaction(event) {
+    doAction(event) {
         event.preventDefault()
         let { action, keys } = Alpine.store('confirmaction')
 
@@ -143,7 +143,7 @@ class Queryresult {
         Alpine.store('showedit', false)
         Alpine.store('confirmaction', {})
 
-        Alpine.store('current').doaction(action, keys).then(() => {
+        Alpine.store('current').doAction(action, keys).then(() => {
             Alpine.store('doing', { pos: 0 })
 
             this.items.forEach(row => {
@@ -158,7 +158,7 @@ class Queryresult {
         })
     }
 
-    cancelaction(event, row) {
+    cancelAction(event, row) {
         event.preventDefault()
         Alpine.store('confirmaction', {})
     }
@@ -374,10 +374,10 @@ class AdminObject {
         return vals
     }
 
-    get showsearch() {
+    get showSearch() {
         return this.searchables.length > 0
     }
-    get showfilter() {
+    get showFilter() {
         return this.filterables.length > 0
     }
 
@@ -427,7 +427,7 @@ class AdminObject {
         }
     }
 
-    async doaction(action, keys) {
+    async doAction(action, keys) {
         for (let i = 0; i < keys.length; i++) {
             Alpine.store('doing', { pos: i + 1, total: keys.length, action })
             let params = new URLSearchParams(keys[i]).toString()
@@ -445,10 +445,10 @@ class AdminObject {
 const adminapp = () => ({
     site: {},
     navmenus: [],
-    loadscripts: {},
+    loadScripts: {},
 
     async init() {
-        Alpine.store('queryresult', new Queryresult())
+        Alpine.store('queryresult', new QueryResult())
         Alpine.store('current', {})
         Alpine.store('showedit', false)
         Alpine.store('switching', false)
@@ -470,13 +470,23 @@ const adminapp = () => ({
 
         this.user = meta.user
         this.user.name = this.user.firstName || this.user.email
-        this.build_navmenu()
+        this.buildNavMenu()
+        this.loadSidebar()
 
+        this.$watch('$store.loading', val => {
+            if (val === false) {
+                this.onLoad()
+            }
+        })
+        this.$store.loading = false
+    },
+
+    onLoad() {
         if (this.$router.path) {
             // switch to current object
             let obj = this.$store.objects.find(obj => obj.path === this.$router.path)
             if (obj) {
-                this.switchobject(null, obj)
+                this.switchObject(null, obj)
             }
         } else {
             if (this.site.dashboard) {
@@ -493,10 +503,20 @@ const adminapp = () => ({
                 })
             }
         }
-        this.$store.loading = false
+    },
+    loadSidebar() {
+        fetch('sidebar.html', {
+            cache: "no-store",
+        }).then(resp => {
+            resp.text().then(text => {
+                if (text) {
+                    this.injectHtml(this.$refs.sidebar, text, null)
+                }
+            })
+        })
     },
 
-    build_navmenu() {
+    buildNavMenu() {
         let menus = []
         this.$store.objects.forEach(obj => {
             let menu = menus.find(m => m.name === obj.group)
@@ -509,7 +529,7 @@ const adminapp = () => ({
         this.navmenus = menus
     },
 
-    switchobject(event, obj) {
+    switchObject(event, obj) {
         if (event) {
             event.preventDefault()
         }
@@ -519,9 +539,7 @@ const adminapp = () => ({
             this.$store.current.active = false
         }
 
-        let elm = document.getElementById('querycontent')
-        if (elm) elm.innerHTML = ''
-
+        this.$refs.querycontent.innerHTML = ''
         this.closeEdit()
 
         this.$store.queryresult.reset()
@@ -535,8 +553,8 @@ const adminapp = () => ({
             cache: "no-store",
         }).then(resp => {
             resp.text().then(text => {
-                let hasonload = this.injectHtml(this.$refs.querycontent, text, obj)
-                if (!hasonload) {
+                let hasOnload = this.injectHtml(this.$refs.querycontent, text, obj)
+                if (!hasOnload) {
                     this.$store.queryresult.refresh()
                 }
                 this.$store.switching = false
@@ -546,28 +564,28 @@ const adminapp = () => ({
 
     injectHtml(elm, html, obj) {
         elm.innerHTML = html
-        let hasonload = false
+        let hasOnload = false
         if (!obj) {
-            return hasonload
+            return hasOnload
         }
 
         obj.scripts.forEach(s => {
-            if (!s.onload && this.loadscripts[s.src]) {
+            if (!s.onload && this.loadScripts[s.src]) {
                 return
             }
             if (s.onload) {
-                hasonload = true
+                hasOnload = true
             } else {
-                this.loadscripts[s.src] = true
+                this.loadScripts[s.src] = true
             }
-            let scriptelm = document.createElement('script')
-            scriptelm.src = s.src
-            document.head.appendChild(scriptelm)
+            let sel = document.createElement('script')
+            sel.src = s.src
+            document.head.appendChild(sel)
         })
-        return hasonload
+        return hasOnload
     },
 
-    loadForiegnValues(f, isCreate = false) {
+    loadForeignValues(f, isCreate = false) {
         fetch(f.foreign.path, {
             method: 'POST',
             body: JSON.stringify({
@@ -575,6 +593,10 @@ const adminapp = () => ({
             }),
         }).then(resp => {
             resp.json().then(data => {
+                if (!data.items) {
+                    return
+                }
+
                 if (data.items.length > 0 && isCreate) {
                     f.value = data.items[0].value
                 }
@@ -583,7 +605,7 @@ const adminapp = () => ({
         })
     },
 
-    addobject(event) {
+    addObject(event) {
         if (event) {
             event.preventDefault()
         }
@@ -592,7 +614,7 @@ const adminapp = () => ({
             let newf = { ...f }
             if (f.foreign) {
                 newf.values = Alpine.reactive([])
-                this.loadForiegnValues(newf, true)
+                this.loadForeignValues(newf, true)
             }
             newf.value = f.defaultvalue()
             return newf
@@ -625,7 +647,7 @@ const adminapp = () => ({
         })
 
     },
-    editobject(event, row) {
+    editObject(event, row) {
         if (event) {
             event.preventDefault()
         }
@@ -636,7 +658,7 @@ const adminapp = () => ({
             if (f.foreign) {
                 newf.value = row[f.name].value
                 newf.values = Alpine.reactive([])
-                this.loadForiegnValues(newf)
+                this.loadForeignValues(newf)
             } else {
                 if (f.htmltype === 'json') {
                     newf.value = JSON.stringify(row[f.name])
