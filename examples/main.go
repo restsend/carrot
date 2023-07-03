@@ -63,13 +63,17 @@ type Customer struct {
 func main() {
 	var superUserEmail string
 	var superUserPassword string
+	var traceSql bool
 
 	flag.StringVar(&superUserEmail, "superuser", "", "Create an super user with email")
 	flag.StringVar(&superUserPassword, "password", "", "Super user password")
+	flag.BoolVar(&traceSql, "tracesql", false, "Trace sql statement")
 	flag.Parse()
 
 	db, _ := carrot.InitDatabase(nil, "", "")
-
+	if traceSql {
+		db = db.Debug()
+	}
 	if superUserEmail != "" && superUserPassword != "" {
 		u, err := carrot.GetUserByEmail(db, superUserEmail)
 		if err == nil && u != nil {

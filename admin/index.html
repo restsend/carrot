@@ -48,11 +48,13 @@
                   </template>
               </template>
               <div x-show="!$store.showedit" id="querycontent"></div>
-              <div x-show="$store.showedit && $store.editobj">
+              <div x-show="$store.showedit">
                 <div class="px-6 py-6">
                   <div class="flex space-x-4 px-2">
                     <a href="#" @click="closeEdit($event)" class="font-medium text-indigo-600">Back</a>
-                    <h3 class="text-base font-semibold leading-6 text-gray-900" x-text="$store.editobj.title"></h3>
+                    <template x-if="$store.editobj">
+                      <h3 class="text-base font-semibold leading-6 text-gray-900" x-text="$store.editobj.title"></h3>
+                    </template>
                   </div>
                   <div id="editcontent"></div>
                 </div>

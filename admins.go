@@ -64,20 +64,21 @@ type AdminIcon struct {
 }
 
 type AdminField struct {
-	Label     string          `json:"label"` // Label of the object
-	Required  bool            `json:"required,omitempty"`
-	Name      string          `json:"name"`
-	Type      string          `json:"type"`
-	Tag       string          `json:"tag,omitempty"`
-	Attribute *AdminAttribute `json:"attribute,omitempty"`
-	CanNull   bool            `json:"canNull,omitempty"`
-	IsArray   bool            `json:"isArray,omitempty"`
-	Primary   bool            `json:"primary,omitempty"`
-	Foreign   *AdminForeign   `json:"foreign,omitempty"`
-	IsAutoID  bool            `json:"isAutoId,omitempty"`
-	IsPtr     bool            `json:"isPtr,omitempty"`
-	elemType  reflect.Type    `json:"-"`
-	fieldName string          `json:"-"`
+	Placeholder string          `json:"placeholder,omitempty"` // Placeholder of the filed
+	Label       string          `json:"label"`                 // Label of the filed
+	Required    bool            `json:"required,omitempty"`
+	Name        string          `json:"name"`
+	Type        string          `json:"type"`
+	Tag         string          `json:"tag,omitempty"`
+	Attribute   *AdminAttribute `json:"attribute,omitempty"`
+	CanNull     bool            `json:"canNull,omitempty"`
+	IsArray     bool            `json:"isArray,omitempty"`
+	Primary     bool            `json:"primary,omitempty"`
+	Foreign     *AdminForeign   `json:"foreign,omitempty"`
+	IsAutoID    bool            `json:"isAutoId,omitempty"`
+	IsPtr       bool            `json:"isPtr,omitempty"`
+	elemType    reflect.Type    `json:"-"`
+	fieldName   string          `json:"-"`
 }
 type AdminScript struct {
 	Src    string `json:"src"`
@@ -94,19 +95,18 @@ type AdminAction struct {
 
 type AdminObject struct {
 	Model       any             `json:"-"`
-	Group       string          `json:"group"`                 // Group name
-	Name        string          `json:"name"`                  // Name of the object
-	Placeholder string          `json:"placeholder,omitempty"` // Placeholder of the object
-	Desc        string          `json:"desc,omitempty"`        // Description
-	Path        string          `json:"path"`                  // Path prefix
-	Shows       []string        `json:"shows"`                 // Show fields
-	Orders      []Order         `json:"-"`                     // Default orders of the object
-	Editables   []string        `json:"editables"`             // Editable fields
-	Filterables []string        `json:"filterables"`           // Filterable fields
-	Orderables  []string        `json:"orderables"`            // Orderable fields, can override Orders
-	Searchables []string        `json:"searchables"`           // Searchable fields
-	Requireds   []string        `json:"requireds,omitempty"`   // Required fields
-	PrimaryKey  []string        `json:"primaryKey"`            // Primary key name
+	Group       string          `json:"group"`               // Group name
+	Name        string          `json:"name"`                // Name of the object
+	Desc        string          `json:"desc,omitempty"`      // Description
+	Path        string          `json:"path"`                // Path prefix
+	Shows       []string        `json:"shows"`               // Show fields
+	Orders      []Order         `json:"-"`                   // Default orders of the object
+	Editables   []string        `json:"editables"`           // Editable fields
+	Filterables []string        `json:"filterables"`         // Filterable fields
+	Orderables  []string        `json:"orderables"`          // Orderable fields, can override Orders
+	Searchables []string        `json:"searchables"`         // Searchable fields
+	Requireds   []string        `json:"requireds,omitempty"` // Required fields
+	PrimaryKey  []string        `json:"primaryKey"`          // Primary key name
 	PluralName  string          `json:"pluralName"`
 	Fields      []AdminField    `json:"fields"`
 	EditPage    string          `json:"editpage,omitempty"`
@@ -153,6 +153,21 @@ func GetCarrotAdminObjects() []AdminObject {
 			Orders:      []Order{{"UpdatedAt", OrderOpDesc}},
 			Icon:        &AdminIcon{Url: "./icon_user.svg"},
 			AccessCheck: superAccessCheck,
+			BeforeCreate: func(c *gin.Context, obj any) error {
+				user := obj.(*User)
+				if user.Password != "" {
+					user.Password = HashPassword(user.Password)
+				}
+				user.Source = "admin"
+				return nil
+			},
+			BeforeUpdate: func(c *gin.Context, obj any, vals map[string]any) error {
+				user := obj.(*User)
+				if p, ok := vals["password"]; ok {
+					user.Password = HashPassword(p.(string))
+				}
+				return nil
+			},
 			Actions: []AdminAction{
 				{
 					Path:  "toggle_enabled",
@@ -173,6 +188,11 @@ func GetCarrotAdminObjects() []AdminObject {
 						err := UpdateUserFields(db, user, map[string]any{"IsStaff": !user.IsStaff})
 						return user.IsStaff, err
 					},
+				},
+			},
+			Attributes: map[string]AdminAttribute{
+				"Password": {
+					Widget: "password",
 				},
 			},
 		},
@@ -476,7 +496,7 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 		foreignKey := ""
 		// ignore `belongs to` and `has one` relation
 		if f.Type.Kind() == reflect.Struct || (f.Type.Kind() == reflect.Ptr && f.Type.Elem().Kind() == reflect.Struct) {
-			hintForeignKey := fmt.Sprintf("%sID", field.Type)
+			hintForeignKey := fmt.Sprintf("%sID", f.Name)
 			if _, ok := rt.FieldByName(hintForeignKey); ok {
 				foreignKey = hintForeignKey
 			}
@@ -511,6 +531,10 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 
 		if field.Type == "NullTime" || field.Type == "Time" {
 			field.Type = "datetime"
+		}
+
+		if field.Type == "NullBool" {
+			field.CanNull = true
 		}
 
 		if attr, ok := obj.Attributes[f.Name]; ok {
@@ -555,11 +579,24 @@ func convertValue(elemType reflect.Type, source any) (any, error) {
 		return reflect.ValueOf(v).Interface(), nil
 	case "string":
 		return fmt.Sprintf("%v", source), nil
-	case "datetime":
-		if fmt.Sprintf("%v", source) == "" {
+	case "NullTime":
+		tv, ok := source.(string)
+		if tv == "" || !ok {
+			return &sql.NullTime{}, nil
+		} else {
+			for _, tf := range []string{time.RFC3339, time.RFC3339Nano, "2006-01-02 15:04:05", "2006-01-02", time.RFC1123} {
+				t, err := time.Parse(tf, tv)
+				if err == nil {
+					return &sql.NullTime{Time: t, Valid: true}, nil
+				}
+			}
+		}
+		return nil, fmt.Errorf("invalid datetime format %v", source)
+	case "Time":
+		tv, ok := source.(string)
+		if tv == "" || !ok {
 			return &time.Time{}, nil
 		} else {
-			tv := fmt.Sprintf("%v", source)
 			for _, tf := range []string{time.RFC3339, time.RFC3339Nano, "2006-01-02 15:04:05", "2006-01-02", time.RFC1123} {
 				t, err := time.Parse(tf, tv)
 				if err == nil {
@@ -580,8 +617,7 @@ func convertValue(elemType reflect.Type, source any) (any, error) {
 	}
 }
 
-func (obj *AdminObject) UnmarshalFrom(keys, vals map[string]any) (any, error) {
-	elemObj := reflect.New(obj.modelElem)
+func (obj *AdminObject) UnmarshalFrom(elemObj reflect.Value, keys, vals map[string]any) (any, error) {
 	if len(obj.Editables) > 0 {
 		editables := make(map[string]bool)
 		for _, v := range obj.Editables {
@@ -871,27 +907,27 @@ func (obj *AdminObject) handleCreate(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-
-	elmObj, err := obj.UnmarshalFrom(keys, vals)
+	elmObj := reflect.New(obj.modelElem)
+	elm, err := obj.UnmarshalFrom(elmObj, keys, vals)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	if obj.BeforeCreate != nil {
-		if err := obj.BeforeCreate(c, elmObj); err != nil {
+		if err := obj.BeforeCreate(c, elm); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 	}
 
-	result := getDbConnection(c, obj.GetDB, true).Create(elmObj)
+	result := getDbConnection(c, obj.GetDB, true).Create(elm)
 	if result.Error != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, elmObj)
+	c.JSON(http.StatusOK, elm)
 }
 
 func (obj *AdminObject) handleUpdate(c *gin.Context) {
@@ -910,23 +946,25 @@ func (obj *AdminObject) handleUpdate(c *gin.Context) {
 	}
 
 	db := getDbConnection(c, obj.GetDB, false)
-	val, err := obj.UnmarshalFrom(keys, inputVals)
+	elmObj := reflect.New(obj.modelElem)
+	err := db.Where(keys).First(elmObj.Interface()).Error
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+
+	val, err := obj.UnmarshalFrom(elmObj, keys, inputVals)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	if obj.BeforeUpdate != nil {
-		if err := db.Where(keys).First(val).Error; err != nil {
-			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "not found"})
-			return
-		}
 		if err := obj.BeforeUpdate(c, val, inputVals); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 	}
-
 	result := db.Where(keys).Save(val)
 	if result.Error != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"reflect"
 	"testing"
 	"time"
 
@@ -28,9 +29,9 @@ type ProductItem struct {
 }
 
 type Product struct {
-	UUID          string      `json:"id" gorm:"primarykey;size:20"`
-	ProductItemID uint        `json:"-"`
-	Item          ProductItem `json:"product_item"`
+	UUID   string      `json:"id" gorm:"primarykey;size:20"`
+	ItemID uint        `json:"-"`
+	Item   ProductItem `json:"product_item"`
 }
 
 func (item ProductItem) String() string {
@@ -283,7 +284,8 @@ func TestAdminFieldMarshal(t *testing.T) {
 	MakeMigrates(db, []any{&ProductItem{}})
 	err := obj.Build(db)
 	assert.Nil(t, err)
-	v, err := obj.UnmarshalFrom(nil, map[string]any{
+	elemObj := reflect.New(obj.modelElem)
+	v, err := obj.UnmarshalFrom(elemObj, nil, map[string]any{
 		"id":         1024,
 		"name":       "mock item",
 		"created_at": "2020-01-01T00:00:00Z",
@@ -312,12 +314,12 @@ func TestAdminForeign(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(productObj.Fields))
 	assert.Equal(t, "item", productObj.Fields[1].Name)
-	assert.Equal(t, "product_item_id", productObj.Fields[1].Foreign.Field)
+	assert.Equal(t, "item_id", productObj.Fields[1].Foreign.Field)
 	assert.Equal(t, "productitem", productObj.Fields[1].Foreign.Path)
 
 	p := Product{
-		UUID:          "test",
-		ProductItemID: 1024,
+		UUID:   "test",
+		ItemID: 1024,
 		Item: ProductItem{
 			ID:   1024,
 			Name: "item one",

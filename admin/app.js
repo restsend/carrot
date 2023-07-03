@@ -27,7 +27,7 @@ class QueryResult {
         this.pos = 0
         this.total = 0
         this.limit = 20
-        this.items = []
+        this.rows = []
         this.count = 0
         this.selected = 0
         this.keyword = ''
@@ -41,21 +41,16 @@ class QueryResult {
         this.count = items.length
 
         let current = Alpine.store('current')
-        this.rows = items.map(item => {
-            item.primaryValue = current.getPrimaryValue(item)
-            return item
-        })
-
-        this.items = items.map(item => {
-            let row = []
-            current.shows.forEach(field => {
-                row.push({
-                    value: field.format(item[field.name]),
+        this.rows = items.map(row => {
+            row.primaryValue = current.getPrimaryValue(row)
+            row.selected = false
+            row.cols = current.shows.map(field => {
+                return {
+                    value: row[field.name],
+                    field,
                     name: field.name,
                     primary: field.primary,
-                    selected: false,
-                    show_class: field.show_class(item[field.name]),
-                })
+                }
             })
             return row
         })
@@ -93,15 +88,15 @@ class QueryResult {
     }
 
     selectAll(event) {
-        this.items.forEach(row => {
+        this.rows.forEach(row => {
             row.selected = !row.selected
         })
-        this.selected = this.items.filter(row => row.selected).length
+        this.selected = this.rows.filter(row => row.selected).length
     }
 
     selectResult(event) {
         event.preventDefault()
-        this.items.forEach(row => {
+        this.rows.forEach(row => {
             row.selected = true
         })
         document.getElementById('btn_selectall').checked = true
@@ -110,7 +105,7 @@ class QueryResult {
 
     onselect(event, row) {
         row.selected = !row.selected
-        this.selected = this.items.filter(row => row.selected).length
+        this.selected = this.rows.filter(row => row.selected).length
     }
 
     refresh() {
@@ -120,6 +115,7 @@ class QueryResult {
             limit: this.countPerPage,
         }
         let path = Alpine.store('current').path
+        this.rows = []
 
         fetch(path, {
             method: 'POST',
@@ -146,7 +142,7 @@ class QueryResult {
         Alpine.store('current').doAction(action, keys).then(() => {
             Alpine.store('doing', { pos: 0 })
 
-            this.items.forEach(row => {
+            this.rows.forEach(row => {
                 row.selected = false
             })
             this.selected = 0
@@ -181,44 +177,6 @@ class AdminObject {
         let fields = meta.fields || []
         let requireds = meta.requireds || []
 
-        const fn_build_filed_htmltype = (f) => {
-            let edit_class = ''
-            let htmltype = ''
-            switch (f.type) {
-                case 'bool': {
-                    htmltype = 'checkbox'
-                    break
-                }
-                case 'uint':
-                case 'int':
-                case 'float':
-                case 'datetime':
-                case 'string':
-                    htmltype = 'text'
-                    break
-                default: {
-                    htmltype = 'json'
-                }
-            }
-
-            let fsize = 0
-            if (/size:(\d+)/.test(f.tag || '')) {
-                fsize = parseInt(f.tag.match(/size:(\d+)/)[1])
-            }
-
-            if (fsize > 64) {
-                edit_class = 'w-full'
-            } else if (f.type === 'string' && fsize === 0) {
-                htmltype = 'textarea'
-            } else if (f.attribute && f.attribute.choices) {
-                htmltype = 'select'
-            }
-            if (f.foreign) {
-                htmltype = 'foreign'
-            }
-            return { htmltype, edit_class: edit_class }
-        }
-
         this.fields = fields.map(f => {
             f.headerName = f.name.toUpperCase().replace(/_/g, ' ')
             f.primary = f.primary
@@ -235,56 +193,6 @@ class AdminObject {
                     default: return null
                 }
             }
-
-            f.show_class = (value) => {
-                if (typeof value === 'object') {
-                    return 'w-72'
-                }
-                if (f.htmltype == 'text' || f.htmltype == 'json') {
-                    if (typeof value === 'string' && value.length > 40) {
-                        return 'w-72'
-                    }
-                }
-            }
-
-            const { htmltype, edit_class: edit_class } = fn_build_filed_htmltype(f)
-            f.htmltype = htmltype
-            f.edit_class = edit_class
-
-            f.format = (value) => {
-                if (f.attribute && f.attribute.choices) {
-                    let opt = f.attribute.choices.find(opt => opt.value == value)
-                    if (opt) { return opt.label }
-                }
-                if (f.foreign) {
-                    return value.label || value.value
-                }
-                switch (f.type) {
-                    case 'string':
-                        return escapeHTML(value)
-                    case 'bool': {
-                        if (value === true) return IconYes
-                        if (value === false) return IconNo
-                        return IconUnknown
-                    }
-                    case 'datetime': {
-                        if (!value) return ''
-                        let d = new Date(value)
-                        return d.toLocaleString()
-                    }
-                }
-
-                if (value === null || value === undefined) {
-                    return ''
-                }
-                // if value is object
-                if (typeof value == 'object') {
-                    return JSON.stringify(value)
-                }
-
-                return value.toString()
-            }
-
             // convert value from string to type
             f.unmarshal = (value) => {
                 if (value === null || value === undefined) {
@@ -348,14 +256,14 @@ class AdminObject {
         this.actions = actions.map(action => {
             let path = this.path
             if (action.path) {
-                path = `${path}/${action.path}`
+                path = `${path}${action.path}`
             }
             action.path = path
             action.onclick = () => {
                 let keys = []
                 let queryresult = Alpine.store('queryresult')
-                for (let i = 0; i < queryresult.items.length; i++) {
-                    if (queryresult.items[i].selected) {
+                for (let i = 0; i < queryresult.rows.length; i++) {
+                    if (queryresult.rows[i].selected) {
                         keys.push(queryresult.rows[i].primaryValue)
                     }
                 }
@@ -386,10 +294,12 @@ class AdminObject {
     async doSave(keys, vals) {
         let values = {}
         vals.forEach(v => {
-            values[v.name] = v.unmarshal(v.value)
+            if (v.oldValue != v.value) {
+                values[v.name] = v.unmarshal(v.value)
+            }
         })
         let params = new URLSearchParams(keys).toString()
-        let resp = await fetch(`${this.path}/?${params}`, {
+        let resp = await fetch(`${this.path}?${params}`, {
             method: 'PATCH',
             body: JSON.stringify(values),
         })
@@ -405,7 +315,7 @@ class AdminObject {
             values[v.name] = v.unmarshal(v.value)
         })
 
-        let resp = await fetch(`${this.path}/`, {
+        let resp = await fetch(`${this.path}`, {
             method: 'PUT',
             body: JSON.stringify(values),
         })
@@ -415,25 +325,11 @@ class AdminObject {
         return await resp.json()
     }
 
-    async dodelete(keys) {
-        for (let i = 0; i < keys.length; i++) {
-            Alpine.store('doing', { pos: i + 1, total: keys.length })
-            let params = new URLSearchParams(keys[i]).toString()
-            let resp = await fetch(`${this.path}/?${params}`, {
-                method: 'DELETE',
-            })
-            if (resp.status != 200) {
-                Alpine.store('error', `Delete fail : ${err.toString()}`)
-                break
-            }
-        }
-    }
-
     async doAction(action, keys) {
         for (let i = 0; i < keys.length; i++) {
             Alpine.store('doing', { pos: i + 1, total: keys.length, action })
             let params = new URLSearchParams(keys[i]).toString()
-            let resp = await fetch(`${action.path}/?${params}`, {
+            let resp = await fetch(`${action.path}?${params}`, {
                 method: action.method || 'POST',
             })
             if (resp.status != 200) {
@@ -660,17 +556,8 @@ const adminapp = () => ({
 
         let fields = this.$store.current.editables.map(f => {
             let newf = { ...f }
-            if (f.foreign) {
-                newf.value = row[f.name].value
-                newf.values = Alpine.reactive([])
-                this.loadForeignValues(newf)
-            } else {
-                if (f.htmltype === 'json') {
-                    newf.value = JSON.stringify(row[f.name])
-                } else {
-                    newf.value = row[f.name]
-                }
-            }
+            newf.value = row[f.name]
+            newf.oldValue = row[f.name]
             return newf
         })
 
@@ -692,7 +579,7 @@ const adminapp = () => ({
 
         let obj = this.$store.current
 
-        fetch(obj.editpage || './edit.html', {
+        fetch(obj.editpage, {
             cache: "no-store",
         }).then(resp => {
             resp.text().then(text => {

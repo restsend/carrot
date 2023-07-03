@@ -114,7 +114,7 @@
           </thead>
           <tbody>
             <!-- Query result -->
-            <template x-for="(row,rowIdx) in $store.queryresult.items">
+            <template x-for="(row,rowIdx) in $store.queryresult.rows">
               <tr class="bg-white hover:bg-gray-50">
                 <template x-if="$store.current.actions.length > 0">
                   <td class="border-b border-gray-200 relative px-7 sm:w-12 sm:px-6">
@@ -122,16 +122,17 @@
                       class="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600" />
                   </td>
                 </template>
-                <template x-for="(col,colidx) in row">
+                <template x-for="(col,colIdx) in row.cols">
                   <td
                     class="whitespace-nowrap border-b border-gray-200 py-3 pl-4 pr-3 text-sm text-gray-900 sm:pl-6 lg:pl-8">
-                    <template x-if="colidx === 0">
-                      <a href="#" x-text="col.value" @click="editObject($event, $store.queryresult.rows[rowIdx])"
-                        class="text-indigo-600 hover:text-indigo-900"></a>
+                    <template x-if="colIdx === 0">
+                      <a href="#" @click="editObject($event, $store.queryresult.rows[rowIdx])"
+                        class="text-indigo-600 hover:text-indigo-900">
+                        <div x-admin-render="col"></div>
+                      </a>
                     </template>
-                    <template x-if="colidx !== 0">
-                      <!-- Render cell value -->
-                      <div class="truncate" :class="col.show_class" x-html="col.value"></div>
+                    <template x-if="colIdx !== 0">
+                      <div x-admin-render="col"></div>
                     </template>
                   </td>
                 </template>
