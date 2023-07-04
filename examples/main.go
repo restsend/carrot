@@ -192,13 +192,13 @@ func GetWebObjects(db *gorm.DB) []carrot.WebObject {
 			GetDB: func(c *gin.Context, isCreate bool) *gorm.DB {
 				return db
 			},
-			BeforeCreate: func(ctx *gin.Context, vptr any) error {
+			BeforeCreate: func(db *gorm.DB, ctx *gin.Context, vptr any) error {
 				p := (vptr).(*Product)
 				p.UUID = carrot.RandText(8)
 				p.GroupID = rand.Intn(5)
 				return nil
 			},
-			BeforeDelete: func(ctx *gin.Context, vptr any) error {
+			BeforeDelete: func(db *gorm.DB, ctx *gin.Context, vptr any) error {
 				p := (vptr).(*Product)
 				if p.Enabled {
 					return errors.New("product is enabled, can not delete")

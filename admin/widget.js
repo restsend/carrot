@@ -53,6 +53,7 @@ class BaseWidget {
 
         node.addEventListener('change', (e) => {
             elm._x_model.set(e.target.value)
+            this.field.dirty = true
         })
 
         if (this.field.size >= 128) {
@@ -82,6 +83,7 @@ class BooleanWidget extends BaseWidget {
         node.checked = elm._x_model.get()
         node.addEventListener('change', (e) => {
             elm._x_model.set(e.target.checked)
+            this.field.dirty = true
         })
         elm.appendChild(node)
         elm.className = 'mt-2 flex items-center'
@@ -100,6 +102,7 @@ class TextareaWidget extends BaseWidget {
         node.placeholder = this.field.placeholder || ''
         node.addEventListener('change', (e) => {
             elm._x_model.set(e.target.value)
+            this.field.dirty = true
         })
         elm.appendChild(node)
     }
@@ -124,6 +127,7 @@ class DateTimeWidget extends BaseWidget {
                 v += ':00Z'
             }
             elm._x_model.set(new Date(v).toISOString())
+            this.field.dirty = true
         })
         elm.appendChild(node)
     }
@@ -153,6 +157,7 @@ class StructWidget extends BaseWidget {
                 return
             }
             elm._x_model.set(v)
+            this.field.dirty = true
         })
         node.placeholder = this.field.placeholder || ''
         elm.appendChild(node)
@@ -207,6 +212,7 @@ class ForeignKeyWidget extends BaseWidget {
         })
         node.addEventListener('change', (e) => {
             elm._x_model.set(e.target.value)
+            this.field.dirty = true
         })
         elm.appendChild(node)
     }
@@ -247,6 +253,7 @@ class SelectWidget extends BaseWidget {
         }
         node.addEventListener('change', (e) => {
             elm._x_model.set(e.target.value)
+            this.field.dirty = true
         })
         elm.appendChild(node)
     }
@@ -277,6 +284,7 @@ class PasswordWidget extends BaseWidget {
             input.classList.toggle('hidden')
             if (input.classList.contains('hidden')) {
                 elm._x_model.set(this.field.oldValue) // don't change the value when hiding
+                this.field.dirty = false
                 btn.innerText = 'Show Password Form'
             } else {
                 btn.innerText = 'Hide Password Form'
@@ -285,6 +293,7 @@ class PasswordWidget extends BaseWidget {
 
         input.addEventListener('change', (e) => {
             elm._x_model.set(e.target.value)
+            this.field.dirty = true
         })
         node.appendChild(btn)
         node.appendChild(input)
@@ -345,7 +354,12 @@ function getWidget(field, value) {
         widgetType = 'textarea'
     }
 
-    let widgetCls = window.AdminWidgets[widgetType] || BaseWidget
+    let widgetCls = window.AdminWidgets[widgetType]
+    if (!widgetCls) {
+        //
+        console.warn(`Widget ${widgetType} not found, using struct widget`)
+        widgetCls = window.AdminWidgets['struct']
+    }
     let widget = new widgetCls()
     widget.field = field
     widget.value = value

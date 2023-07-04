@@ -48,10 +48,10 @@ type GetDB func(c *gin.Context, isCreate bool) *gorm.DB // designed for group
 type PrepareQuery func(db *gorm.DB, c *gin.Context) (*gorm.DB, *QueryForm, error)
 
 type (
-	BeforeCreateFunc func(ctx *gin.Context, vptr any) error
-	BeforeDeleteFunc func(ctx *gin.Context, vptr any) error
-	BeforeUpdateFunc func(ctx *gin.Context, vptr any, vals map[string]any) error
-	BeforeRenderFunc func(ctx *gin.Context, vptr any) error
+	BeforeCreateFunc func(db *gorm.DB, ctx *gin.Context, vptr any) error
+	BeforeDeleteFunc func(db *gorm.DB, ctx *gin.Context, vptr any) error
+	BeforeUpdateFunc func(db *gorm.DB, ctx *gin.Context, vptr any, vals map[string]any) error
+	BeforeRenderFunc func(db *gorm.DB, ctx *gin.Context, vptr any) error
 )
 
 type QueryView struct {
@@ -339,7 +339,7 @@ func handleGetObject(c *gin.Context, obj *WebObject) {
 	}
 
 	if obj.BeforeRender != nil {
-		if err := obj.BeforeRender(c, val); err != nil {
+		if err := obj.BeforeRender(db, c, val); err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -355,15 +355,15 @@ func handleCreateObject(c *gin.Context, obj *WebObject) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-
+	db := getDbConnection(c, obj.GetDB, true)
 	if obj.BeforeCreate != nil {
-		if err := obj.BeforeCreate(c, val); err != nil {
+		if err := obj.BeforeCreate(db, c, val); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 	}
 
-	result := getDbConnection(c, obj.GetDB, true).Create(val)
+	result := db.Create(val)
 	if result.Error != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
 		return
@@ -436,7 +436,7 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "not found"})
 			return
 		}
-		if err := obj.BeforeUpdate(c, val, inputVals); err != nil {
+		if err := obj.BeforeUpdate(db, c, val, inputVals); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
@@ -472,7 +472,7 @@ func handleDeleteObject(c *gin.Context, obj *WebObject) {
 	}
 
 	if obj.BeforeDelete != nil {
-		if err := obj.BeforeDelete(c, val); err != nil {
+		if err := obj.BeforeDelete(db, c, val); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
@@ -589,7 +589,7 @@ func handleQueryObject(c *gin.Context, obj *WebObject, prepareQuery PrepareQuery
 		if vals.Kind() == reflect.Slice {
 			for i := 0; i < vals.Len(); i++ {
 				v := vals.Index(i).Addr().Interface()
-				if err := obj.BeforeRender(c, v); err != nil {
+				if err := obj.BeforeRender(db, c, v); err != nil {
 					c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 					return
 				}

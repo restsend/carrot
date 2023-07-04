@@ -153,7 +153,7 @@ func GetCarrotAdminObjects() []AdminObject {
 			Orders:      []Order{{"UpdatedAt", OrderOpDesc}},
 			Icon:        &AdminIcon{Url: "./icon_user.svg"},
 			AccessCheck: superAccessCheck,
-			BeforeCreate: func(c *gin.Context, obj any) error {
+			BeforeCreate: func(db *gorm.DB, c *gin.Context, obj any) error {
 				user := obj.(*User)
 				if user.Password != "" {
 					user.Password = HashPassword(user.Password)
@@ -161,10 +161,12 @@ func GetCarrotAdminObjects() []AdminObject {
 				user.Source = "admin"
 				return nil
 			},
-			BeforeUpdate: func(c *gin.Context, obj any, vals map[string]any) error {
+			BeforeUpdate: func(db *gorm.DB, c *gin.Context, obj any, vals map[string]any) error {
 				user := obj.(*User)
-				if p, ok := vals["password"]; ok {
-					user.Password = HashPassword(p.(string))
+				if dbUser, err := GetUserByEmail(db, user.Email); err == nil {
+					if dbUser.Password != user.Password {
+						user.Password = HashPassword(user.Password)
+					}
 				}
 				return nil
 			},
@@ -740,7 +742,7 @@ func (obj *AdminObject) handleGetOne(c *gin.Context) {
 	}
 
 	if obj.BeforeRender != nil {
-		err := obj.BeforeRender(c, modelObj)
+		err := obj.BeforeRender(db, c, modelObj)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 				"error": err.Error(),
@@ -832,7 +834,7 @@ func (obj *AdminObject) QueryObjects(db *gorm.DB, form *QueryForm, ctx *gin.Cont
 		modelObj := vals.Elem().Index(i).Interface()
 		r.objects = append(r.objects, modelObj)
 		if obj.BeforeRender != nil {
-			err := obj.BeforeRender(ctx, modelObj)
+			err := obj.BeforeRender(db, ctx, modelObj)
 			if err != nil {
 				return r, err
 			}
@@ -913,15 +915,15 @@ func (obj *AdminObject) handleCreate(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-
+	db := getDbConnection(c, obj.GetDB, true)
 	if obj.BeforeCreate != nil {
-		if err := obj.BeforeCreate(c, elm); err != nil {
+		if err := obj.BeforeCreate(db, c, elm); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 	}
 
-	result := getDbConnection(c, obj.GetDB, true).Create(elm)
+	result := db.Create(elm)
 	if result.Error != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
 		return
@@ -960,7 +962,7 @@ func (obj *AdminObject) handleUpdate(c *gin.Context) {
 	}
 
 	if obj.BeforeUpdate != nil {
-		if err := obj.BeforeUpdate(c, val, inputVals); err != nil {
+		if err := obj.BeforeUpdate(db, c, val, inputVals); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
@@ -997,7 +999,7 @@ func (obj *AdminObject) handleDelete(c *gin.Context) {
 	}
 
 	if obj.BeforeDelete != nil {
-		if err := obj.BeforeDelete(c, val); err != nil {
+		if err := obj.BeforeDelete(db, c, val); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}

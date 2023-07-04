@@ -146,7 +146,7 @@ func TestObjectQuery(t *testing.T) {
 		Filterables: []string{"Name", "Age", "Birthday", "Enabled"},
 		Searchables: []string{"Name"},
 
-		BeforeRender: func(c *gin.Context, obj any) error {
+		BeforeRender: func(db *gorm.DB, c *gin.Context, obj any) error {
 			return nil
 		},
 	}
@@ -751,28 +751,28 @@ func initHookTest(t *testing.T) (TestClient, *gorm.DB) {
 		GetDB: func(c *gin.Context, isCreate bool) *gorm.DB {
 			return db
 		},
-		BeforeCreate: func(ctx *gin.Context, vptr any) error {
+		BeforeCreate: func(db *gorm.DB, ctx *gin.Context, vptr any) error {
 			user := (vptr).(*tuser)
 			if user.Name == "dangerous" {
 				return errors.New("alice is not allowed to create")
 			}
 			return nil
 		},
-		BeforeRender: func(ctx *gin.Context, vptr any) error {
+		BeforeRender: func(db *gorm.DB, ctx *gin.Context, vptr any) error {
 			user := (vptr).(*tuser)
 			if user.Name != "alice" {
 				user.Age = 99
 			}
 			return nil
 		},
-		BeforeDelete: func(ctx *gin.Context, vptr any) error {
+		BeforeDelete: func(db *gorm.DB, ctx *gin.Context, vptr any) error {
 			user := (vptr).(*tuser)
 			if user.Name == "alice" {
 				return errors.New("alice is not allowed to delete")
 			}
 			return nil
 		},
-		BeforeUpdate: func(ctx *gin.Context, vptr any, vals map[string]any) error {
+		BeforeUpdate: func(db *gorm.DB, ctx *gin.Context, vptr any, vals map[string]any) error {
 			user := (vptr).(*tuser)
 			if user.Name == "alice" {
 				return errors.New("alice is not allowed to update")

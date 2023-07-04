@@ -172,7 +172,7 @@ class AdminObject {
         this.primaryKey = meta.primaryKey
         this.pluralName = meta.pluralName
         this.scripts = meta.scripts || []
-        this.style = meta.style || []
+        this.styles = meta.styles || []
         this.icon = meta.icon
         let fields = meta.fields || []
         let requireds = meta.requireds || []
@@ -294,9 +294,7 @@ class AdminObject {
     async doSave(keys, vals) {
         let values = {}
         vals.forEach(v => {
-            if (v.oldValue != v.value) {
-                values[v.name] = v.unmarshal(v.value)
-            }
+            values[v.name] = v.unmarshal(v.value)
         })
         let params = new URLSearchParams(keys).toString()
         let resp = await fetch(`${this.path}?${params}`, {
@@ -344,6 +342,7 @@ const adminapp = () => ({
     site: {},
     navmenus: [],
     loadScripts: {},
+    loadStyles: {},
 
     async init() {
         Alpine.store('queryresult', new QueryResult())
@@ -463,25 +462,38 @@ const adminapp = () => ({
     },
 
     injectHtml(elm, html, obj) {
-        elm.innerHTML = html
         let hasOnload = false
-        if (!obj) {
-            return hasOnload
-        }
+        if (obj) {
+            let scripts = obj.scripts || []
+            scripts.forEach(s => {
+                if (!s.onload && this.loadScripts[s.src]) {
+                    return
+                }
+                if (s.onload) {
+                    hasOnload = true
+                } else {
+                    this.loadScripts[s.src] = true
+                }
+                let sel = document.createElement('script')
+                sel.src = s.src
+                sel.defer = true
+                document.head.appendChild(sel)
+            })
+            let styles = obj.styles || []
+            styles.forEach(s => {
+                if (this.loadStyles[s]) {
+                    return
+                }
+                this.loadStyles[s] = true
+                let sel = document.createElement('link')
+                sel.rel = 'stylesheet'
+                sel.type = 'text/css'
+                sel.href = s
+                document.head.appendChild(sel)
+            })
 
-        obj.scripts.forEach(s => {
-            if (!s.onload && this.loadScripts[s.src]) {
-                return
-            }
-            if (s.onload) {
-                hasOnload = true
-            } else {
-                this.loadScripts[s.src] = true
-            }
-            let sel = document.createElement('script')
-            sel.src = s.src
-            document.head.appendChild(sel)
-        })
+        }
+        elm.innerHTML = html
         return hasOnload
     },
 
@@ -512,25 +524,26 @@ const adminapp = () => ({
         this.$store.showedit = true
         let fields = this.$store.current.editables.map(f => {
             let newf = { ...f }
-            if (f.foreign) {
-                newf.values = Alpine.reactive([])
-                this.loadForeignValues(newf, true)
-            }
             newf.value = f.defaultvalue()
             return newf
         })
+
         this.$store.editobj = {
             mode: 'create',
             title: `Add ${this.$store.current.name}`,
             fields: fields,
-            doCreate: (ev) => {
+            doCreate: async (ev, closeWhenDone = true) => {
                 // create row
-                this.$store.current.doCreate(this.$store.editobj.fields).then(() => {
-                    this.closeEdit(ev)
+                try {
+                    await this.$store.current.doCreate(this.$store.editobj.fields)
+                    if (closeWhenDone) {
+                        this.closeEdit(ev)
+                    }
                     this.$store.queryresult.refresh()
-                }).catch(err => {
+                } catch (err) {
+                    console.error(err)
                     this.closeEdit(ev)
-                })
+                }
             },
         }
 
@@ -556,8 +569,8 @@ const adminapp = () => ({
 
         let fields = this.$store.current.editables.map(f => {
             let newf = { ...f }
-            newf.value = row[f.name]
-            newf.oldValue = row[f.name]
+            newf.dirty = false
+            newf.value = row[f.name]// deep clone
             return newf
         })
 
@@ -566,14 +579,18 @@ const adminapp = () => ({
             title: `Edit ${this.$store.current.name}`,
             fields: fields,
             primaryValue: row.primaryValue,
-            doSave: (ev) => {
+            doSave: async (ev, closeWhenDone = true) => {
                 // update row
-                this.$store.current.doSave(this.$store.editobj.primaryValue, this.$store.editobj.fields).then(() => {
-                    this.closeEdit(ev)
+                try {
+                    await this.$store.current.doSave(this.$store.editobj.primaryValue, this.$store.editobj.fields.filter(f => f.dirty))
+                    if (closeWhenDone) {
+                        this.closeEdit(ev)
+                    }
                     this.$store.queryresult.refresh()
-                }).catch(err => {
+                } catch (err) {
+                    console.error(err)
                     this.closeEdit(ev)
-                })
+                }
             },
         }
 
@@ -591,10 +608,11 @@ const adminapp = () => ({
         })
 
     },
-    closeEdit(event) {
+    closeEdit(event, cancel = false) {
         if (event) {
             event.preventDefault()
         }
+
         Alpine.store('showedit', false)
         Alpine.store('editobj', { mode: '' })
     },
