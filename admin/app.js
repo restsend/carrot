@@ -174,8 +174,10 @@ class AdminObject {
         this.scripts = meta.scripts || []
         this.styles = meta.styles || []
         this.icon = meta.icon
+        this.invisible = meta.invisible || false
         let fields = meta.fields || []
         let requireds = meta.requireds || []
+
 
         this.fields = fields.map(f => {
             f.headerName = f.name.toUpperCase().replace(/_/g, ' ')
@@ -393,7 +395,7 @@ const adminapp = () => ({
                     this.$store.switching = true
                     resp.text().then(text => {
                         if (text) {
-                            let elm = document.getElementById('querycontent')
+                            let elm = document.getElementById('query_content')
                             this.injectHtml(elm, text, null)
                         }
                         this.$store.switching = false
@@ -417,6 +419,9 @@ const adminapp = () => ({
     buildNavMenu() {
         let menus = []
         this.$store.objects.forEach(obj => {
+            if (obj.invisible) { // skip invisible object
+                return
+            }
             let menu = menus.find(m => m.name === obj.group)
             if (!menu) {
                 menu = { name: obj.group, items: [] }
@@ -437,7 +442,7 @@ const adminapp = () => ({
             this.$store.current.active = false
         }
 
-        let elm = document.getElementById('querycontent')
+        let elm = document.getElementById('query_content')
         elm.innerHTML = ''
         this.closeEdit()
 
@@ -553,7 +558,7 @@ const adminapp = () => ({
             cache: "no-store",
         }).then(resp => {
             resp.text().then(text => {
-                let elm = document.getElementById('editcontent')
+                let elm = document.getElementById('edit_form')
                 this.injectHtml(elm, text, obj)
             })
         }).catch(err => {
@@ -600,7 +605,7 @@ const adminapp = () => ({
             cache: "no-store",
         }).then(resp => {
             resp.text().then(text => {
-                let elm = document.getElementById('editcontent')
+                let elm = document.getElementById('edit_form')
                 this.injectHtml(elm, text, obj)
             })
         }).catch(err => {

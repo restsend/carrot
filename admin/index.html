@@ -35,7 +35,7 @@
                 <span>Switching...</span>
               </template>
               <template x-if="!$store.switching">
-                <div class="sm:flex sm:items-center">
+                <div class="sm:flex sm:items-center" id="desc_content">
                   <div class="sm:flex-auto">
                     <h1 class="text-base font-semibold leading-6 text-gray-900" x-text="$store.current.pluralName"></h1>
                     <p class="mt-2 text-sm text-gray-700" x-text="$store.current.desc"></p>
@@ -46,9 +46,10 @@
                         class="block rounded-md bg-indigo-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"></button>
                     </div>
                   </template>
+                </div>
               </template>
-              <div x-show="!$store.showedit" id="querycontent"></div>
-              <div x-show="$store.showedit">
+              <div x-show="!$store.showedit" id="query_content"></div>
+              <div x-show="$store.showedit" id="edit_content">
                 <div class="px-6 py-6">
                   <div class="flex space-x-4 px-2">
                     <a href="#" @click="closeEdit($event, true)" class="font-medium text-indigo-600">Back</a>
@@ -56,7 +57,7 @@
                       <h3 class="text-base font-semibold leading-6 text-gray-900" x-text="$store.editobj.title"></h3>
                     </template>
                   </div>
-                  <div id="editcontent"></div>
+                  <div id="edit_form"></div>
                 </div>
               </div>
             </div>

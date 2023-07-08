@@ -116,6 +116,7 @@ type AdminObject struct {
 	Permissions map[string]bool `json:"permissions,omitempty"`
 	Actions     []AdminAction   `json:"actions,omitempty"`
 	Icon        *AdminIcon      `json:"icon,omitempty"`
+	Invisible   bool            `json:"invisible,omitempty"`
 
 	Attributes   map[string]AdminAttribute `json:"-"` // Field's extra attributes
 	AccessCheck  AdminAccessCheck          `json:"-"` // Access control function

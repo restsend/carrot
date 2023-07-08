@@ -159,7 +159,7 @@ func HashPassword(password string) string {
 
 func GetUserByUID(db *gorm.DB, userID uint) (*User, error) {
 	var val User
-	result := db.Where("id", userID).Where("Enabled", true).Take(&val)
+	result := db.Where("id", userID).Where("enabled", true).Take(&val)
 	if result.Error != nil {
 		return nil, result.Error
 	}
