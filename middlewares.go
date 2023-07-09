@@ -1,7 +1,11 @@
 package carrot
 
 import (
+	"fmt"
+	"log"
 	"net/http"
+	"runtime"
+	"strings"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
@@ -9,6 +13,25 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
+
+func AbortWithJSONError(c *gin.Context, code int, err error) {
+	var errWithFileNum error = err
+	if log.Flags()&(log.Lshortfile|log.Llongfile) != 0 {
+		var ok bool
+		_, file, line, ok := runtime.Caller(1)
+		if !ok {
+			file = "???"
+			line = 0
+		}
+		pos := strings.LastIndex(file, "/")
+		if log.Flags()&log.Lshortfile != 0 && pos >= 0 {
+			file = file[1+pos:]
+		}
+		errWithFileNum = fmt.Errorf("%s:%d: %v", file, line, err)
+	}
+	c.Error(errWithFileNum)
+	c.AbortWithStatusJSON(code, gin.H{"error": err.Error()})
+}
 
 func CORSEnabled() gin.HandlerFunc {
 	return WithCORS(CORS_ALLOW_ALL, CORS_ALLOW_CREDENTIALS, CORS_ALLOW_HEADERS, CORS_ALLOW_METHODS)

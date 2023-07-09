@@ -331,16 +331,16 @@ func handleGetObject(c *gin.Context, obj *WebObject) {
 	result := db.Where(pkColName, key).Take(&val)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "not found"})
+			AbortWithJSONError(c, http.StatusNotFound, errors.New("not found"))
 		} else {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+			AbortWithJSONError(c, http.StatusInternalServerError, result.Error)
 		}
 		return
 	}
 
 	if obj.BeforeRender != nil {
 		if err := obj.BeforeRender(db, c, val); err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			AbortWithJSONError(c, http.StatusInternalServerError, err)
 			return
 		}
 	}
@@ -352,20 +352,20 @@ func handleCreateObject(c *gin.Context, obj *WebObject) {
 	val := reflect.New(obj.modelElem).Interface()
 
 	if err := c.BindJSON(&val); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		AbortWithJSONError(c, http.StatusBadRequest, err)
 		return
 	}
 	db := getDbConnection(c, obj.GetDB, true)
 	if obj.BeforeCreate != nil {
 		if err := obj.BeforeCreate(db, c, val); err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			AbortWithJSONError(c, http.StatusBadRequest, err)
 			return
 		}
 	}
 
 	result := db.Create(val)
 	if result.Error != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+		AbortWithJSONError(c, http.StatusInternalServerError, result.Error)
 		return
 	}
 
@@ -377,7 +377,7 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 
 	var inputVals map[string]any
 	if err := c.BindJSON(&inputVals); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		AbortWithJSONError(c, http.StatusBadRequest, err)
 		return
 	}
 
@@ -424,7 +424,7 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 	}
 
 	if len(vals) == 0 {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "not changed"})
+		AbortWithJSONError(c, http.StatusBadRequest, errors.New("not changed"))
 		return
 	}
 
@@ -433,11 +433,11 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 	if obj.BeforeUpdate != nil {
 		val := reflect.New(obj.modelElem).Interface()
 		if err := db.First(val, pkColName, key).Error; err != nil {
-			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "not found"})
+			AbortWithJSONError(c, http.StatusNotFound, errors.New("not found"))
 			return
 		}
 		if err := obj.BeforeUpdate(db, c, val, inputVals); err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			AbortWithJSONError(c, http.StatusBadRequest, err)
 			return
 		}
 	}
@@ -445,7 +445,7 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 	model := reflect.New(obj.modelElem).Interface()
 	result := db.Model(model).Where(pkColName, key).Updates(vals)
 	if result.Error != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+		AbortWithJSONError(c, http.StatusInternalServerError, result.Error)
 		return
 	}
 
@@ -464,23 +464,23 @@ func handleDeleteObject(c *gin.Context, obj *WebObject) {
 	// for gorm delete hook, need to load model first.
 	if r.Error != nil {
 		if errors.Is(r.Error, gorm.ErrRecordNotFound) {
-			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "not found"})
+			AbortWithJSONError(c, http.StatusNotFound, errors.New("not found"))
 		} else {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": r.Error.Error()})
+			AbortWithJSONError(c, http.StatusInternalServerError, r.Error)
 		}
 		return
 	}
 
 	if obj.BeforeDelete != nil {
 		if err := obj.BeforeDelete(db, c, val); err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			AbortWithJSONError(c, http.StatusBadRequest, err)
 			return
 		}
 	}
 
 	r = db.Delete(val)
 	if r.Error != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": r.Error.Error()})
+		AbortWithJSONError(c, http.StatusInternalServerError, r.Error)
 		return
 	}
 
@@ -490,7 +490,7 @@ func handleDeleteObject(c *gin.Context, obj *WebObject) {
 func handleBatchDelete(c *gin.Context, obj *WebObject) {
 	var form []string
 	if err := c.BindJSON(&form); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		AbortWithJSONError(c, http.StatusBadRequest, err)
 		return
 	}
 
@@ -499,7 +499,7 @@ func handleBatchDelete(c *gin.Context, obj *WebObject) {
 	val := reflect.New(obj.modelElem).Interface()
 	r := db.Delete(&val, form)
 	if r.Error != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": r.Error.Error()})
+		AbortWithJSONError(c, http.StatusInternalServerError, r.Error)
 		return
 	}
 
@@ -509,7 +509,7 @@ func handleBatchDelete(c *gin.Context, obj *WebObject) {
 func handleQueryObject(c *gin.Context, obj *WebObject, prepareQuery PrepareQuery) {
 	db, form, err := prepareQuery(getDbConnection(c, obj.GetDB, false), c)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		AbortWithJSONError(c, http.StatusBadRequest, err)
 		return
 	}
 
@@ -580,7 +580,7 @@ func handleQueryObject(c *gin.Context, obj *WebObject, prepareQuery PrepareQuery
 
 	r, err := QueryObjects(db, obj, form)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		AbortWithJSONError(c, http.StatusBadRequest, err)
 		return
 	}
 
@@ -590,7 +590,7 @@ func handleQueryObject(c *gin.Context, obj *WebObject, prepareQuery PrepareQuery
 			for i := 0; i < vals.Len(); i++ {
 				v := vals.Index(i).Addr().Interface()
 				if err := obj.BeforeRender(db, c, v); err != nil {
-					c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+					AbortWithJSONError(c, http.StatusInternalServerError, err)
 					return
 				}
 				vals.Index(i).Set(reflect.ValueOf(v).Elem())

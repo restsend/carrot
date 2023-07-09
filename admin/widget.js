@@ -52,7 +52,7 @@ class BaseWidget {
         elm.appendChild(node)
 
         node.addEventListener('change', (e) => {
-            elm._x_model.set(e.target.value)
+            e.preventDefault()
             this.field.dirty = true
         })
 
@@ -80,9 +80,9 @@ class BooleanWidget extends BaseWidget {
         let node = document.createElement('input')
         node.type = 'checkbox'
         node.className = 'mr-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600'
-        node.checked = elm._x_model.get()
+        node.value = elm._x_model.get()
         node.addEventListener('change', (e) => {
-            elm._x_model.set(e.target.checked)
+            e.preventDefault()
             this.field.dirty = true
         })
         elm.appendChild(node)
@@ -101,7 +101,7 @@ class TextareaWidget extends BaseWidget {
         node.value = elm._x_model.get()
         node.placeholder = this.field.placeholder || ''
         node.addEventListener('change', (e) => {
-            elm._x_model.set(e.target.value)
+            e.preventDefault()
             this.field.dirty = true
         })
         elm.appendChild(node)
@@ -122,6 +122,7 @@ class DateTimeWidget extends BaseWidget {
             node.value = elm._x_model.get().substr(0, 16)
         }
         node.addEventListener('change', (e) => {
+            e.preventDefault()
             let v = e.target.value
             if (v.length == 16) {
                 v += ':00Z'
@@ -148,6 +149,7 @@ class StructWidget extends BaseWidget {
             node.value = JSON.stringify(v, null, 2)
         }
         node.addEventListener('change', (e) => {
+            e.preventDefault()
             node.classList.remove('ring-red-600', 'ring-2')
             let v = e.target.value
             try {
@@ -211,7 +213,7 @@ class ForeignKeyWidget extends BaseWidget {
             })
         })
         node.addEventListener('change', (e) => {
-            elm._x_model.set(e.target.value)
+            e.preventDefault()
             this.field.dirty = true
         })
         elm.appendChild(node)
@@ -252,7 +254,7 @@ class SelectWidget extends BaseWidget {
             }
         }
         node.addEventListener('change', (e) => {
-            elm._x_model.set(e.target.value)
+            e.preventDefault()
             this.field.dirty = true
         })
         elm.appendChild(node)
@@ -292,7 +294,7 @@ class PasswordWidget extends BaseWidget {
         })
 
         input.addEventListener('change', (e) => {
-            elm._x_model.set(e.target.value)
+            e.preventDefault()
             this.field.dirty = true
         })
         node.appendChild(btn)

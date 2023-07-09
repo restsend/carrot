@@ -85,12 +85,13 @@ type AdminScript struct {
 	Onload bool   `json:"onload,omitempty"`
 }
 type AdminAction struct {
-	Path    string             `json:"path"`
-	Name    string             `json:"name"`
-	Label   string             `json:"label,omitempty"`
-	Icon    string             `json:"icon,omitempty"`
-	Class   string             `json:"class,omitempty"`
-	Handler AdminActionHandler `json:"-"`
+	Path          string             `json:"path"`
+	Name          string             `json:"name"`
+	Label         string             `json:"label,omitempty"`
+	Icon          string             `json:"icon,omitempty"`
+	Class         string             `json:"class,omitempty"`
+	WithoutObject bool               `json:"-"`
+	Handler       AdminActionHandler `json:"-"`
 }
 
 type AdminObject struct {
@@ -254,7 +255,7 @@ func WithAdminAuth() gin.HandlerFunc {
 			db := ctx.MustGet(DbField).(*gorm.DB)
 			signUrl := GetValue(db, KEY_SITE_SIGNIN_URL)
 			if signUrl == "" {
-				ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "login required"})
+				AbortWithJSONError(ctx, http.StatusUnauthorized, errors.New("login required"))
 			} else {
 				ctx.Redirect(http.StatusFound, signUrl+"?next="+ctx.Request.URL.String())
 				ctx.Abort()
@@ -263,7 +264,7 @@ func WithAdminAuth() gin.HandlerFunc {
 		}
 
 		if !user.IsStaff && !user.IsSuperUser {
-			ctx.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+			AbortWithJSONError(ctx, http.StatusForbidden, errors.New("forbidden"))
 			return
 		}
 		ctx.Next()
@@ -372,7 +373,7 @@ func (obj *AdminObject) RegisterAdmin(r gin.IRoutes) {
 		if obj.AccessCheck != nil {
 			err := obj.AccessCheck(ctx, obj)
 			if err != nil {
-				ctx.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": err.Error()})
+				AbortWithJSONError(ctx, http.StatusForbidden, err)
 				return
 			}
 		}
@@ -575,7 +576,16 @@ func convertValue(elemType reflect.Type, source any) (any, error) {
 		}
 		return reflect.ValueOf(v).Convert(targetType).Interface(), nil
 	case "bool":
-		v, err := strconv.ParseBool(fmt.Sprintf("%v", source))
+		val := fmt.Sprintf("%v", source)
+		if val == "on" {
+			val = "true"
+		} else if val == "off" {
+			val = "false"
+		} else if val == "" {
+			val = "false"
+		}
+
+		v, err := strconv.ParseBool(val)
 		if err != nil {
 			return nil, err
 		}
@@ -727,36 +737,28 @@ func (obj *AdminObject) handleGetOne(c *gin.Context) {
 	modelObj := reflect.New(obj.modelElem).Interface()
 	keys := obj.getPrimaryValues(c)
 	if len(keys) <= 0 {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": "invalid primary key",
-		})
+		AbortWithJSONError(c, http.StatusBadRequest, errors.New("invalid primary key"))
 		return
 	}
 
 	result := db.Preload(clause.Associations).Where(keys).First(modelObj)
 
 	if result.Error != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-			"error": result.Error.Error(),
-		})
+		AbortWithJSONError(c, http.StatusInternalServerError, result.Error)
 		return
 	}
 
 	if obj.BeforeRender != nil {
 		err := obj.BeforeRender(db, c, modelObj)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-				"error": err.Error(),
-			})
+			AbortWithJSONError(c, http.StatusInternalServerError, err)
 			return
 		}
 	}
 
 	data, err := obj.MarshalOne(modelObj)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		AbortWithJSONError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -858,9 +860,7 @@ func (obj *AdminObject) handleQueryOrGetOne(c *gin.Context) {
 
 	db, form, err := DefaultPrepareQuery(getDbConnection(c, obj.GetDB, false), c)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+		AbortWithJSONError(c, http.StatusBadRequest, err)
 		return
 	}
 
@@ -871,9 +871,7 @@ func (obj *AdminObject) handleQueryOrGetOne(c *gin.Context) {
 	r, err := obj.QueryObjects(db, form, c)
 
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		AbortWithJSONError(c, http.StatusInternalServerError, err)
 		return
 	}
 	if form.ForeignMode {
@@ -907,26 +905,26 @@ func (obj *AdminObject) handleCreate(c *gin.Context) {
 	keys := obj.getPrimaryValues(c)
 	var vals map[string]any
 	if err := c.BindJSON(&vals); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		AbortWithJSONError(c, http.StatusBadRequest, err)
 		return
 	}
 	elmObj := reflect.New(obj.modelElem)
 	elm, err := obj.UnmarshalFrom(elmObj, keys, vals)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		AbortWithJSONError(c, http.StatusBadRequest, err)
 		return
 	}
 	db := getDbConnection(c, obj.GetDB, true)
 	if obj.BeforeCreate != nil {
 		if err := obj.BeforeCreate(db, c, elm); err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			AbortWithJSONError(c, http.StatusBadRequest, err)
 			return
 		}
 	}
 
 	result := db.Create(elm)
 	if result.Error != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+		AbortWithJSONError(c, http.StatusInternalServerError, result.Error)
 		return
 	}
 
@@ -936,15 +934,13 @@ func (obj *AdminObject) handleCreate(c *gin.Context) {
 func (obj *AdminObject) handleUpdate(c *gin.Context) {
 	keys := obj.getPrimaryValues(c)
 	if len(keys) <= 0 {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": "invalid primary key",
-		})
+		AbortWithJSONError(c, http.StatusBadRequest, errors.New("invalid primary key"))
 		return
 	}
 
 	var inputVals map[string]any
 	if err := c.BindJSON(&inputVals); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		AbortWithJSONError(c, http.StatusBadRequest, err)
 		return
 	}
 
@@ -952,25 +948,25 @@ func (obj *AdminObject) handleUpdate(c *gin.Context) {
 	elmObj := reflect.New(obj.modelElem)
 	err := db.Where(keys).First(elmObj.Interface()).Error
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "not found"})
+		AbortWithJSONError(c, http.StatusNotFound, errors.New("not found"))
 		return
 	}
 
 	val, err := obj.UnmarshalFrom(elmObj, keys, inputVals)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		AbortWithJSONError(c, http.StatusBadRequest, err)
 		return
 	}
 
 	if obj.BeforeUpdate != nil {
 		if err := obj.BeforeUpdate(db, c, val, inputVals); err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			AbortWithJSONError(c, http.StatusBadRequest, err)
 			return
 		}
 	}
 	result := db.Where(keys).Save(val)
 	if result.Error != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+		AbortWithJSONError(c, http.StatusInternalServerError, result.Error)
 		return
 	}
 
@@ -980,9 +976,7 @@ func (obj *AdminObject) handleUpdate(c *gin.Context) {
 func (obj *AdminObject) handleDelete(c *gin.Context) {
 	keys := obj.getPrimaryValues(c)
 	if len(keys) <= 0 {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": "invalid primary key",
-		})
+		AbortWithJSONError(c, http.StatusBadRequest, errors.New("invalid primary key"))
 		return
 	}
 	db := getDbConnection(c, obj.GetDB, false)
@@ -992,57 +986,64 @@ func (obj *AdminObject) handleDelete(c *gin.Context) {
 	// for gorm delete hook, need to load model first.
 	if r.Error != nil {
 		if errors.Is(r.Error, gorm.ErrRecordNotFound) {
-			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "not found"})
+			AbortWithJSONError(c, http.StatusNotFound, errors.New("not found"))
 		} else {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": r.Error.Error()})
+			AbortWithJSONError(c, http.StatusInternalServerError, r.Error)
 		}
 		return
 	}
 
 	if obj.BeforeDelete != nil {
 		if err := obj.BeforeDelete(db, c, val); err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			AbortWithJSONError(c, http.StatusBadRequest, err)
 			return
 		}
 	}
 
 	r = db.Where(keys).Delete(val)
 	if r.Error != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": r.Error.Error()})
+		AbortWithJSONError(c, http.StatusInternalServerError, r.Error)
 		return
 	}
 	c.JSON(http.StatusOK, true)
 }
 
 func (obj *AdminObject) handleAction(c *gin.Context) {
-
 	for _, action := range obj.Actions {
 		if action.Path != c.Param("name") {
 			continue
 		}
 
-		keys := obj.getPrimaryValues(c)
-		if len(keys) <= 0 {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-				"error": "invalid primary key",
-			})
+		db := getDbConnection(c, obj.GetDB, false)
+		if action.WithoutObject {
+			r, err := action.Handler(db, c, nil)
+			if err != nil {
+				AbortWithJSONError(c, http.StatusInternalServerError, err)
+				return
+			}
+			c.JSON(http.StatusOK, r)
 			return
 		}
-		db := getDbConnection(c, obj.GetDB, false)
+
+		keys := obj.getPrimaryValues(c)
+		if len(keys) <= 0 {
+			AbortWithJSONError(c, http.StatusBadRequest, errors.New("invalid primary key"))
+			return
+		}
 		modelObj := reflect.New(obj.modelElem).Interface()
 		result := db.Where(keys).First(modelObj)
 
 		if result.Error != nil {
 			if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-				c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "not found"})
+				AbortWithJSONError(c, http.StatusNotFound, errors.New("not found"))
 			} else {
-				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+				AbortWithJSONError(c, http.StatusInternalServerError, result.Error)
 			}
 			return
 		}
 		r, err := action.Handler(db, c, modelObj)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			AbortWithJSONError(c, http.StatusInternalServerError, err)
 		}
 		c.JSON(http.StatusOK, r)
 		return
