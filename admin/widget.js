@@ -96,7 +96,7 @@ class BooleanWidget extends BaseWidget {
 class TextareaWidget extends BaseWidget {
     renderEdit(elm) {
         let node = document.createElement('textarea')
-        node.rows = 5
+        node.rows = 3
         node.className = 'block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6'
         node.value = elm._x_model.get()
         node.placeholder = this.field.placeholder || ''

@@ -90,7 +90,7 @@ type AdminAction struct {
 	Label         string             `json:"label,omitempty"`
 	Icon          string             `json:"icon,omitempty"`
 	Class         string             `json:"class,omitempty"`
-	WithoutObject bool               `json:"-"`
+	WithoutObject bool               `json:"withoutObject"`
 	Handler       AdminActionHandler `json:"-"`
 }
 
@@ -451,6 +451,7 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 
 		if f.Anonymous && f.Type.Kind() == reflect.Struct {
 			obj.parseFields(db, f.Type)
+			continue
 		}
 
 		gormTag := strings.ToLower(f.Tag.Get("gorm"))

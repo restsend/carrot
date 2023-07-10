@@ -31,6 +31,8 @@ class QueryResult {
         this.count = 0
         this.selected = 0
         this.keyword = ''
+        this.orders = []
+        this.filters = []
     }
 
     attach(data) {
@@ -108,11 +110,22 @@ class QueryResult {
         this.selected = this.rows.filter(row => row.selected).length
     }
 
+    setFilters(filters) {
+        this.filters.splice(0, this.filters.length)
+        this.filters.push(...filters)
+    }
+
+    setOrders(orders) {
+        this.orders.splice(0, this.orders.length)
+        this.orders.push(...orders)
+    }
     refresh() {
         let query = {
             keyword: this.keyword,
             pos: this.pos,
             limit: this.countPerPage,
+            filters: this.filters,
+            orders: this.orders
         }
         let path = Alpine.store('current').path
         this.rows = []
@@ -128,7 +141,10 @@ class QueryResult {
     }
 
     onDeleteOne(event) {
-        Alpine.store('confirmaction', { action: { name: 'Delete', label: 'Delete' }, keys: [Alpine.store('editobj').primaryValue] })
+        Alpine.store('confirmaction', {
+            action: { name: 'Delete', label: 'Delete', path: Alpine.store('current').path, method: 'DELETE' },
+            keys: [Alpine.store('editobj').primaryValue]
+        })
     }
 
     doAction(event) {
@@ -255,7 +271,7 @@ class AdminObject {
             })
         }
 
-        this.actions = actions.map(action => {
+        this.actions = actions.filter(action => !action.withoutObject).map(action => {
             let path = this.path
             if (action.path) {
                 path = `${path}${action.path}`
@@ -366,6 +382,7 @@ const adminapp = () => ({
         this.site = meta.site
         let objects = meta.objects.map(obj => new AdminObject(obj))
         Alpine.store('objects', objects)
+        Alpine.store('config', meta.site)
 
         this.user = meta.user
         this.user.name = this.user.firstName || this.user.email
@@ -501,35 +518,16 @@ const adminapp = () => ({
         elm.innerHTML = html
         return hasOnload
     },
-
-    loadForeignValues(f, isCreate = false) {
-        fetch(f.foreign.path, {
-            method: 'POST',
-            body: JSON.stringify({
-                foreign: true
-            }),
-        }).then(resp => {
-            resp.json().then(data => {
-                if (!data.items) {
-                    return
-                }
-
-                if (data.items.length > 0 && isCreate) {
-                    f.value = data.items[0].value
-                }
-                f.values.push(...data.items)
-            })
-        })
-    },
-
     addObject(event) {
         if (event) {
             event.preventDefault()
         }
         this.$store.showedit = true
+        let names = {}
         let fields = this.$store.current.editables.map(f => {
             let newf = { ...f }
             newf.value = f.defaultvalue()
+            names[f.name] = newf
             return newf
         })
 
@@ -537,6 +535,7 @@ const adminapp = () => ({
             mode: 'create',
             title: `Add ${this.$store.current.name}`,
             fields: fields,
+            names,
             doCreate: async (ev, closeWhenDone = true) => {
                 // create row
                 try {
@@ -572,10 +571,12 @@ const adminapp = () => ({
         }
         this.$store.showedit = true
 
+        let names = {}
         let fields = this.$store.current.editables.map(f => {
             let newf = { ...f }
             newf.dirty = false
             newf.value = row[f.name]// deep clone
+            names[f.name] = newf
             return newf
         })
 
@@ -583,6 +584,7 @@ const adminapp = () => ({
             mode: 'edit',
             title: `Edit ${this.$store.current.name}`,
             fields: fields,
+            names,
             primaryValue: row.primaryValue,
             doSave: async (ev, closeWhenDone = true) => {
                 // update row
@@ -598,7 +600,6 @@ const adminapp = () => ({
                 }
             },
         }
-
         let obj = this.$store.current
 
         fetch(obj.editpage, {
@@ -616,6 +617,11 @@ const adminapp = () => ({
     closeEdit(event, cancel = false) {
         if (event) {
             event.preventDefault()
+        }
+
+        let elm = document.getElementById('edit_form')
+        if (elm) {
+            elm.innerHTML = ''
         }
 
         Alpine.store('showedit', false)
