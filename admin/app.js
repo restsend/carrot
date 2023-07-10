@@ -474,8 +474,7 @@ const adminapp = () => ({
             cache: "no-store",
         }).then(resp => {
             resp.text().then(text => {
-                let hasOnload = this.injectHtml(elm, text, obj)
-                if (!hasOnload) {
+                if (!this.injectHtml(elm, text, obj)) {
                     this.$store.queryresult.refresh()
                 }
                 this.$store.switching = false

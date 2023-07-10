@@ -184,9 +184,6 @@ class ForeignKeyWidget extends BaseWidget {
         if (!data.items) {
             return
         }
-        if (data.items.length > 0 && this.value === undefined) {
-            this.value = data.items[0]
-        }
         return data.items
     }
 
@@ -201,12 +198,18 @@ class ForeignKeyWidget extends BaseWidget {
 
         this.loadForeignValues().then(items => {
             if (!items) return
+
+            if (!this.value) {
+                this.value = items[0]
+                elm._x_model.set(this.value.value)
+                this.field.dirty = true
+            }
+
             items.forEach(item => {
                 let option = document.createElement('option')
                 option.value = item.value
                 option.innerText = item.label || item.value
-
-                if (this.value && item.value == this.value.value) {
+                if (item.value == this.value.value) {
                     option.selected = true
                 }
                 node.appendChild(option)
@@ -214,6 +217,8 @@ class ForeignKeyWidget extends BaseWidget {
         })
         node.addEventListener('change', (e) => {
             e.preventDefault()
+            this.value.value = e.target.value
+            elm._x_model.set(this.value.value)
             this.field.dirty = true
         })
         elm.appendChild(node)
