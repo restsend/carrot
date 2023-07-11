@@ -200,8 +200,8 @@ class ForeignKeyWidget extends BaseWidget {
             if (!items) return
 
             if (!this.value) {
-                this.value = items[0]
-                elm._x_model.set(this.value.value)
+                this.value = items[0].value
+                elm._x_model.set(this.value)
                 this.field.dirty = true
             }
 
@@ -209,7 +209,7 @@ class ForeignKeyWidget extends BaseWidget {
                 let option = document.createElement('option')
                 option.value = item.value
                 option.innerText = item.label || item.value
-                if (item.value == this.value.value) {
+                if (item.value == this.value) {
                     option.selected = true
                 }
                 node.appendChild(option)
@@ -217,8 +217,6 @@ class ForeignKeyWidget extends BaseWidget {
         })
         node.addEventListener('change', (e) => {
             e.preventDefault()
-            this.value.value = e.target.value
-            elm._x_model.set(this.value.value)
             this.field.dirty = true
         })
         elm.appendChild(node)
@@ -325,7 +323,7 @@ let widgets = {
 
 window.AdminWidgets = widgets
 
-function getWidget(field, value) {
+function getWidget(field, value, elm) {
     let widgetType = null
     if (field.foreign) {
         widgetType = 'foreign'
@@ -369,6 +367,9 @@ function getWidget(field, value) {
     }
     let widget = new widgetCls()
     widget.field = field
+    if (elm._x_model) {
+        value = elm._x_model.get()
+    }
     widget.value = value
     return widget
 }
@@ -376,16 +377,16 @@ function getWidget(field, value) {
 document.addEventListener('alpine:init', () => {
     Alpine.directive('admin-render', (el, { expression }, { evaluate }) => {
         let col = evaluate(expression)
-        getWidget(col.field, col.value).render(el)
+        getWidget(col.field, col.value, el).render(el)
     })
 
     Alpine.directive('admin-edit-label', (el, { expression }, { evaluate }) => {
         let field = evaluate(expression)
-        getWidget(field, field.value).renderEditLabel(el)
+        getWidget(field, field.value, el).renderEditLabel(el)
     })
 
     Alpine.directive('admin-edit', (el, { expression }, { evaluate }) => {
         let field = evaluate(expression)
-        getWidget(field, field.value).renderEdit(el)
+        getWidget(field, field.value, el).renderEdit(el)
     })
 })

@@ -142,7 +142,13 @@ class QueryResult {
 
     onDeleteOne(event) {
         Alpine.store('confirmaction', {
-            action: { name: 'Delete', label: 'Delete', path: Alpine.store('current').path, method: 'DELETE' },
+            action: {
+                method: 'DELETE',
+                label: 'Delete',
+                name: 'Delete',
+                path: Alpine.store('current').path,
+                class: 'text-white bg-red-500 hover:bg-red-700',
+            },
             keys: [Alpine.store('editobj').primaryValue]
         })
     }
@@ -267,7 +273,7 @@ class AdminObject {
                 method: 'DELETE',
                 name: 'Delete',
                 label: 'Delete',
-                class: 'bg-red-500 hover:bg-red-700 text-white ',
+                class: 'text-white bg-red-500 hover:bg-red-700',
             })
         }
 
@@ -289,6 +295,9 @@ class AdminObject {
             }
             if (!action.class) {
                 action.class = 'bg-white text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50'
+            }
+            if (!action.label) {
+                action.label = action.name
             }
             return action
         })
@@ -350,7 +359,15 @@ class AdminObject {
             })
             if (resp.status != 200) {
                 Alpine.store('error', `${action.name} fail : ${err.toString()}`)
+                if (action.onFail) {
+                    let result = await resp.text()
+                    action.onFail(keys[i], result)
+                }
                 break
+            }
+            if (action.onDone) {
+                let result = await resp.json()
+                action.onDone(keys[i], result)
             }
         }
     }
@@ -562,7 +579,9 @@ const adminapp = () => ({
         }).then(resp => {
             resp.text().then(text => {
                 let elm = document.getElementById('edit_form')
-                this.injectHtml(elm, text, obj)
+                if (elm) {
+                    elm.innerHTML = text
+                }
             })
         }).catch(err => {
             this.$store.showedit = false
@@ -610,12 +629,13 @@ const adminapp = () => ({
         }).then(resp => {
             resp.text().then(text => {
                 let elm = document.getElementById('edit_form')
-                this.injectHtml(elm, text, obj)
+                if (elm) {
+                    elm.innerHTML = text
+                }
             })
         }).catch(err => {
             this.$store.showedit = false
         })
-
     },
     closeEdit(event, cancel = false) {
         if (event) {
@@ -626,7 +646,6 @@ const adminapp = () => ({
         if (elm) {
             elm.innerHTML = ''
         }
-
         Alpine.store('showedit', false)
         Alpine.store('editobj', { mode: '' })
     },
