@@ -361,7 +361,6 @@ const adminapp = () => ({
     navmenus: [],
     loadScripts: {},
     loadStyles: {},
-
     async init() {
         Alpine.store('queryresult', new QueryResult())
         Alpine.store('current', {})
@@ -388,6 +387,7 @@ const adminapp = () => ({
         this.user.name = this.user.firstName || this.user.email
         this.buildNavMenu()
         this.loadSidebar()
+        this.loadAllScripts(objects)
 
         this.$watch('$store.loading', val => {
             if (val === false) {
@@ -397,6 +397,33 @@ const adminapp = () => ({
         this.$store.loading = false
     },
 
+    loadAllScripts(objects) {
+        objects.forEach(obj => {
+            let scripts = obj.scripts || []
+            scripts.forEach(s => {
+                if (s.onload || this.loadScripts[s.src]) {
+                    return
+                }
+                this.loadScripts[s.src] = true
+                let sel = document.createElement('script')
+                sel.src = s.src
+                sel.defer = true
+                document.head.appendChild(sel)
+            })
+            let styles = obj.styles || []
+            styles.forEach(s => {
+                if (this.loadStyles[s]) {
+                    return
+                }
+                this.loadStyles[s] = true
+                let sel = document.createElement('link')
+                sel.rel = 'stylesheet'
+                sel.type = 'text/css'
+                sel.href = s
+                document.head.appendChild(sel)
+            })
+        })
+    },
     onLoad() {
         if (this.$router.path) {
             // switch to current object
@@ -481,38 +508,17 @@ const adminapp = () => ({
             })
         })
     },
-
     injectHtml(elm, html, obj) {
         let hasOnload = false
         if (obj) {
             let scripts = obj.scripts || []
-            scripts.forEach(s => {
-                if (!s.onload && this.loadScripts[s.src]) {
-                    return
-                }
-                if (s.onload) {
-                    hasOnload = true
-                } else {
-                    this.loadScripts[s.src] = true
-                }
+            scripts.filter(s => s.onload).forEach(s => {
+                hasOnload = true
                 let sel = document.createElement('script')
                 sel.src = s.src
                 sel.defer = true
                 document.head.appendChild(sel)
             })
-            let styles = obj.styles || []
-            styles.forEach(s => {
-                if (this.loadStyles[s]) {
-                    return
-                }
-                this.loadStyles[s] = true
-                let sel = document.createElement('link')
-                sel.rel = 'stylesheet'
-                sel.type = 'text/css'
-                sel.href = s
-                document.head.appendChild(sel)
-            })
-
         }
         elm.innerHTML = html
         return hasOnload
@@ -551,7 +557,6 @@ const adminapp = () => ({
         }
 
         let obj = this.$store.current
-
         fetch(obj.editpage, {
             cache: "no-store",
         }).then(resp => {
@@ -562,7 +567,6 @@ const adminapp = () => ({
         }).catch(err => {
             this.$store.showedit = false
         })
-
     },
     editObject(event, row) {
         if (event) {
