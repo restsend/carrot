@@ -62,6 +62,8 @@ class BaseWidget {
             node.classList.add('w-96')
         } else if (this.field.size > 0 && this.field.size < 64) {
             node.classList.add('w-72')
+        } else {
+            node.classList.add('w-full')
         }
     }
 }
@@ -110,7 +112,12 @@ class TextareaWidget extends BaseWidget {
 
 class DateTimeWidget extends BaseWidget {
     render(elm) {
-        if (this.value) {
+        if (!this.value) {
+            return
+        }
+        if (this.value.Valid && this.value.Time) {  // golang sql.NullTime
+            this.renderWith(elm, new Date(this.value.Time).toLocaleString())
+        } else {
             this.renderWith(elm, new Date(this.value).toLocaleString())
         }
     }
@@ -118,8 +125,12 @@ class DateTimeWidget extends BaseWidget {
         let node = document.createElement('input')
         node.type = 'datetime-local'
         node.className = 'block rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6'
-        if (elm._x_model.get()) {
-            node.value = elm._x_model.get().substr(0, 16)
+        let v = elm._x_model.get()
+        if (typeof v == 'string' && v.length >= 16) {
+            node.value = v.substring(0, 16)
+        } else if (v.Valid && v.Time) {  // golang sql.NullTime
+            node.value = v.Time.substring(0, 16)
+            this.value = v.Time
         }
         node.addEventListener('change', (e) => {
             e.preventDefault()

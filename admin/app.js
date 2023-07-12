@@ -113,11 +113,13 @@ class QueryResult {
     setFilters(filters) {
         this.filters.splice(0, this.filters.length)
         this.filters.push(...filters)
+        return this
     }
 
     setOrders(orders) {
         this.orders.splice(0, this.orders.length)
         this.orders.push(...orders)
+        return this
     }
     refresh() {
         let query = {
