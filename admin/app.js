@@ -143,7 +143,7 @@ class QueryResult {
     }
 
     onDeleteOne(event) {
-        Alpine.store('confirmaction', {
+        Alpine.store('confirmAction', {
             action: {
                 method: 'DELETE',
                 label: 'Delete',
@@ -157,11 +157,11 @@ class QueryResult {
 
     doAction(event) {
         event.preventDefault()
-        let { action, keys } = Alpine.store('confirmaction')
+        let { action, keys } = Alpine.store('confirmAction')
 
         Alpine.store('editobj', { mode: '' })
         Alpine.store('showedit', false)
-        Alpine.store('confirmaction', {})
+        Alpine.store('confirmAction', {})
 
         Alpine.store('current').doAction(action, keys).then(() => {
             Alpine.store('doing', { pos: 0 })
@@ -180,7 +180,7 @@ class QueryResult {
 
     cancelAction(event, row) {
         event.preventDefault()
-        Alpine.store('confirmaction', {})
+        Alpine.store('confirmAction', {})
     }
 }
 
@@ -293,7 +293,7 @@ class AdminObject {
                         keys.push(queryresult.rows[i].primaryValue)
                     }
                 }
-                Alpine.store('confirmaction', { action: action, keys })
+                Alpine.store('confirmAction', { action: action, keys })
             }
             if (!action.class) {
                 action.class = 'bg-white text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50'
@@ -386,7 +386,7 @@ const adminapp = () => ({
         Alpine.store('showedit', false)
         Alpine.store('switching', false)
         Alpine.store('loading', true)
-        Alpine.store('confirmaction', {})
+        Alpine.store('confirmAction', {})
         Alpine.store('doing', { pos: 0 })
         Alpine.store('error', '')
         Alpine.store('info', '')
@@ -647,6 +647,8 @@ const adminapp = () => ({
         let elm = document.getElementById('edit_form')
         if (elm) {
             elm.innerHTML = ''
+        } else {
+            console.error('edit_form not found')
         }
         Alpine.store('showedit', false)
         Alpine.store('editobj', { mode: '' })
