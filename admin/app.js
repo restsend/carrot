@@ -542,30 +542,41 @@ const adminapp = () => ({
         elm.innerHTML = html
         return hasOnload
     },
-    addObject(event) {
+    prepareEditobj(event, isCreate = false, row = undefined) {
         if (event) {
             event.preventDefault()
         }
         this.$store.showedit = true
         let names = {}
-        let fields = this.$store.current.editables.map(f => {
-            let newf = { ...f }
-            newf.value = f.defaultvalue()
-            names[f.name] = newf
-            return newf
+        let fields = this.$store.current.editables.map(editField => {
+            let f = { ...editField }
+            if (isCreate) {
+                f.value = editField.defaultvalue()
+            } else {
+                f.value = row[editField.name]
+            }
+            names[editField.name] = f
+            return f
         })
 
         this.$store.editobj = {
-            mode: 'create',
-            title: `Add ${this.$store.current.name}`,
+            mode: isCreate ? 'create' : 'edit',
+            title: this.$store.current.editTitle || `${isCreate ? 'Add' : 'Edit'} ${this.$store.current.name}`,
             fields: fields,
             names,
-            doCreate: async (ev, closeWhenDone = true) => {
-                // create row
+            doSave: async (ev, closeWhenDone = true) => {
+                let editobj = this.$store.editobj
                 try {
-                    await this.$store.current.doCreate(this.$store.editobj.fields)
+                    if (isCreate) {
+                        await this.$store.current.doCreate(fields)
+                    } else {
+                        await this.$store.current.doSave(row.primaryValue, fields.filter(f => f.dirty))
+                    }
+
                     if (closeWhenDone) {
                         this.closeEdit(ev)
+                    } else {
+                        editobj.mode = 'edit'
                     }
                     this.$store.queryresult.refresh()
                 } catch (err) {
@@ -576,6 +587,10 @@ const adminapp = () => ({
         }
 
         let obj = this.$store.current
+        if (obj.prepareEdit) {
+            obj.prepareEdit(this.$store.editobj, isCreate, row)
+        }
+
         fetch(obj.editpage, {
             cache: "no-store",
         }).then(resp => {
@@ -589,55 +604,11 @@ const adminapp = () => ({
             this.$store.showedit = false
         })
     },
+    addObject(event) {
+        this.prepareEditobj(event, true)
+    },
     editObject(event, row) {
-        if (event) {
-            event.preventDefault()
-        }
-        this.$store.showedit = true
-
-        let names = {}
-        let fields = this.$store.current.editables.map(f => {
-            let newf = { ...f }
-            newf.dirty = false
-            newf.value = row[f.name]// deep clone
-            names[f.name] = newf
-            return newf
-        })
-
-        this.$store.editobj = {
-            mode: 'edit',
-            title: `Edit ${this.$store.current.name}`,
-            fields: fields,
-            names,
-            primaryValue: row.primaryValue,
-            doSave: async (ev, closeWhenDone = true) => {
-                // update row
-                try {
-                    await this.$store.current.doSave(this.$store.editobj.primaryValue, this.$store.editobj.fields.filter(f => f.dirty))
-                    if (closeWhenDone) {
-                        this.closeEdit(ev)
-                    }
-                    this.$store.queryresult.refresh()
-                } catch (err) {
-                    console.error(err)
-                    this.closeEdit(ev)
-                }
-            },
-        }
-        let obj = this.$store.current
-
-        fetch(obj.editpage, {
-            cache: "no-store",
-        }).then(resp => {
-            resp.text().then(text => {
-                let elm = document.getElementById('edit_form')
-                if (elm) {
-                    elm.innerHTML = text
-                }
-            })
-        }).catch(err => {
-            this.$store.showedit = false
-        })
+        this.prepareEditobj(event, false, row)
     },
     closeEdit(event, cancel = false) {
         if (event) {

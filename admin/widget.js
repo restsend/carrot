@@ -45,7 +45,7 @@ class BaseWidget {
     renderEdit(elm) {
         let node = document.createElement('input')
         node.type = 'text'
-        node.className = 'block rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6'
+        node.className = 'block rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 w-full'
         node.value = elm._x_model.get()
         node.placeholder = this.field.placeholder || ''
         node.autocomplete = 'off'
@@ -55,16 +55,6 @@ class BaseWidget {
             e.preventDefault()
             this.field.dirty = true
         })
-
-        if (this.field.size >= 128) {
-            node.classList.add('w-full')
-        } else if (this.field.size > 64 && this.field.size < 128) {
-            node.classList.add('w-96')
-        } else if (this.field.size > 0 && this.field.size < 64) {
-            node.classList.add('w-72')
-        } else {
-            node.classList.add('w-full')
-        }
     }
 }
 
@@ -98,7 +88,7 @@ class BooleanWidget extends BaseWidget {
 class TextareaWidget extends BaseWidget {
     renderEdit(elm) {
         let node = document.createElement('textarea')
-        node.rows = 3
+        node.rows = this.field.textareaRows || 3
         node.className = 'block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6'
         node.value = elm._x_model.get()
         node.placeholder = this.field.placeholder || ''
@@ -112,7 +102,7 @@ class TextareaWidget extends BaseWidget {
 
 class DateTimeWidget extends BaseWidget {
     render(elm) {
-        if (!this.value) {
+        if (!this.value || this.value.Valid === false) {
             return
         }
         if (this.value.Valid && this.value.Time) {  // golang sql.NullTime
@@ -153,7 +143,7 @@ class StructWidget extends BaseWidget {
     }
     renderEdit(elm) {
         let node = document.createElement('textarea')
-        node.rows = 5
+        node.rows = this.field.textareaRows || 5
         node.className = 'block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6'
         let v = elm._x_model.get()
         if (v) {
