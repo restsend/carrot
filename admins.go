@@ -141,6 +141,11 @@ func GetCarrotAdminObjects() []AdminObject {
 		return nil
 	}
 
+	iconUser, _ := EmbedAdminAssets.ReadFile("admin/icon_user.svg")
+	iconGroup, _ := EmbedAdminAssets.ReadFile("admin/icon_group.svg")
+	iconMembers, _ := EmbedAdminAssets.ReadFile("admin/icon_members.svg")
+	iconConfig, _ := EmbedAdminAssets.ReadFile("admin/icon_config.svg")
+
 	return []AdminObject{
 		{
 			Model:       &User{},
@@ -153,7 +158,7 @@ func GetCarrotAdminObjects() []AdminObject {
 			Orderables:  []string{"CreatedAt", "UpdatedAt", "Enabled", "Activated"},
 			Searchables: []string{"Username", "Email", "FirstName", "ListName"},
 			Orders:      []Order{{"UpdatedAt", OrderOpDesc}},
-			Icon:        &AdminIcon{Url: "./icon_user.svg"},
+			Icon:        &AdminIcon{SVG: string(iconUser)},
 			AccessCheck: superAccessCheck,
 			BeforeCreate: func(db *gorm.DB, c *gin.Context, obj any) error {
 				user := obj.(*User)
@@ -210,7 +215,7 @@ func GetCarrotAdminObjects() []AdminObject {
 			Orderables:  []string{"UpdatedAt"},
 			Searchables: []string{"Name"},
 			Requireds:   []string{"Name"},
-			Icon:        &AdminIcon{Url: "./icon_group.svg"},
+			Icon:        &AdminIcon{SVG: string(iconGroup)},
 			AccessCheck: superAccessCheck,
 		},
 		{
@@ -223,7 +228,7 @@ func GetCarrotAdminObjects() []AdminObject {
 			Orderables:  []string{"CreatedAt"},
 			Searchables: []string{"User", "Group"},
 			Requireds:   []string{"User", "Group", "Role"},
-			Icon:        &AdminIcon{Url: "./icon_members.svg"},
+			Icon:        &AdminIcon{SVG: string(iconMembers)},
 			AccessCheck: superAccessCheck,
 			Attributes: map[string]AdminAttribute{
 				"Role": {
@@ -242,7 +247,7 @@ func GetCarrotAdminObjects() []AdminObject {
 			Orderables:  []string{"Key"},
 			Searchables: []string{"Key", "Value", "Desc"},
 			Requireds:   []string{"Key", "Value"},
-			Icon:        &AdminIcon{Url: "./icon_config.svg"},
+			Icon:        &AdminIcon{SVG: string(iconConfig)},
 			AccessCheck: superAccessCheck,
 		},
 	}
@@ -314,7 +319,7 @@ func RegisterAdmins(r *gin.RouterGroup, db *gorm.DB, adminAssetsRoot string, obj
 			return m
 		})
 	})
-	r.StaticFS("/", NewCombineEmbedFS(adminAssetsRoot, "admin", EmbedAdminAssets))
+	r.StaticFS("/", NewCombineEmbedFS(adminAssetsRoot, EmbedFS{"admin", EmbedAdminAssets}))
 }
 
 func HandleAdminIndex(c *gin.Context, objects []*AdminObject, buildContext AdminBuildContext) {

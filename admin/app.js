@@ -500,6 +500,7 @@ const adminapp = () => ({
         let objects = meta.objects.map(obj => new AdminObject(obj))
         Alpine.store('objects', objects)
         Alpine.store('config', meta.site)
+
         if (meta.site.sitename) {
             document.title = `${meta.site.sitename}`
         }

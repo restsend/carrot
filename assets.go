@@ -25,16 +25,18 @@ var EmbedTemplates embed.FS
 var EmbedAdminAssets embed.FS
 
 type CombineEmbedFS struct {
-	embedfs   embed.FS
+	embeds    []EmbedFS
 	assertDir string
-	embedRoot string
+}
+type EmbedFS struct {
+	EmbedRoot string
+	Embedfs   embed.FS
 }
 
-func NewCombineEmbedFS(assertDir, embedRoot string, embedfs embed.FS) *CombineEmbedFS {
+func NewCombineEmbedFS(assertDir string, es ...EmbedFS) *CombineEmbedFS {
 	return &CombineEmbedFS{
-		embedfs:   embedfs,
+		embeds:    es,
 		assertDir: assertDir,
-		embedRoot: embedRoot,
 	}
 }
 
@@ -45,7 +47,15 @@ func (c *CombineEmbedFS) Open(name string) (http.File, error) {
 			return f, nil
 		}
 	}
-	ef, err := c.embedfs.Open(filepath.Join(c.embedRoot, name))
+
+	var err error
+	var ef fs.File
+	for _, efs := range c.embeds {
+		ef, err = efs.Embedfs.Open(filepath.Join(efs.EmbedRoot, name))
+		if err == nil {
+			return EmbedFile{ef}, nil
+		}
+	}
 	return EmbedFile{ef}, err
 }
 
@@ -134,7 +144,7 @@ func (as *StaticAssets) InitStaticAssets(r *gin.Engine) {
 	staticDir := HintAssetsRoot("static")
 
 	Warning("static serving at", staticPrefix, "->", staticDir)
-	r.StaticFS(staticPrefix, NewCombineEmbedFS(staticDir, "admin", EmbedAssets))
+	r.StaticFS(staticPrefix, NewCombineEmbedFS(staticDir, EmbedFS{"admin", EmbedAdminAssets}))
 }
 
 // pongo2.TemplateLoader

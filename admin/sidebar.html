@@ -12,21 +12,21 @@
               <li>
                 <!-- Current: "bg-gray-50 text-indigo-600", Default: "text-gray-700 hover:text-indigo-600 hover:bg-gray-50" -->
                 <a href="#" x-on:click="switchObject($event, item)"
-                  class="text-gray-700 hover:text-indigo-600 hover:bg-gray-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
+                  class="text-gray-800 hover:text-indigo-600 hover:bg-gray-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
                   :class="item.active?'text-indigo-600 bg-gray-50':''">
-                  <template x-if="item.icon">
-                    <template x-if="item.icon.url">
-                      <img :src="item.icon.url" :alt="item.icon.alt"
-                        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-[0.625rem] font-medium bg-white text-gray-400 border-gray-200 group-hover:border-indigo-600 group-hover:text-indigo-600" />
-                    </template>
-                    <template x-if="item.icon.svg">
-                      <span x-html="item.icon.svg"
-                        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-[0.625rem] font-medium bg-white text-gray-400 border-gray-200 group-hover:border-indigo-600 group-hover:text-indigo-600"></span>
-                    </template>
+                  <template x-if="item.icon && item.icon.url">
+                    <img :src="item.icon.url" :alt="item.icon.alt"
+                      class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border bg-white group-hover:border-indigo-600 group-hover:text-indigo-600"
+                      :class="item.active?'text-indigo-600 border-indigo-600':'text-gray-500'" />
+                  </template>
+                  <template x-if="item.icon && item.icon.svg">
+                    <span x-html="item.icon.svg"
+                      class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border bg-white group-hover:border-indigo-600 group-hover:text-indigo-600"
+                      :class="item.active?'text-indigo-600 border-indigo-600':'text-gray-500'"></span>
                   </template>
                   <template x-if="!item.icon">
                     <span x-text="item.pluralName[0]"
-                      class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-[0.625rem] font-medium bg-white text-gray-400 border-gray-200 group-hover:border-indigo-600 group-hover:text-indigo-600"></span>
+                      class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-sm font-medium bg-white border-gray-200 group-hover:border-indigo-600 group-hover:text-indigo-600"></span>
                   </template>
                   <span class="truncate" x-text="item.pluralName"></span>
                 </a>
