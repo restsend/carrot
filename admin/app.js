@@ -1,3 +1,14 @@
+async function parseResponseError(resp) {
+    let text = undefined
+    try {
+        text = await resp.text()
+        let data = JSON.parse(text)
+        return data.error || text
+    } catch (err) {
+        return text || resp.statusText
+    }
+}
+
 class ConfirmAction {
     constructor() {
         this.reset()
@@ -30,24 +41,15 @@ class ConfirmAction {
         this.reset()
     }
 }
-
-async function parseResponseError(resp) {
-    let text = undefined
-    try {
-        text = await resp.text()
-        let data = JSON.parse(text)
-        return data.error || text
-    } catch (err) {
-        return text || resp.statusText
-    }
-}
-
 class Toasts {
     constructor() {
         this.reset()
     }
 
     get class() {
+        if (this.pending) {
+            return 'bg-violet-50 border border-violet-200 text-sm text-violet-600 rounded-md p-4 w-64'
+        }
         if (this.level === 'error') {
             return 'bg-orange-50 border border-orange-200 text-sm text-orange-600 rounded-md p-4'
         } else if (this.level === 'info') {
@@ -228,8 +230,7 @@ class QueryResult {
         event.preventDefault()
         let { action, keys } = Alpine.store('confirmAction')
 
-        Alpine.store('editobj', { mode: '' })
-        Alpine.store('showedit', false)
+        Alpine.store('editobj').closeEdit()
         Alpine.store('confirmAction').cancel()
 
         Alpine.store('current').doAction(action, keys).then(() => {
@@ -245,7 +246,39 @@ class QueryResult {
         })
     }
 }
+class EditObject {
+    constructor({ mode, title, fields, names, primaryValue }) {
+        this.mode = mode
+        this.title = title
+        this.fields = fields
+        this.names = names
+        this.primaryValue = primaryValue
+    }
 
+    async doSave(ev, closeWhenDone = true) {
+        try {
+            if (this.mode == 'create') {
+                await Alpine.store('current').doCreate(this.fields)
+            } else {
+                await Alpine.store('current').doSave(this.primaryValue, this.fields.filter(f => f.dirty))
+            }
+
+            if (closeWhenDone) {
+                this.closeEdit(ev)
+            } else {
+                this.mode = 'edit'
+            }
+            Alpine.store('queryresult').refresh()
+            Alpine.store('toasts').info(`Save Done`)
+        } catch (err) {
+            Alpine.store('toasts').error(`Save Fail: ${err.toString()}`)
+            this.closeEdit(ev)
+        }
+    }
+    closeEdit(event, cancel = false) {
+        this.mode = undefined
+    }
+}
 class AdminObject {
     constructor(meta) {
         this.permissions = meta.permissions || {}
@@ -452,10 +485,10 @@ const adminapp = () => ({
         Alpine.store('toasts', new Toasts())
         Alpine.store('queryresult', new QueryResult())
         Alpine.store('current', {})
-        Alpine.store('showedit', false)
         Alpine.store('switching', false)
         Alpine.store('loading', true)
         Alpine.store('confirmAction', new ConfirmAction())
+        Alpine.store('editobj', new EditObject({}))
 
         this.$router.config({ mode: 'hash', base: '/admin/' })
         let resp = await fetch('./admin.json', {
@@ -467,6 +500,19 @@ const adminapp = () => ({
         let objects = meta.objects.map(obj => new AdminObject(obj))
         Alpine.store('objects', objects)
         Alpine.store('config', meta.site)
+        if (meta.site.sitename) {
+            document.title = `${meta.site.sitename}`
+        }
+        if (meta.site.slogan) {
+            document.title = `${document.title} | ${meta.site.slogan}`
+        }
+
+        if (meta.site.favicon_url) {
+            let link = document.createElement('link')
+            link.rel = 'shortcut icon'
+            link.href = meta.site.favicon_url
+            document.head.appendChild(link)
+        }
 
         this.user = meta.user
         this.user.name = this.user.firstName || this.user.email
@@ -609,7 +655,7 @@ const adminapp = () => ({
         if (event) {
             event.preventDefault()
         }
-        this.$store.showedit = true
+
         let names = {}
         let fields = this.$store.current.editables.map(editField => {
             let f = { ...editField }
@@ -622,50 +668,32 @@ const adminapp = () => ({
             return f
         })
 
-        this.$store.editobj = {
-            mode: isCreate ? 'create' : 'edit',
-            title: this.$store.current.editTitle || `${isCreate ? 'Add' : 'Edit'} ${this.$store.current.name}`,
-            fields: fields,
-            names,
-            doSave: async (ev, closeWhenDone = true) => {
-                let editobj = this.$store.editobj
-                try {
-                    if (isCreate) {
-                        await this.$store.current.doCreate(fields)
-                    } else {
-                        await this.$store.current.doSave(row.primaryValue, fields.filter(f => f.dirty))
-                    }
+        let editobj = new EditObject(
+            {
+                mode: isCreate ? 'create' : 'edit',
+                title: this.$store.current.editTitle || `${isCreate ? 'Add' : 'Edit'} ${this.$store.current.name}`,
+                fields: fields,
+                names,
+                primaryValue: row ? row.primaryValue : undefined,
+            })
 
-                    if (closeWhenDone) {
-                        this.closeEdit(ev)
-                    } else {
-                        editobj.mode = 'edit'
-                    }
-                    this.$store.queryresult.refresh()
-                    Alpine.store('toasts').info(`Save Done`)
-                } catch (err) {
-                    Alpine.store('toasts').error(`Save Fail: ${err.toString()}`)
-                    this.closeEdit(ev)
-                }
-            },
+        let current = this.$store.current
+        if (current.prepareEdit) {
+            current.prepareEdit(editobj, isCreate, row)
         }
 
-        let obj = this.$store.current
-        if (obj.prepareEdit) {
-            obj.prepareEdit(this.$store.editobj, isCreate, row)
-        }
-
-        fetch(obj.editpage, {
+        fetch(current.editpage, {
             cache: "no-store",
         }).then(resp => {
             resp.text().then(text => {
                 let elm = document.getElementById('edit_form')
                 if (elm) {
+                    this.$store.editobj = editobj
                     elm.innerHTML = text
                 }
             })
         }).catch(err => {
-            this.$store.showedit = false
+            Alpine.store('toasts').error(`Load edit page fail: ${err.toString()}`)
         })
     },
     addObject(event) {
@@ -685,7 +713,8 @@ const adminapp = () => ({
         } else {
             console.error('edit_form not found')
         }
-        Alpine.store('showedit', false)
-        Alpine.store('editobj', { mode: '' })
+        if (this.$store.editobj) {
+            this.$store.editobj.closeEdit(event, cancel)
+        }
     },
 })

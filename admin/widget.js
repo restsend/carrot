@@ -18,8 +18,8 @@ const Icons = {
 
 class BaseWidget {
     render(elm) {
-        if (this.value) {
-            this.renderWith(elm, this.value || '')
+        if (this.field.value) {
+            this.renderWith(elm, this.field.value || '')
         }
     }
 
@@ -46,13 +46,14 @@ class BaseWidget {
         let node = document.createElement('input')
         node.type = 'text'
         node.className = 'block rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 w-full'
-        node.value = elm._x_model.get()
+        node.value = this.field.value
         node.placeholder = this.field.placeholder || ''
         node.autocomplete = 'off'
         elm.appendChild(node)
 
         node.addEventListener('change', (e) => {
             e.preventDefault()
+            this.field.value = e.target.value
             this.field.dirty = true
         })
     }
@@ -60,9 +61,9 @@ class BaseWidget {
 
 class BooleanWidget extends BaseWidget {
     render(elm) {
-        if (this.value === true) {
+        if (this.field.value === true) {
             elm.innerHTML = Icons.Yes
-        } else if (this.value === false) {
+        } else if (this.field.value === false) {
             elm.innerHTML = Icons.No
         } else {
             elm.innerHTML = Icons.Unknown
@@ -72,9 +73,10 @@ class BooleanWidget extends BaseWidget {
         let node = document.createElement('input')
         node.type = 'checkbox'
         node.className = 'mr-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600'
-        node.value = elm._x_model.get()
+        node.value = this.field.value
         node.addEventListener('change', (e) => {
             e.preventDefault()
+            this.field.value = e.target.value
             this.field.dirty = true
         })
         elm.appendChild(node)
@@ -90,10 +92,11 @@ class TextareaWidget extends BaseWidget {
         let node = document.createElement('textarea')
         node.rows = this.field.textareaRows || 3
         node.className = 'block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6'
-        node.value = elm._x_model.get()
+        node.value = this.field.value
         node.placeholder = this.field.placeholder || ''
         node.addEventListener('change', (e) => {
             e.preventDefault()
+            this.field.value = e.target.value
             this.field.dirty = true
         })
         elm.appendChild(node)
@@ -102,25 +105,25 @@ class TextareaWidget extends BaseWidget {
 
 class DateTimeWidget extends BaseWidget {
     render(elm) {
-        if (!this.value || this.value.Valid === false) {
+        if (!this.field.value || this.field.value.Valid === false) {
             return
         }
-        if (this.value.Valid && this.value.Time) {  // golang sql.NullTime
-            this.renderWith(elm, new Date(this.value.Time).toLocaleString())
+        if (this.field.value.Valid && this.field.value.Time) {  // golang sql.NullTime
+            this.renderWith(elm, new Date(this.field.value.Time).toLocaleString())
         } else {
-            this.renderWith(elm, new Date(this.value).toLocaleString())
+            this.renderWith(elm, new Date(this.field.value).toLocaleString())
         }
     }
     renderEdit(elm) {
         let node = document.createElement('input')
         node.type = 'datetime-local'
         node.className = 'block rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6'
-        let v = elm._x_model.get()
+        let v = this.field.value
         if (typeof v == 'string' && v.length >= 16) {
             node.value = v.substring(0, 16)
         } else if (v.Valid && v.Time) {  // golang sql.NullTime
             node.value = v.Time.substring(0, 16)
-            this.value = v.Time
+            this.field.value = v.Time
         }
         node.addEventListener('change', (e) => {
             e.preventDefault()
@@ -128,7 +131,7 @@ class DateTimeWidget extends BaseWidget {
             if (v.length == 16) {
                 v += ':00Z'
             }
-            elm._x_model.set(new Date(v).toISOString())
+            this.field.value = new Date(v).toISOString()
             this.field.dirty = true
         })
         elm.appendChild(node)
@@ -137,15 +140,15 @@ class DateTimeWidget extends BaseWidget {
 
 class StructWidget extends BaseWidget {
     render(elm) {
-        if (this.value) {
-            this.renderWith(elm, JSON.stringify(this.value))
+        if (this.field.value) {
+            this.renderWith(elm, JSON.stringify(this.field.value))
         }
     }
     renderEdit(elm) {
         let node = document.createElement('textarea')
         node.rows = this.field.textareaRows || 5
         node.className = 'block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6'
-        let v = elm._x_model.get()
+        let v = this.field.value
         if (v) {
             node.value = JSON.stringify(v, null, 2)
         }
@@ -159,7 +162,7 @@ class StructWidget extends BaseWidget {
                 node.classList.add('ring-red-600', 'ring-2')
                 return
             }
-            elm._x_model.set(v)
+            this.field.value = v
             this.field.dirty = true
         })
         node.placeholder = this.field.placeholder || ''
@@ -169,8 +172,8 @@ class StructWidget extends BaseWidget {
 
 class ForeignKeyWidget extends BaseWidget {
     render(elm) {
-        if (this.value) {
-            this.renderWith(elm, this.value.label || this.value.value || '')
+        if (this.field.value) {
+            this.renderWith(elm, this.field.value.label || this.field.value.value || '')
         }
     }
 
@@ -200,9 +203,8 @@ class ForeignKeyWidget extends BaseWidget {
         this.loadForeignValues().then(items => {
             if (!items) return
 
-            if (!this.value) {
-                this.value = items[0].value
-                elm._x_model.set(this.value)
+            if (!this.field.value) {
+                this.field.value = items[0].value
                 this.field.dirty = true
             }
 
@@ -210,7 +212,7 @@ class ForeignKeyWidget extends BaseWidget {
                 let option = document.createElement('option')
                 option.value = item.value
                 option.innerText = item.label || item.value
-                if (item.value == this.value) {
+                if (item.value == this.field.value) {
                     option.selected = true
                 }
                 node.appendChild(option)
@@ -218,6 +220,7 @@ class ForeignKeyWidget extends BaseWidget {
         })
         node.addEventListener('change', (e) => {
             e.preventDefault()
+            this.field.value = e.target.value
             this.field.dirty = true
         })
         elm.appendChild(node)
@@ -226,15 +229,15 @@ class ForeignKeyWidget extends BaseWidget {
 
 class SelectWidget extends BaseWidget {
     render(elm) {
-        if (this.value && this.field.attribute) {
+        if (this.field.value && this.field.attribute) {
             if (this.field.attribute.choices) {
-                let opt = this.field.attribute.choices.find(opt => opt.value == this.value)
+                let opt = this.field.attribute.choices.find(opt => opt.value == this.field.value)
                 if (opt) {
                     this.renderWith(elm, opt.label || opt.value)
                     return
                 }
             }
-            this.renderWith(elm, this.value)
+            this.renderWith(elm, this.field.value)
         }
     }
 
@@ -251,7 +254,7 @@ class SelectWidget extends BaseWidget {
                 let option = document.createElement('option')
                 option.value = opt.value
                 option.innerText = opt.label || opt.value
-                if (opt.value == this.value) {
+                if (opt.value == this.field.value) {
                     option.selected = true
                 }
                 node.appendChild(option)
@@ -259,6 +262,7 @@ class SelectWidget extends BaseWidget {
         }
         node.addEventListener('change', (e) => {
             e.preventDefault()
+            this.field.value = e.target.value
             this.field.dirty = true
         })
         elm.appendChild(node)
@@ -267,7 +271,7 @@ class SelectWidget extends BaseWidget {
 
 class PasswordWidget extends BaseWidget {
     render(elm) {
-        if (this.value) {
+        if (this.field.value) {
             this.renderWith(elm, '********')
         }
     }
@@ -289,7 +293,7 @@ class PasswordWidget extends BaseWidget {
             e.preventDefault()
             input.classList.toggle('hidden')
             if (input.classList.contains('hidden')) {
-                elm._x_model.set(this.field.oldValue) // don't change the value when hiding
+                this.field.value = this.field.oldValue // don't change the value when hiding
                 this.field.dirty = false
                 btn.innerText = 'Show Password Form'
             } else {
@@ -299,6 +303,7 @@ class PasswordWidget extends BaseWidget {
 
         input.addEventListener('change', (e) => {
             e.preventDefault()
+            this.field.value = e.target.value
             this.field.dirty = true
         })
         node.appendChild(btn)
@@ -324,7 +329,7 @@ let widgets = {
 
 window.AdminWidgets = widgets
 
-function getWidget(field, value, elm) {
+function getWidget(field) {
     let widgetType = null
     if (field.foreign) {
         widgetType = 'foreign'
@@ -368,26 +373,23 @@ function getWidget(field, value, elm) {
     }
     let widget = new widgetCls()
     widget.field = field
-    if (elm._x_model) {
-        value = elm._x_model.get()
-    }
-    widget.value = value
     return widget
 }
 
 document.addEventListener('alpine:init', () => {
     Alpine.directive('admin-render', (el, { expression }, { evaluate }) => {
         let col = evaluate(expression)
-        getWidget(col.field, col.value, el).render(el)
+        col.field.value = col.value
+        getWidget(col.field).render(el)
     })
 
     Alpine.directive('admin-edit-label', (el, { expression }, { evaluate }) => {
         let field = evaluate(expression)
-        getWidget(field, field.value, el).renderEditLabel(el)
+        getWidget(field).renderEditLabel(el)
     })
 
     Alpine.directive('admin-edit', (el, { expression }, { evaluate }) => {
         let field = evaluate(expression)
-        getWidget(field, field.value, el).renderEdit(el)
+        getWidget(field).renderEdit(el)
     })
 })

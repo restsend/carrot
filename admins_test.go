@@ -332,3 +332,18 @@ func TestAdminForeign(t *testing.T) {
 	assert.Equal(t, "1024 (item one)", vals["item"].(AdminValue).Label)
 	assert.Equal(t, uint(1024), vals["item"].(AdminValue).Value)
 }
+
+func TestAdminConvert(t *testing.T) {
+	{
+		var x int64
+		v, err := convertValue(reflect.TypeOf(x), 1.000000001)
+		assert.Nil(t, err)
+		assert.Equal(t, int64(1), v)
+	}
+	{
+		var x int64
+		v, err := convertValue(reflect.TypeOf(x), 2)
+		assert.Nil(t, err)
+		assert.Equal(t, int64(2), v)
+	}
+}

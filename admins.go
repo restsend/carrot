@@ -549,6 +549,43 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 	}
 	return nil
 }
+func formatAsInt64(v any) int64 {
+	// convert any to int64
+	switch v.(type) {
+	case int:
+		return int64(v.(int))
+	case int8:
+		return int64(v.(int8))
+	case int16:
+		return int64(v.(int16))
+	case int32:
+		return int64(v.(int32))
+	case int64:
+		return v.(int64)
+	case uint:
+		return int64(v.(uint))
+	case uint8:
+		return int64(v.(uint8))
+	case uint16:
+		return int64(v.(uint16))
+	case uint32:
+		return int64(v.(uint32))
+	case uint64:
+		return int64(v.(uint64))
+	case float32:
+		return int64(v.(float32))
+	case float64:
+		return int64(v.(float64))
+	case string:
+		if v.(string) == "" {
+			return 0
+		}
+		if i, err := strconv.ParseInt(v.(string), 10, 64); err == nil {
+			return i
+		}
+	}
+	return 0
+}
 
 func convertValue(elemType reflect.Type, source any) (any, error) {
 	srcType := reflect.TypeOf(source)
@@ -559,16 +596,10 @@ func convertValue(elemType reflect.Type, source any) (any, error) {
 	var err error
 	switch elemType.Name() {
 	case "int", "int8", "int16", "int32", "int64":
-		v, err := strconv.ParseInt(fmt.Sprintf("%v", source), 10, 64)
-		if err != nil {
-			return nil, err
-		}
+		v := formatAsInt64(source)
 		return reflect.ValueOf(v).Convert(targetType).Interface(), nil
 	case "uint", "uint8", "uint16", "uint32", "uint64":
-		v, err := strconv.ParseUint(fmt.Sprintf("%v", source), 10, 64)
-		if err != nil {
-			return nil, err
-		}
+		v := formatAsInt64(source)
 		return reflect.ValueOf(v).Convert(targetType).Interface(), nil
 	case "float32", "float64":
 		v, err := strconv.ParseFloat(fmt.Sprintf("%v", source), 64)
