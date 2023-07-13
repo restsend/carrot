@@ -1,21 +1,90 @@
-const IconYes = `<span class="text-green-600"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
-<path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-</svg></span>`
-const IconNo = `<span class="text-red-600"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
-<path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-</svg></span>`
-const IconUnknown = `<span class="text-gray-600"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
-<path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
-</svg></span>`
+class ConfirmAction {
+    constructor() {
+        this.reset()
+    }
+    reset() {
+        this.show = false
+        this.action = {
+            name: '',
+            label: '',
+            title: '',
+            class: '',
+            path: '',
+            text: '',
+            onDone: null,
+            onFail: null,
+        }
+        this.keys = []
+    }
+    confirm({ action, keys }) {
+        this.reset()
+        this.action = Object.assign(this.action, action)
+        this.keys = keys
+        this.show = true
+    }
+    cancel(event) {
+        if (event) {
+            event.preventDefault()
+        }
+        this.show = false
+        this.reset()
+    }
+}
 
-function escapeHTML(s) {
-    if (!s) {
+async function parseResponseError(resp) {
+    let text = undefined
+    try {
+        text = await resp.text()
+        let data = JSON.parse(text)
+        return data.error || text
+    } catch (err) {
+        return text || resp.statusText
+    }
+}
+
+class Toasts {
+    constructor() {
+        this.reset()
+    }
+
+    get class() {
+        if (this.level === 'error') {
+            return 'bg-orange-50 border border-orange-200 text-sm text-orange-600 rounded-md p-4'
+        } else if (this.level === 'info') {
+            return 'bg-blue-50 border border-blue-200 text-sm text-blue-600 rounded-md p-4'
+        }
         return ''
     }
-    s = s.replace(/&/g, '&amp;')
-    s = s.replace(/</g, '&lt;')
-    s = s.replace(/>/g, '&gt;')
-    return s
+    reset() {
+        this.show = false
+        this.pending = false
+        this.text = ''
+        this.level = ''
+    }
+    info(text, timeout = 6000) {
+        this.reset()
+        this.text = text
+        this.level = 'info'
+        this.show = true
+        setTimeout(() => {
+            this.reset()
+        }, timeout)
+    }
+    error(text, timeout = 10000) {
+        this.reset()
+        this.text = text
+        this.level = 'error'
+        this.show = true
+        setTimeout(() => {
+            this.reset()
+        }, timeout)
+    }
+    doing(text) {
+        this.reset()
+        this.text = text
+        this.pending = true
+        this.show = true
+    }
 }
 
 class QueryResult {
@@ -101,7 +170,7 @@ class QueryResult {
         this.rows.forEach(row => {
             row.selected = true
         })
-        document.getElementById('btn_selectall').checked = true
+        document.getElementById('btn_selectAll').checked = true
         this.selected = this.total
     }
 
@@ -143,7 +212,7 @@ class QueryResult {
     }
 
     onDeleteOne(event) {
-        Alpine.store('confirmAction', {
+        Alpine.store('confirmAction').confirm({
             action: {
                 method: 'DELETE',
                 label: 'Delete',
@@ -161,26 +230,19 @@ class QueryResult {
 
         Alpine.store('editobj', { mode: '' })
         Alpine.store('showedit', false)
-        Alpine.store('confirmAction', {})
+        Alpine.store('confirmAction').cancel()
 
         Alpine.store('current').doAction(action, keys).then(() => {
-            Alpine.store('doing', { pos: 0 })
-
             this.rows.forEach(row => {
                 row.selected = false
             })
             this.selected = 0
-            Alpine.store('info', `${action.name} all records done`)
+            document.getElementById('btn_selectAll').checked = false
+            Alpine.store('toasts').info(`${action.name} all records done`)
             this.refresh()
         }).catch(err => {
-            Alpine.store('doing', { pos: 0 })
-            Alpine.store('error', `${action.name} fail : ${err.toString()}`)
+            Alpine.store('toasts').error(`${action.name} fail : ${err.toString()}`)
         })
-    }
-
-    cancelAction(event, row) {
-        event.preventDefault()
-        Alpine.store('confirmAction', {})
     }
 }
 
@@ -293,7 +355,7 @@ class AdminObject {
                         keys.push(queryresult.rows[i].primaryValue)
                     }
                 }
-                Alpine.store('confirmAction', { action: action, keys })
+                Alpine.store('confirmAction').confirm({ action, keys })
             }
             if (!action.class) {
                 action.class = 'bg-white text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50'
@@ -311,6 +373,10 @@ class AdminObject {
             vals[key] = row[key]
         })
         return vals
+    }
+
+    get active() {
+        return Alpine.store('current') === this
     }
 
     get showSearch() {
@@ -331,7 +397,7 @@ class AdminObject {
             body: JSON.stringify(values),
         })
         if (resp.status != 200) {
-            throw new Error(resp.statusText)
+            throw new Error(await parseResponseError(resp))
         }
         return await resp.json()
     }
@@ -347,20 +413,21 @@ class AdminObject {
             body: JSON.stringify(values),
         })
         if (resp.status != 200) {
-            throw new Error(resp.statusText)
+            throw new Error(await parseResponseError(resp))
         }
         return await resp.json()
     }
 
     async doAction(action, keys) {
         for (let i = 0; i < keys.length; i++) {
-            Alpine.store('doing', { pos: i + 1, total: keys.length, action })
+            Alpine.store('toasts').doing(`${i + 1}/${keys.length}`)
             let params = new URLSearchParams(keys[i]).toString()
             let resp = await fetch(`${action.path}?${params}`, {
                 method: action.method || 'POST',
             })
             if (resp.status != 200) {
-                Alpine.store('error', `${action.name} fail : ${err.toString()}`)
+                let reason = await parseResponseError(resp)
+                Alpine.store('toasts').error(`${action.name} fail : ${reason}`)
                 if (action.onFail) {
                     let result = await resp.text()
                     action.onFail(keys[i], result)
@@ -372,6 +439,7 @@ class AdminObject {
                 action.onDone(keys[i], result)
             }
         }
+        Alpine.store('toasts').reset()
     }
 }
 
@@ -381,15 +449,13 @@ const adminapp = () => ({
     loadScripts: {},
     loadStyles: {},
     async init() {
+        Alpine.store('toasts', new Toasts())
         Alpine.store('queryresult', new QueryResult())
         Alpine.store('current', {})
         Alpine.store('showedit', false)
         Alpine.store('switching', false)
         Alpine.store('loading', true)
-        Alpine.store('confirmAction', {})
-        Alpine.store('doing', { pos: 0 })
-        Alpine.store('error', '')
-        Alpine.store('info', '')
+        Alpine.store('confirmAction', new ConfirmAction())
 
         this.$router.config({ mode: 'hash', base: '/admin/' })
         let resp = await fetch('./admin.json', {
@@ -502,7 +568,6 @@ const adminapp = () => ({
 
         if (this.$store.current) {
             if (this.$store.current === obj) return
-            this.$store.current.active = false
         }
 
         let elm = document.getElementById('query_content')
@@ -512,8 +577,6 @@ const adminapp = () => ({
         this.$store.queryresult.reset()
         this.$store.switching = true
         this.$store.current = obj
-        this.$store.current.active = true
-
         this.$router.push(obj.path)
 
         fetch(obj.listpage, {
@@ -579,8 +642,9 @@ const adminapp = () => ({
                         editobj.mode = 'edit'
                     }
                     this.$store.queryresult.refresh()
+                    Alpine.store('toasts').info(`Save Done`)
                 } catch (err) {
-                    console.error(err)
+                    Alpine.store('toasts').error(`Save Fail: ${err.toString()}`)
                     this.closeEdit(ev)
                 }
             },
