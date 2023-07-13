@@ -6,7 +6,7 @@
     <ul role="list" class="flex flex-1 flex-col gap-y-7">
       <template x-for="group in navmenus">
         <li>
-          <div class="text-xs font-semibold leading-6 text-gray-400" x-text="group.name"></div>
+          <div class="hidden lg:block text-xs font-semibold leading-6 text-gray-400" x-text="group.name"></div>
           <ul role="list" class="-mx-2 mt-2 space-y-1">
             <template x-for="item in group.items">
               <li>
@@ -28,7 +28,7 @@
                     <span x-text="item.pluralName[0]"
                       class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-sm font-medium bg-white border-gray-200 group-hover:border-indigo-600 group-hover:text-indigo-600"></span>
                   </template>
-                  <span class="truncate" x-text="item.pluralName"></span>
+                  <span class="hidden lg:block" x-text="item.pluralName"></span>
                 </a>
               </li>
             </template>

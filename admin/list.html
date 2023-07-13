@@ -39,103 +39,105 @@
         <div id="category_form">
           <!-- show category -->
         </div>
-        <div class="flex-col w-full">
-          <div id="result_head_form"></div>
-          <!-- show result path -->
-          <div id="result_form">
-            <!-- show result -->
-            <div class="overflow-y-scroll">
-              <table class="min-w-full border-separate border-spacing-0 shadow">
-                <thead>
-                  <tr class="relative">
-                    <!-- Column headers -->
-                    <template x-if="$store.current.actions.length > 0">
-                      <th scope="col" class="sticky border-b border-gray-300 relative px-7 sm:w-12 sm:px-6">
-                        <input type="checkbox" x-on:click="$store.queryresult.selectAll()" id="btn_selectAll"
-                          class="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600" />
-                      </th>
-                    </template>
-                    <template x-if="$store.current.shows">
-                      <template x-for="col in $store.current.shows">
-                        <th scope="col" x-text="col.headerName"
-                          class="sticky w-72 border-b border-gray-300 bg-opacity-75 py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
+        <div class="flex-grow overflow-y-scroll">
+          <div class="flex-col w-full">
+            <div id="result_head_form"></div>
+            <!-- show result path -->
+            <div id="result_form">
+              <!-- show result -->
+              <div class="overflow-y-scroll">
+                <table class="min-w-full border-separate border-spacing-0 shadow">
+                  <thead>
+                    <tr class="relative">
+                      <!-- Column headers -->
+                      <template x-if="$store.current.actions.length > 0">
+                        <th scope="col" class="sticky border-b border-gray-300 relative px-7 sm:w-12 sm:px-6">
+                          <input type="checkbox" x-on:click="$store.queryresult.selectAll()" id="btn_selectAll"
+                            class="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600" />
                         </th>
-                      </template></template>
-                    <!--Selected action bar-->
-                    <template x-if="$store.current.actions.length > 0 && $store.queryresult.selected">
-                      <div class="absolute top-0 left-14 flex h-12 items-center space-x-3 bg-gray-50 sm:left-12">
-                        <span class="font-semibold" x-text="$store.queryresult.selected"></span>
-                        <span>Selected</span>
-                        <a href="#" @click="$store.queryresult.selectResult($event)" class="text-gray-600">or Select
-                          result(<span class="font-semibold" x-text="$store.queryresult.total"></span>)</a>
-                        <template x-for="action in $store.current.actions">
-                          <button type="button" x-text="action.name" :class="action.class" @click="action.onclick()"
-                            class="inline-flex items-center rounded px-2 py-1 text-sm font-semibold shadow-sm"></button>
-                        </template>
-                      </div>
-                    </template>
-                  </tr>
-                </thead>
-                <tbody>
-                  <!-- Query result -->
-                  <template x-if="$store.queryresult.rows">
-                    <template x-for="(row,rowIdx) in $store.queryresult.rows">
-                      <tr class="bg-white hover:bg-gray-50">
-                        <template x-if="$store.current.actions.length > 0">
-                          <td class="border-b border-gray-200 relative px-7 sm:w-12 sm:px-6">
-                            <input type="checkbox" x-model="row.selected"
-                              @click="$store.queryresult.onselect($event, row)"
-                              class="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600" />
-                          </td>
-                        </template>
-                        <template x-for="(col,colIdx) in row.cols">
-                          <td
-                            class="whitespace-nowrap border-b border-gray-200 py-3 pl-4 pr-3 text-sm text-gray-900 sm:pl-6 lg:pl-8">
-                            <template x-if="colIdx === 0">
-                              <a href="#" @click="editObject($event, $store.queryresult.rows[rowIdx])"
-                                class="text-indigo-600 hover:text-indigo-900">
+                      </template>
+                      <template x-if="$store.current.shows">
+                        <template x-for="col in $store.current.shows">
+                          <th scope="col" x-text="col.headerName"
+                            class="sticky w-72 border-b border-gray-300 bg-opacity-75 py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
+                          </th>
+                        </template></template>
+                      <!--Selected action bar-->
+                      <template x-if="$store.current.actions.length > 0 && $store.queryresult.selected">
+                        <div class="absolute top-0 left-14 flex h-12 items-center space-x-3 bg-gray-50 sm:left-12">
+                          <span class="font-semibold" x-text="$store.queryresult.selected"></span>
+                          <span>Selected</span>
+                          <a href="#" @click="$store.queryresult.selectResult($event)" class="text-gray-600">or Select
+                            result(<span class="font-semibold" x-text="$store.queryresult.total"></span>)</a>
+                          <template x-for="action in $store.current.actions">
+                            <button type="button" x-text="action.name" :class="action.class" @click="action.onclick()"
+                              class="inline-flex items-center rounded px-2 py-1 text-sm font-semibold shadow-sm"></button>
+                          </template>
+                        </div>
+                      </template>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <!-- Query result -->
+                    <template x-if="$store.queryresult.rows">
+                      <template x-for="(row,rowIdx) in $store.queryresult.rows">
+                        <tr class="bg-white hover:bg-gray-50">
+                          <template x-if="$store.current.actions.length > 0">
+                            <td class="border-b border-gray-200 relative px-7 sm:w-12 sm:px-6">
+                              <input type="checkbox" x-model="row.selected"
+                                @click="$store.queryresult.onselect($event, row)"
+                                class="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600" />
+                            </td>
+                          </template>
+                          <template x-for="(col,colIdx) in row.cols">
+                            <td
+                              class="whitespace-nowrap border-b border-gray-200 py-3 pl-4 pr-3 text-sm text-gray-900 sm:pl-6 lg:pl-8">
+                              <template x-if="colIdx === 0">
+                                <a href="#" @click="editObject($event, $store.queryresult.rows[rowIdx])"
+                                  class="text-indigo-600 hover:text-indigo-900">
+                                  <div x-admin-render="col"></div>
+                                </a>
+                              </template>
+                              <template x-if="colIdx !== 0">
                                 <div x-admin-render="col"></div>
-                              </a>
-                            </template>
-                            <template x-if="colIdx !== 0">
-                              <div x-admin-render="col"></div>
-                            </template>
-                          </td>
-                        </template>
-                      </tr>
+                              </template>
+                            </td>
+                          </template>
+                        </tr>
+                      </template>
                     </template>
-                  </template>
-                </tbody>
-              </table>
-            </div>
-            <nav class="border-t border-gray-200 bg-white px-4 py-3 sm:px-6" aria-label="Pagination">
-              <template x-if="$store.queryresult.total === 0">
-                <div class="hidden sm:block">
-                  <p class="text-sm text-gray-700">No results found.</p>
-                </div>
-              </template>
-              <template x-if="$store.queryresult.total">
-                <div class="flex items-center justify-between">
+                  </tbody>
+                </table>
+              </div>
+              <nav class="border-t border-gray-200 bg-white px-4 py-3 sm:px-6" aria-label="Pagination">
+                <template x-if="$store.queryresult.total === 0">
                   <div class="hidden sm:block">
-                    <p class="text-sm text-gray-700">
-                      Showing
-                      <span class="font-medium" x-text="$store.queryresult.pos_value"></span>
-                      to
-                      <span class="font-medium" x-text="$store.queryresult.pos + $store.queryresult.count"></span>
-                      of
-                      <span class="font-medium" x-text="$store.queryresult.total"></span>
-                      results
-                    </p>
+                    <p class="text-sm text-gray-700">No results found.</p>
                   </div>
-                  <div class="flex flex-1 justify-between sm:justify-end">
-                    <a href="#" x-on:click="$store.queryresult.queryprev($event)"
-                      class="relative inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus-visible:outline-offset-0">Previous</a>
-                    <a href="#" x-on:click="$store.queryresult.querynext($event)"
-                      class="relative ml-3 inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus-visible:outline-offset-0">Next</a>
+                </template>
+                <template x-if="$store.queryresult.total">
+                  <div class="flex items-center justify-between">
+                    <div class="hidden sm:block">
+                      <p class="text-sm text-gray-700">
+                        Showing
+                        <span class="font-medium" x-text="$store.queryresult.pos_value"></span>
+                        to
+                        <span class="font-medium" x-text="$store.queryresult.pos + $store.queryresult.count"></span>
+                        of
+                        <span class="font-medium" x-text="$store.queryresult.total"></span>
+                        results
+                      </p>
+                    </div>
+                    <div class="flex flex-1 justify-between sm:justify-end">
+                      <a href="#" x-on:click="$store.queryresult.queryprev($event)"
+                        class="relative inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus-visible:outline-offset-0">Previous</a>
+                      <a href="#" x-on:click="$store.queryresult.querynext($event)"
+                        class="relative ml-3 inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus-visible:outline-offset-0">Next</a>
+                    </div>
                   </div>
-                </div>
-              </template>
-            </nav>
+                </template>
+              </nav>
+            </div>
           </div>
         </div>
       </div>
