@@ -1,34 +1,32 @@
-<template x-if="$store.editobj && $store.editobj.mode != '' && $store.editobj.fields">
-    <div class="mt-4 mx-auto max-w-2xl">
-        <div class="p-4 flex-grow bg-white rounded-lg shadow mx-6">
-            <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left pb-4 border-b">
-                <template x-for="field in $store.editobj.fields">
+<div class="mt-4 mx-auto max-w-2xl" x-data="{editobj:$store.editobj}">
+    <div class="p-4 flex-grow bg-white rounded-lg shadow mx-6">
+        <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left pb-4 border-b">
+            <template x-for="field in editobj.fields">
+                <div class="mt-2">
+                    <label class="block text-sm font-medium leading-6" x-admin-edit-label="field"></label>
                     <div class="mt-2">
-                        <label class="block text-sm font-medium leading-6" x-admin-edit-label="field"></label>
-                        <div class="mt-2">
-                            <div x-admin-edit="field"></div>
-                        </div>
+                        <div x-admin-edit="field"></div>
+                    </div>
+                </div>
+            </template>
+        </div>
+        <div class="justify-end">
+            <div class="space-x-3 pl-2 mt-4">
+                <template x-if="editobj.mode == 'create'">
+                    <div class="flex mt-5 sm:mt-4 sm:flex ">
+                        <button type="button" x-on:click="editobj.doSave($event)"
+                            class="mt-3 inline-flex w-full rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto">Create</button>
+                    </div>
+                </template>
+                <template x-if="editobj.mode == 'edit'">
+                    <div class="flex mt-5 sm:mt-4 sm:flex space-x-3">
+                        <button type="button" x-on:click="editobj.doSave($event)"
+                            class="mt-3 inline-flex w-full rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto">Save</button>
+                        <button type="button" x-on:click="$store.queryresult.onDeleteOne($event)"
+                            class="inline-flex w-full rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:ml-3 sm:w-auto">Delete</button>
                     </div>
                 </template>
             </div>
-            <div class="justify-end">
-                <div class="space-x-3 pl-2 mt-4">
-                    <template x-if="$store.editobj.mode == 'create'">
-                        <div class="flex mt-5 sm:mt-4 sm:flex ">
-                            <button type="button" x-on:click="$store.editobj.doSave($event)"
-                                class="mt-3 inline-flex w-full rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto">Create</button>
-                        </div>
-                    </template>
-                    <template x-if="$store.editobj.mode == 'edit'">
-                        <div class="flex mt-5 sm:mt-4 sm:flex space-x-3">
-                            <button type="button" x-on:click="$store.editobj.doSave($event)"
-                                class="mt-3 inline-flex w-full rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto">Save</button>
-                            <button type="button" x-on:click="$store.queryresult.onDeleteOne($event)"
-                                class="inline-flex w-full rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:ml-3 sm:w-auto">Delete</button>
-                        </div>
-                    </template>
-                </div>
-            </div>
         </div>
     </div>
-</template>
+</div>

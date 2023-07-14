@@ -521,12 +521,8 @@ const adminapp = () => ({
         this.loadSidebar()
         this.loadAllScripts(objects)
 
-        this.$watch('$store.loading', val => {
-            if (val === false) {
-                this.onLoad()
-            }
-        })
         this.$store.loading = false
+        this.onLoad()
     },
 
     loadAllScripts(objects) {
@@ -616,9 +612,6 @@ const adminapp = () => ({
         if (this.$store.current) {
             if (this.$store.current === obj) return
         }
-
-        let elm = document.getElementById('query_content')
-        elm.innerHTML = ''
         this.closeEdit()
 
         this.$store.queryresult.reset()
@@ -630,6 +623,7 @@ const adminapp = () => ({
             cache: "no-store",
         }).then(resp => {
             resp.text().then(text => {
+                const elm = document.getElementById('query_content')
                 if (!this.injectHtml(elm, text, obj)) {
                     this.$store.queryresult.refresh()
                 }
@@ -711,8 +705,6 @@ const adminapp = () => ({
         let elm = document.getElementById('edit_form')
         if (elm) {
             elm.innerHTML = ''
-        } else {
-            console.error('edit_form not found')
         }
         if (this.$store.editobj) {
             this.$store.editobj.closeEdit(event, cancel)
