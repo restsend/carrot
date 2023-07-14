@@ -1,6 +1,6 @@
 <div class="mt-8 flow-root">
   <div class="-mx-4 -my-2 sm:-mx-6 lg:-mx-8">
-    <div class="inline-block w-96 min-w-full py-2 align-middle">
+    <div class="py-2">
       <div class="flex justify-between">
         <div class="flex mb-2 items-center" id="filter_form">
           <div class="relative mt-2 rounded-md shadow-sm">
@@ -39,14 +39,14 @@
         <div id="category_form">
           <!-- show category -->
         </div>
-        <div class="flex-grow overflow-y-scroll">
-          <div class="flex-col w-full">
+        <div class="w-full">
+          <div class="w-full">
             <div id="result_head_form"></div>
             <!-- show result path -->
             <div id="result_form">
               <!-- show result -->
-              <div class="overflow-y-scroll">
-                <table class="min-w-full border-separate border-spacing-0 shadow">
+              <div class="overflow-x-auto">
+                <table class="w-full border-separate border-spacing-0 shadow">
                   <thead>
                     <tr class="relative">
                       <!-- Column headers -->
@@ -77,11 +77,11 @@
                       </template>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody class="overflow-y-scroll">
                     <!-- Query result -->
                     <template x-if="$store.queryresult.rows">
                       <template x-for="(row,rowIdx) in $store.queryresult.rows">
-                        <tr class="bg-white hover:bg-gray-50">
+                        <tr class="hover:bg-gray-50" :class="row.selected?'bg-gray-50':'bg-white'">
                           <template x-if="$store.current.actions.length > 0">
                             <td class="border-b border-gray-200 relative px-7 sm:w-12 sm:px-6">
                               <input type="checkbox" x-model="row.selected"
@@ -109,36 +109,36 @@
                   </tbody>
                 </table>
               </div>
-              <nav class="border-t border-gray-200 bg-white px-4 py-3 sm:px-6" aria-label="Pagination">
-                <template x-if="$store.queryresult.total === 0">
-                  <div class="hidden sm:block">
-                    <p class="text-sm text-gray-700">No results found.</p>
-                  </div>
-                </template>
-                <template x-if="$store.queryresult.total">
-                  <div class="flex items-center justify-between">
-                    <div class="hidden sm:block">
-                      <p class="text-sm text-gray-700">
-                        Showing
-                        <span class="font-medium" x-text="$store.queryresult.pos_value"></span>
-                        to
-                        <span class="font-medium" x-text="$store.queryresult.pos + $store.queryresult.count"></span>
-                        of
-                        <span class="font-medium" x-text="$store.queryresult.total"></span>
-                        results
-                      </p>
-                    </div>
-                    <div class="flex flex-1 justify-between sm:justify-end">
-                      <a href="#" x-on:click="$store.queryresult.queryprev($event)"
-                        class="relative inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus-visible:outline-offset-0">Previous</a>
-                      <a href="#" x-on:click="$store.queryresult.querynext($event)"
-                        class="relative ml-3 inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus-visible:outline-offset-0">Next</a>
-                    </div>
-                  </div>
-                </template>
-              </nav>
             </div>
           </div>
+          <nav class="border-t border-gray-200 bg-white px-4 py-3 sm:px-6 max-w-full" aria-label="Pagination">
+            <template x-if="$store.queryresult.total === 0">
+              <div class="hidden sm:block">
+                <p class="text-sm text-gray-700">No results found.</p>
+              </div>
+            </template>
+            <template x-if="$store.queryresult.total">
+              <div class="flex items-center justify-between">
+                <div class="hidden sm:block">
+                  <p class="text-sm text-gray-700">
+                    Showing
+                    <span class="font-medium" x-text="$store.queryresult.pos_value"></span>
+                    to
+                    <span class="font-medium" x-text="$store.queryresult.pos + $store.queryresult.count"></span>
+                    of
+                    <span class="font-medium" x-text="$store.queryresult.total"></span>
+                    results
+                  </p>
+                </div>
+                <div class="flex flex-1 justify-between sm:justify-end">
+                  <a href="#" x-on:click="$store.queryresult.queryprev($event)"
+                    class="relative inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus-visible:outline-offset-0">Previous</a>
+                  <a href="#" x-on:click="$store.queryresult.querynext($event)"
+                    class="relative ml-3 inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus-visible:outline-offset-0">Next</a>
+                </div>
+              </div>
+            </template>
+          </nav>
         </div>
       </div>
     </div>

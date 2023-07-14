@@ -6,13 +6,13 @@
     <ul role="list" class="flex flex-1 flex-col gap-y-7">
       <template x-for="group in navmenus">
         <li>
-          <div class="hidden lg:block text-xs font-semibold leading-6 text-gray-400" x-text="group.name"></div>
+          <div class="hidden md:block text-xs font-semibold leading-6 text-gray-400" x-text="group.name"></div>
           <ul role="list" class="-mx-2 mt-2 space-y-1">
             <template x-for="item in group.items">
-              <li>
+              <li class="mx-auto w-full group/item ">
                 <!-- Current: "bg-gray-50 text-indigo-600", Default: "text-gray-700 hover:text-indigo-600 hover:bg-gray-50" -->
                 <a href="#" x-on:click="switchObject($event, item)"
-                  class="text-gray-800 hover:text-indigo-600 hover:bg-gray-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
+                  class="justify-center md:justify-start text-gray-800 hover:text-indigo-600 hover:bg-gray-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
                   :class="item.active?'text-indigo-600 bg-gray-50':''">
                   <template x-if="item.icon && item.icon.url">
                     <img :src="item.icon.url" :alt="item.icon.alt"
@@ -28,7 +28,7 @@
                     <span x-text="item.pluralName[0]"
                       class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-sm font-medium bg-white border-gray-200 group-hover:border-indigo-600 group-hover:text-indigo-600"></span>
                   </template>
-                  <span class="hidden lg:block" x-text="item.pluralName"></span>
+                  <span class="hidden md:block" x-text="item.pluralName"></span>
                 </a>
               </li>
             </template>
@@ -37,8 +37,8 @@
       </template>
       <li class="-mx-6 mt-auto">
         <span
-          class="flex justify-between items-center px-6 py-3 text-sm font-semibold leading-6 text-gray-900 hover:bg-gray-50">
-          <div class="flex items-center gap-x-4">
+          class="flex justify-center md:justify-between items-center px-6 py-3 text-sm font-semibold leading-6 text-gray-900 hover:bg-gray-50">
+          <div class="hidden md:flex truncate items-center gap-x-4">
             <template x-if="user.avatar">
               <img class="h-8 w-8 rounded-full bg-gray-50" :src="user.avatar" alt="" />
             </template>
@@ -50,13 +50,15 @@
             <span class="sr-only" x-text="user.name"></span>
             <span aria-hidden="true" x-text="user.name"></span>
           </div>
-          <a href="/auth/logout?next=/" class="flex flex-end text-sm leading-6 text-gray-900 hover:bg-gray-50">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
-              stroke="currentColor" class="w-6 h-6">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
-            </svg>
-          </a>
+          <div>
+            <a href="/auth/logout?next=/" class="flex flex-end text-sm leading-6 text-gray-900 hover:bg-gray-50">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                stroke="currentColor" class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+              </svg>
+            </a>
+          </div>
         </span>
       </li>
     </ul>
