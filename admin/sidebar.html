@@ -16,12 +16,12 @@
                   :class="item.active?'text-indigo-600 bg-gray-50':''">
                   <template x-if="item.icon && item.icon.url">
                     <img :src="item.icon.url" :alt="item.icon.alt"
-                      class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border bg-white group-hover:border-indigo-600 group-hover:text-indigo-600"
+                      class="flex h-6 w-6 shrink-0 items-center justify-center group-hover:text-indigo-600"
                       :class="item.active?'text-indigo-600 border-indigo-600':'text-gray-500'" />
                   </template>
                   <template x-if="item.icon && item.icon.svg">
                     <span x-html="item.icon.svg"
-                      class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border bg-white group-hover:border-indigo-600 group-hover:text-indigo-600"
+                      class="flex h-6 w-6 shrink-0 items-center justify-center group-hover:text-indigo-600"
                       :class="item.active?'text-indigo-600 border-indigo-600':'text-gray-500'"></span>
                   </template>
                   <template x-if="!item.icon">
@@ -44,7 +44,7 @@
             </template>
             <template x-if="!user.avatar">
               <span
-                class="uppercase flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-[0.625rem] font-medium bg-white text-gray-400 border-indigo-400"
+                class="uppercase flex h-8 w-8 shrink-0 items-center justify-center rounded-full border font-medium bg-white text-gray-700 border-indigo-400"
                 x-text="user.name[0]"></span>
             </template>
             <span class="sr-only" x-text="user.name"></span>
