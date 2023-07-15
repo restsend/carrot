@@ -29,9 +29,10 @@ func AbortWithJSONError(c *gin.Context, code int, err error) {
 		}
 		errWithFileNum = fmt.Errorf("%s:%d: %v", file, line, err)
 	}
-
-	if !c.IsAborted() {
-		c.Error(errWithFileNum)
+	c.Error(errWithFileNum)
+	if c.IsAborted() {
+		c.JSON(code, gin.H{"error": err.Error()})
+	} else {
 		c.AbortWithStatusJSON(code, gin.H{"error": err.Error()})
 	}
 }

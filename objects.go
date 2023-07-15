@@ -178,14 +178,10 @@ func (obj *WebObject) RegisterObject(r *gin.RouterGroup) error {
 	if allowMethods == 0 {
 		allowMethods = GET | CREATE | EDIT | DELETE | QUERY | BATCH
 	}
-	var primaryKeyPath []string
-	for _, v := range obj.uniqueKeys {
-		primaryKeyPath = append(primaryKeyPath, ":"+v.JSONName)
-	}
-	primaryKeyPathStr := filepath.Join(p, filepath.Join(primaryKeyPath...))
-
+	primaryKeyPath := obj.BuildPrimaryPath(p)
+	log.Println("primaryKeyPath", primaryKeyPath)
 	if allowMethods&GET != 0 {
-		r.GET(primaryKeyPathStr, func(c *gin.Context) {
+		r.GET(primaryKeyPath, func(c *gin.Context) {
 			handleGetObject(c, obj)
 		})
 	}
@@ -195,13 +191,13 @@ func (obj *WebObject) RegisterObject(r *gin.RouterGroup) error {
 		})
 	}
 	if allowMethods&EDIT != 0 {
-		r.PATCH(primaryKeyPathStr, func(c *gin.Context) {
+		r.PATCH(primaryKeyPath, func(c *gin.Context) {
 			handleEditObject(c, obj)
 		})
 	}
 
 	if allowMethods&DELETE != 0 {
-		r.DELETE(primaryKeyPathStr, func(c *gin.Context) {
+		r.DELETE(primaryKeyPath, func(c *gin.Context) {
 			handleDeleteObject(c, obj)
 		})
 	}
@@ -235,6 +231,14 @@ func (obj *WebObject) RegisterObject(r *gin.RouterGroup) error {
 	}
 
 	return nil
+}
+
+func (obj *WebObject) BuildPrimaryPath(prefix string) string {
+	var primaryKeyPath []string
+	for _, v := range obj.uniqueKeys {
+		primaryKeyPath = append(primaryKeyPath, ":"+v.JSONName)
+	}
+	return filepath.Join(prefix, filepath.Join(primaryKeyPath...))
 }
 
 func (obj *WebObject) getPrimaryValues(c *gin.Context) ([]string, error) {

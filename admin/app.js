@@ -127,6 +127,10 @@ class QueryResult {
             })
             return row
         })
+
+        if (current.prepareResult) {
+            current.prepareResult(this.rows, this.total)
+        }
     }
 
     get pos_value() {
@@ -200,10 +204,10 @@ class QueryResult {
             filters: this.filters,
             orders: this.orders
         }
-        let path = Alpine.store('current').path
+        let current = Alpine.store('current')
         this.rows = []
 
-        fetch(path, {
+        fetch(current.path, {
             method: 'POST',
             body: JSON.stringify(query),
         }).then(resp => {
@@ -247,12 +251,17 @@ class QueryResult {
     }
 }
 class EditObject {
-    constructor({ mode, title, fields, names, primaryValue }) {
+    constructor({ mode, title, fields, names, primaryValue, row }) {
         this.mode = mode
         this.title = title
         this.fields = fields
         this.names = names
         this.primaryValue = primaryValue
+        this.row = row
+    }
+
+    get api_url() {
+        return Alpine.store('current').buildApiUrl(this.row)
     }
 
     async doSave(ev, closeWhenDone = true) {
@@ -407,7 +416,21 @@ class AdminObject {
         })
         return vals
     }
-
+    buildApiUrl(row) {
+        if (!row) {
+            return ''
+        }
+        let vals = ['api', this.name.toLowerCase()]
+        this.primaryKey.forEach(key => {
+            vals.push(`${row[key]}`)
+        })
+        let config = Alpine.store('config')
+        let api_host = config.api_host || location.origin
+        if (!api_host.endsWith('/')) {
+            api_host += '/'
+        }
+        return `${api_host}${vals.join('/')}`
+    }
     get active() {
         return Alpine.store('current') === this
     }
@@ -670,6 +693,7 @@ const adminapp = () => ({
                 fields: fields,
                 names,
                 primaryValue: row ? row.primaryValue : undefined,
+                row
             })
 
         let current = this.$store.current
