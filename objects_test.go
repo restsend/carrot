@@ -146,8 +146,8 @@ func TestObjectQuery(t *testing.T) {
 		Filterables: []string{"Name", "Age", "Birthday", "Enabled"},
 		Searchables: []string{"Name"},
 
-		BeforeRender: func(db *gorm.DB, c *gin.Context, obj any) error {
-			return nil
+		BeforeRender: func(db *gorm.DB, c *gin.Context, obj any) (any, error) {
+			return obj, nil
 		},
 	}
 	err := webobject.RegisterObject(&r.RouterGroup)
@@ -758,12 +758,12 @@ func initHookTest(t *testing.T) (TestClient, *gorm.DB) {
 			}
 			return nil
 		},
-		BeforeRender: func(db *gorm.DB, ctx *gin.Context, vptr any) error {
+		BeforeRender: func(db *gorm.DB, ctx *gin.Context, vptr any) (any, error) {
 			user := (vptr).(*tuser)
 			if user.Name != "alice" {
 				user.Age = 99
 			}
-			return nil
+			return vptr, nil
 		},
 		BeforeDelete: func(db *gorm.DB, ctx *gin.Context, vptr any) error {
 			user := (vptr).(*tuser)

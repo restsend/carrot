@@ -786,10 +786,14 @@ func (obj *AdminObject) handleGetOne(c *gin.Context) {
 	}
 
 	if obj.BeforeRender != nil {
-		err := obj.BeforeRender(db, c, modelObj)
+		rr, err := obj.BeforeRender(db, c, modelObj)
 		if err != nil {
 			AbortWithJSONError(c, http.StatusInternalServerError, err)
 			return
+		}
+		if rr != nil {
+			// if BeforeRender return not nil, then use it as result
+			modelObj = rr
 		}
 	}
 
@@ -874,9 +878,13 @@ func (obj *AdminObject) QueryObjects(db *gorm.DB, form *QueryForm, ctx *gin.Cont
 		modelObj := vals.Elem().Index(i).Interface()
 		r.objects = append(r.objects, modelObj)
 		if obj.BeforeRender != nil {
-			err := obj.BeforeRender(db, ctx, modelObj)
+			rr, err := obj.BeforeRender(db, ctx, modelObj)
 			if err != nil {
 				return r, err
+			}
+			if rr != nil {
+				// if BeforeRender return not nil, then use it as result
+				modelObj = rr
 			}
 		}
 		item, err := obj.MarshalOne(modelObj)

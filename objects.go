@@ -51,13 +51,19 @@ type (
 	BeforeCreateFunc func(db *gorm.DB, ctx *gin.Context, vptr any) error
 	BeforeDeleteFunc func(db *gorm.DB, ctx *gin.Context, vptr any) error
 	BeforeUpdateFunc func(db *gorm.DB, ctx *gin.Context, vptr any, vals map[string]any) error
-	BeforeRenderFunc func(db *gorm.DB, ctx *gin.Context, vptr any) error
+	BeforeRenderFunc func(db *gorm.DB, ctx *gin.Context, vptr any) (any, error)
 )
 
 type QueryView struct {
 	Name    string
 	Method  string
 	Prepare PrepareQuery
+}
+type WebObjectPrimaryField struct {
+	IsPrimary bool
+	Name      string
+	Kind      reflect.Kind
+	JSONName  string
 }
 
 type WebObject struct {
@@ -77,9 +83,9 @@ type WebObject struct {
 	Views        []QueryView
 	AllowMethods int
 
-	PrimaryKeyName     string
-	PrimaryKeyJsonName string
-	tableName          string
+	primaryKey *WebObjectPrimaryField
+	uniqueKeys []WebObjectPrimaryField
+	tableName  string
 
 	// Model type
 	modelElem reflect.Type
@@ -172,9 +178,14 @@ func (obj *WebObject) RegisterObject(r *gin.RouterGroup) error {
 	if allowMethods == 0 {
 		allowMethods = GET | CREATE | EDIT | DELETE | QUERY | BATCH
 	}
+	var primaryKeyPath []string
+	for _, v := range obj.uniqueKeys {
+		primaryKeyPath = append(primaryKeyPath, ":"+v.JSONName)
+	}
+	primaryKeyPathStr := filepath.Join(p, filepath.Join(primaryKeyPath...))
 
 	if allowMethods&GET != 0 {
-		r.GET(filepath.Join(p, ":key"), func(c *gin.Context) {
+		r.GET(primaryKeyPathStr, func(c *gin.Context) {
 			handleGetObject(c, obj)
 		})
 	}
@@ -184,13 +195,13 @@ func (obj *WebObject) RegisterObject(r *gin.RouterGroup) error {
 		})
 	}
 	if allowMethods&EDIT != 0 {
-		r.PATCH(filepath.Join(p, ":key"), func(c *gin.Context) {
+		r.PATCH(primaryKeyPathStr, func(c *gin.Context) {
 			handleEditObject(c, obj)
 		})
 	}
 
 	if allowMethods&DELETE != 0 {
-		r.DELETE(filepath.Join(p, ":key"), func(c *gin.Context) {
+		r.DELETE(primaryKeyPathStr, func(c *gin.Context) {
 			handleDeleteObject(c, obj)
 		})
 	}
@@ -226,6 +237,28 @@ func (obj *WebObject) RegisterObject(r *gin.RouterGroup) error {
 	return nil
 }
 
+func (obj *WebObject) getPrimaryValues(c *gin.Context) ([]string, error) {
+	var result []string
+	for _, field := range obj.uniqueKeys {
+		v := c.Param(field.JSONName)
+		if v == "" {
+			return nil, fmt.Errorf("invalid primary: %s", field.JSONName)
+		}
+		result = append(result, v)
+	}
+	return result, nil
+}
+
+func (obj *WebObject) buildPrimaryCondition(db *gorm.DB, keys []string) *gorm.DB {
+	var tx *gorm.DB
+	for i := 0; i < len(obj.uniqueKeys); i++ {
+		colName := obj.uniqueKeys[i].Name
+		col := db.NamingStrategy.ColumnName(obj.tableName, colName)
+		tx = db.Where(col, keys[i])
+	}
+	return tx
+}
+
 func RegisterObject(r *gin.RouterGroup, obj *WebObject) error {
 	return obj.RegisterObject(r)
 }
@@ -246,8 +279,8 @@ func (obj *WebObject) Build() error {
 	if rt.Kind() == reflect.Ptr {
 		rt = rt.Elem()
 	}
-	obj.modelElem = rt
 
+	obj.modelElem = rt
 	obj.tableName = obj.modelElem.Name()
 
 	if obj.Name == "" {
@@ -258,10 +291,13 @@ func (obj *WebObject) Build() error {
 	obj.jsonToKinds = make(map[string]reflect.Kind)
 	obj.parseFields(obj.modelElem)
 
-	if obj.PrimaryKeyName == "" {
-		return fmt.Errorf("%s not has primaryKey", obj.Name)
+	if obj.primaryKey != nil {
+		obj.uniqueKeys = []WebObjectPrimaryField{*obj.primaryKey}
 	}
 
+	if len(obj.uniqueKeys) == 0 {
+		return fmt.Errorf("%s not has primaryKey", obj.Name)
+	}
 	return nil
 }
 
@@ -273,6 +309,7 @@ func (obj *WebObject) parseFields(rt reflect.Type) {
 
 		if f.Anonymous && f.Type.Kind() == reflect.Struct {
 			obj.parseFields(f.Type)
+			continue
 		}
 
 		jsonTag := f.Tag.Get("json")
@@ -294,21 +331,20 @@ func (obj *WebObject) parseFields(rt reflect.Type) {
 			obj.jsonToKinds[jsonTag] = kind
 		}
 
-		gormTag := f.Tag.Get("gorm")
+		gormTag := strings.ToLower(f.Tag.Get("gorm"))
 		if gormTag == "-" {
 			continue
 		}
-
-		if !strings.Contains(gormTag, "primarykey") &&
-			!strings.Contains(gormTag, "primaryKey") {
-			continue
+		pkField := WebObjectPrimaryField{
+			Name:      f.Name,
+			JSONName:  strings.Split(jsonTag, ",")[0],
+			Kind:      f.Type.Kind(),
+			IsPrimary: strings.Contains(gormTag, "primarykey"),
 		}
-
-		obj.PrimaryKeyName = f.Name
-		if jsonTag == "" || jsonTag == "-" {
-			obj.PrimaryKeyJsonName = f.Name
-		} else {
-			obj.PrimaryKeyJsonName = jsonTag
+		if pkField.IsPrimary {
+			obj.primaryKey = &pkField
+		} else if strings.Contains(gormTag, "unique") {
+			obj.uniqueKeys = append(obj.uniqueKeys, pkField)
 		}
 	}
 }
@@ -321,14 +357,15 @@ func getDbConnection(c *gin.Context, objFn GetDB, isCreate bool) *gorm.DB {
 }
 
 func handleGetObject(c *gin.Context, obj *WebObject) {
-	key := c.Param("key")
+	keys, err := obj.getPrimaryValues(c)
+	if err != nil {
+		AbortWithJSONError(c, http.StatusBadRequest, err)
+		return
+	}
 	db := getDbConnection(c, obj.GetDB, false)
-
 	// the real name of the primaryKey column
-	pkColName := db.NamingStrategy.ColumnName(obj.tableName, obj.PrimaryKeyName)
-
 	val := reflect.New(obj.modelElem).Interface()
-	result := db.Where(pkColName, key).Take(&val)
+	result := obj.buildPrimaryCondition(db, keys).Take(&val)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			AbortWithJSONError(c, http.StatusNotFound, errors.New("not found"))
@@ -339,9 +376,13 @@ func handleGetObject(c *gin.Context, obj *WebObject) {
 	}
 
 	if obj.BeforeRender != nil {
-		if err := obj.BeforeRender(db, c, val); err != nil {
+		rr, err := obj.BeforeRender(db, c, val)
+		if err != nil {
 			AbortWithJSONError(c, http.StatusInternalServerError, err)
 			return
+		}
+		if rr != nil {
+			val = rr
 		}
 	}
 
@@ -373,7 +414,11 @@ func handleCreateObject(c *gin.Context, obj *WebObject) {
 }
 
 func handleEditObject(c *gin.Context, obj *WebObject) {
-	key := c.Param("key")
+	keys, err := obj.getPrimaryValues(c)
+	if err != nil {
+		AbortWithJSONError(c, http.StatusBadRequest, err)
+		return
+	}
 
 	var inputVals map[string]any
 	if err := c.BindJSON(&inputVals); err != nil {
@@ -386,7 +431,9 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 	var vals map[string]any = map[string]any{}
 
 	// can't edit primaryKey
-	delete(inputVals, obj.PrimaryKeyJsonName)
+	for _, k := range obj.uniqueKeys {
+		delete(inputVals, k.JSONName)
+	}
 
 	for k, v := range inputVals {
 		if v == nil {
@@ -428,11 +475,12 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 		return
 	}
 
-	pkColName := db.NamingStrategy.ColumnName(obj.tableName, obj.PrimaryKeyName)
+	model := reflect.New(obj.modelElem).Interface()
+	db = obj.buildPrimaryCondition(db.Model(model), keys)
 
 	if obj.BeforeUpdate != nil {
 		val := reflect.New(obj.modelElem).Interface()
-		if err := db.First(val, pkColName, key).Error; err != nil {
+		if err := db.First(val).Error; err != nil {
 			AbortWithJSONError(c, http.StatusNotFound, errors.New("not found"))
 			return
 		}
@@ -442,8 +490,7 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 		}
 	}
 
-	model := reflect.New(obj.modelElem).Interface()
-	result := db.Model(model).Where(pkColName, key).Updates(vals)
+	result := db.Updates(vals)
 	if result.Error != nil {
 		AbortWithJSONError(c, http.StatusInternalServerError, result.Error)
 		return
@@ -453,13 +500,16 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 }
 
 func handleDeleteObject(c *gin.Context, obj *WebObject) {
-	key := c.Param("key")
-	db := getDbConnection(c, obj.GetDB, false)
+	keys, err := obj.getPrimaryValues(c)
+	if err != nil {
+		AbortWithJSONError(c, http.StatusBadRequest, err)
+		return
+	}
 
-	pkColName := db.NamingStrategy.ColumnName(obj.tableName, obj.PrimaryKeyName)
+	db := getDbConnection(c, obj.GetDB, false)
 	val := reflect.New(obj.modelElem).Interface()
 
-	r := db.First(val, pkColName, key)
+	r := obj.buildPrimaryCondition(db, keys).First(val)
 
 	// for gorm delete hook, need to load model first.
 	if r.Error != nil {
@@ -589,9 +639,13 @@ func handleQueryObject(c *gin.Context, obj *WebObject, prepareQuery PrepareQuery
 		if vals.Kind() == reflect.Slice {
 			for i := 0; i < vals.Len(); i++ {
 				v := vals.Index(i).Addr().Interface()
-				if err := obj.BeforeRender(db, c, v); err != nil {
+				rr, err := obj.BeforeRender(db, c, v)
+				if err != nil {
 					AbortWithJSONError(c, http.StatusInternalServerError, err)
 					return
+				}
+				if rr != nil {
+					v = rr
 				}
 				vals.Index(i).Set(reflect.ValueOf(v).Elem())
 			}
