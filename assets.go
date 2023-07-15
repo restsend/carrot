@@ -141,10 +141,13 @@ func (as *StaticAssets) InitStaticAssets(r *gin.Engine) {
 	if staticPrefix == "" {
 		staticPrefix = "/static"
 	}
+
 	staticDir := HintAssetsRoot("static")
 
 	Warning("static serving at", staticPrefix, "->", staticDir)
-	r.StaticFS(staticPrefix, NewCombineEmbedFS(staticDir, EmbedFS{"admin", EmbedAdminAssets}))
+	r.StaticFS(staticPrefix, NewCombineEmbedFS(staticDir,
+		EmbedFS{"static", EmbedAssets},
+		EmbedFS{"admin", EmbedAdminAssets}))
 }
 
 // pongo2.TemplateLoader

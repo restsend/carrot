@@ -3,16 +3,20 @@
 <head>
   <title>Admin panel</title>
   <link rel="stylesheet" href="" />
-  <link rel="stylesheet" href="//rsms.me/inter/inter.css" />
-  <script src="//cdn.tailwindcss.com?plugins=forms"></script>
-  <script src="//unpkg.com/@shaun/alpinejs-router@1.x.x/dist/cdn.min.js" defer></script>
-  <script src="//unpkg.com/alpinejs@3.12.3/dist/cdn.min.js" defer></script>
+  <link rel="stylesheet" href="/static/inter.css" />
+  <script src="/static/tailwind-3.3.2.js"></script>
+  <script src="./alpinejs-router-1.x.x.min.js" defer></script>
+  <script src="./alpinejs-3.12.3.min.js" defer></script>
   <script src="./app.js"></script>
   <script src="./widget.js"></script>
 </head>
 
 <body class="h-full">
   <style>
+    :root {
+      font-family: 'Inter', sans-serif;
+    }
+
     [v-cloak] {
       display: none;
     }

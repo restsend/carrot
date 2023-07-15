@@ -8,7 +8,7 @@
     <title>{%block title%}{{sitename}}{%endblock%}</title>
     <meta name="description" content="{{description}}">
     <meta name="keywords" content="{{keywords}}">
-    <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+    <link rel="stylesheet" href="/static/inter.css">
     {% block extra_css %}{% endblock %}
 </head>
 <style>
@@ -32,7 +32,7 @@
 {% if maincss_url %}
 <link href="{{maincss_url}}" rel="stylesheet" type="text/css">
 {% else %}
-<script src="https://cdn.tailwindcss.com/3.1.8"></script>
+<script src="/static/tailwind-3.3.2.js"></script>
 {% endif %}
 {%if ga%}
 <script>
