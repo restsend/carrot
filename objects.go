@@ -639,6 +639,7 @@ func handleQueryObject(c *gin.Context, obj *WebObject, prepareQuery PrepareQuery
 	}
 
 	if obj.BeforeRender != nil {
+		var newVals []any = make([]any, 0)
 		vals := reflect.ValueOf(r.Items)
 		if vals.Kind() == reflect.Slice {
 			for i := 0; i < vals.Len(); i++ {
@@ -651,11 +652,11 @@ func handleQueryObject(c *gin.Context, obj *WebObject, prepareQuery PrepareQuery
 				if rr != nil {
 					v = rr
 				}
-				vals.Index(i).Set(reflect.ValueOf(v).Elem())
+				newVals = append(newVals, v)
 			}
+			r.Items = newVals
 		}
 	}
-
 	c.JSON(http.StatusOK, r)
 }
 

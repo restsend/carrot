@@ -32,11 +32,11 @@
         <div class="w-20 md:w-48 lg:w-72 md:fixed md:inset-y-0 md:z-50 md:flex md:flex-col" x-ref="sidebar">
         </div>
         <main class="flex-grow py-10 md:pl-48 lg:pl-72 max-w-full">
-          <div class="px-4 sm:px-6 md:px-8">
-            <div class="px-4 sm:px-6 md:px-8">
+          <div class="px-4 md:px-6 lg:px-8">
+            <div class="px-4 md:px-6 lg:px-8">
               <!-- Your content -->
               <template x-if="$store.switching">
-                <span>Switching...</span>
+                <span class="mx-auto text-indigo-700 text-lg">Switching...</span>
               </template>
               <template x-if="!$store.switching">
                 <div class="sm:flex sm:items-center" id="desc_content">
@@ -54,7 +54,7 @@
               </template>
               <div x-show="!$store.editobj.mode" id="query_content"></div>
               <div x-show="$store.editobj.mode" id="edit_content">
-                <div class="px-6 py-6">
+                <div class="px-2 py-2">
                   <div class="flex space-x-4 px-2">
                     <a href="#" @click="closeEdit($event, true)" class="font-medium text-indigo-600">Back</a>
                     <template x-if="$store.editobj">
