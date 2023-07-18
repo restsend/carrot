@@ -88,11 +88,11 @@ func TestObjectCRUD(t *testing.T) {
 		r.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusOK, w.Result().StatusCode)
 
-		var res QueryResult[[]User]
+		var res QueryResult
 		err := json.Unmarshal(w.Body.Bytes(), &res)
 		assert.Nil(t, err)
 		assert.Equal(t, 1, res.TotalCount)
-		assert.Equal(t, "update", res.Items[0].Name)
+		assert.Equal(t, "update", res.Items[0].(map[string]any)["Name"])
 	}
 	// Delete
 	{
@@ -115,7 +115,7 @@ func TestObjectCRUD(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Result().StatusCode)
 		log.Println(w.Body.String())
 
-		var res QueryResult[[]User]
+		var res QueryResult
 		err := json.Unmarshal(w.Body.Bytes(), &res)
 		assert.Nil(t, err)
 		assert.Equal(t, 1, res.TotalCount)
@@ -315,7 +315,7 @@ func TestObjectQuery(t *testing.T) {
 				r.ServeHTTP(w, req)
 				assert.Equal(t, http.StatusOK, w.Result().StatusCode)
 
-				var res QueryResult[[]User]
+				var res QueryResult
 				err := json.Unmarshal(w.Body.Bytes(), &res)
 				assert.Nil(t, err)
 				assert.Equal(t, tt.expect.Num, res.TotalCount)
@@ -422,10 +422,10 @@ func TestObjectOrder(t *testing.T) {
 				r.ServeHTTP(w, req)
 				assert.Equal(t, http.StatusOK, w.Result().StatusCode)
 
-				var res QueryResult[[]User]
+				var res QueryResult
 				err := json.Unmarshal(w.Body.Bytes(), &res)
 				assert.Nil(t, err)
-				assert.Equal(t, tt.expect.ID, res.Items[0].UUID)
+				assert.Equal(t, tt.expect.ID, res.Items[0].(map[string]any)["uid"])
 			})
 		}
 
@@ -562,9 +562,6 @@ func TestObjectEdit(t *testing.T) {
 				w := httptest.NewRecorder()
 				r.ServeHTTP(w, req)
 				assert.Equal(t, tt.expect.Code, w.Result().StatusCode)
-				if w.Result().StatusCode != http.StatusOK {
-					log.Println(w.Body.String())
-				}
 			})
 		}
 	}
@@ -679,7 +676,7 @@ func TestObjectRegister(t *testing.T) {
 				r.ServeHTTP(w, req)
 				assert.Equal(t, http.StatusOK, w.Result().StatusCode)
 
-				var res QueryResult[User]
+				var res QueryResult
 				json.Unmarshal(w.Body.Bytes(), &res)
 				assert.Equal(t, tt.expect.Total, res.TotalCount)
 			})
@@ -687,48 +684,7 @@ func TestObjectRegister(t *testing.T) {
 	}
 }
 
-func TestBatchDelete(t *testing.T) {
-	type User struct {
-		UUID     uint      `json:"uid" gorm:"primaryKey"`
-		Name     string    `json:"name" gorm:"size:100"`
-		Age      int       `json:"age"`
-		Enabled  bool      `json:"enabled"`
-		Birthday time.Time `json:"birthday"`
-	}
-
-	db, _ := gorm.Open(sqlite.Open("file::memory:"), nil)
-	db.AutoMigrate(User{})
-
-	r := gin.Default()
-	r.Use(WithGormDB(db))
-
-	webobject := WebObject{
-		Model: User{},
-	}
-	err := webobject.RegisterObject(&r.RouterGroup)
-	assert.Nil(t, err)
-
-	db.Create(&User{UUID: 1, Name: "alice", Age: 9})
-	db.Create(&User{UUID: 2, Name: "bob", Age: 10})
-	db.Create(&User{UUID: 3, Name: "charlie", Age: 11})
-	db.Create(&User{UUID: 4, Name: "dave", Age: 12})
-
-	var data = []string{"1", "2", "3"}
-	b, _ := json.Marshal(data)
-	req := httptest.NewRequest(http.MethodDelete, "/user", bytes.NewReader(b))
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	assert.Equal(t, http.StatusOK, w.Result().StatusCode)
-
-	req = httptest.NewRequest(http.MethodPost, "/user", nil)
-	w = httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	var res QueryResult[[]User]
-	json.Unmarshal(w.Body.Bytes(), &res)
-	assert.Equal(t, 1, res.TotalCount)
-}
-
-type tuser struct {
+type UnittestUser struct {
 	ID   uint   `json:"id" gorm:"primarykey"`
 	Name string `json:"name" gorm:"size:100"`
 	Age  int    `json:"age"`
@@ -736,15 +692,15 @@ type tuser struct {
 
 func initHookTest(t *testing.T) (TestClient, *gorm.DB) {
 	db, _ := gorm.Open(sqlite.Open("file::memory:"), nil)
-	db.AutoMigrate(tuser{})
+	db.AutoMigrate(UnittestUser{})
 
-	db.Create(&tuser{ID: 1, Name: "alice", Age: 9})
-	db.Create(&tuser{ID: 2, Name: "bob", Age: 10})
-	db.Create(&tuser{ID: 3, Name: "clash", Age: 11})
+	db.Create(&UnittestUser{ID: 1, Name: "alice", Age: 9})
+	db.Create(&UnittestUser{ID: 2, Name: "bob", Age: 10})
+	db.Create(&UnittestUser{ID: 3, Name: "clash", Age: 11})
 
 	webobject := WebObject{
 		Name:        "user",
-		Model:       tuser{},
+		Model:       UnittestUser{},
 		Editables:   []string{"Name"},
 		Filterables: []string{"Name, Age"},
 		Searchables: []string{"Name"},
@@ -752,28 +708,28 @@ func initHookTest(t *testing.T) (TestClient, *gorm.DB) {
 			return db
 		},
 		BeforeCreate: func(db *gorm.DB, ctx *gin.Context, vptr any) error {
-			user := (vptr).(*tuser)
+			user := (vptr).(*UnittestUser)
 			if user.Name == "dangerous" {
 				return errors.New("alice is not allowed to create")
 			}
 			return nil
 		},
 		BeforeRender: func(db *gorm.DB, ctx *gin.Context, vptr any) (any, error) {
-			user := (vptr).(*tuser)
+			user := (vptr).(*UnittestUser)
 			if user.Name != "alice" {
 				user.Age = 99
 			}
 			return vptr, nil
 		},
 		BeforeDelete: func(db *gorm.DB, ctx *gin.Context, vptr any) error {
-			user := (vptr).(*tuser)
+			user := (vptr).(*UnittestUser)
 			if user.Name == "alice" {
 				return errors.New("alice is not allowed to delete")
 			}
 			return nil
 		},
 		BeforeUpdate: func(db *gorm.DB, ctx *gin.Context, vptr any, vals map[string]any) error {
-			user := (vptr).(*tuser)
+			user := (vptr).(*UnittestUser)
 			if user.Name == "alice" {
 				return errors.New("alice is not allowed to update")
 			}
@@ -794,14 +750,14 @@ func initHookTest(t *testing.T) (TestClient, *gorm.DB) {
 func TestOnRender(t *testing.T) {
 	c, _ := initHookTest(t)
 
-	var res QueryResult[[]tuser]
+	var res QueryResult
 	err := c.CallPost("/user", nil, &res)
 
 	assert.Nil(t, err)
 	assert.Equal(t, 3, res.TotalCount)
-	assert.Equal(t, 9, res.Items[0].Age)
-	assert.Equal(t, 99, res.Items[1].Age)
-	assert.Equal(t, 99, res.Items[2].Age)
+	assert.Equal(t, float64(9), res.Items[0].(map[string]any)["age"])
+	assert.Equal(t, float64(99), res.Items[1].(map[string]any)["age"])
+	assert.Equal(t, float64(99), res.Items[2].(map[string]any)["age"])
 }
 
 func TestOnDelete(t *testing.T) {
@@ -817,10 +773,10 @@ func TestOnDelete(t *testing.T) {
 func TestOnCreate(t *testing.T) {
 	c, _ := initHookTest(t)
 
-	err := c.CallPut("/user", tuser{Name: "dangerous"}, nil)
+	err := c.CallPut("/user", UnittestUser{Name: "dangerous"}, nil)
 	assert.NotNil(t, err) // alice is not allowed to create
 
-	err = c.CallPut("/user", tuser{Name: "notdangerous"}, nil)
+	err = c.CallPut("/user", UnittestUser{Name: "notdangerous"}, nil)
 	assert.Nil(t, err)
 }
 
@@ -839,14 +795,14 @@ func TestOnUpdate(t *testing.T) {
 
 func TestQueryViews(t *testing.T) {
 	db, _ := gorm.Open(sqlite.Open("file::memory:"), nil)
-	db.AutoMigrate(tuser{})
+	db.AutoMigrate(UnittestUser{})
 
 	r := gin.Default()
 	r.Use(WithGormDB(db))
 
 	webobject := WebObject{
 		Name:        "user",
-		Model:       tuser{},
+		Model:       UnittestUser{},
 		Editables:   []string{"Name"},
 		Filterables: []string{"Name, Age"},
 		Searchables: []string{"Name"},
@@ -864,18 +820,18 @@ func TestQueryViews(t *testing.T) {
 	assert.Nil(t, err)
 
 	// create 200 users
-	var user [200]tuser
+	var user [200]UnittestUser
 	for i := 0; i < len(user); i++ {
-		user[i] = tuser{Name: fmt.Sprintf("user-%d", i), Age: i}
+		user[i] = UnittestUser{Name: fmt.Sprintf("user-%d", i), Age: i}
 	}
 	db.CreateInBatches(&user, len(user))
 
 	client := NewTestClient(r)
-	var result QueryResult[[]tuser]
+	var result QueryResult
 	err = client.CallGet("/user/names", nil, &result)
 	assert.Nil(t, err)
 	assert.Equal(t, 200, result.TotalCount)
 	assert.Equal(t, 200, len(result.Items))
-	assert.Equal(t, 0, result.Items[10].Age)
-	assert.NotZero(t, result.Items[10].ID)
+	assert.Equal(t, float64(0), result.Items[10].(map[string]any)["age"])
+	assert.NotZero(t, result.Items[10].(map[string]any)["id"])
 }

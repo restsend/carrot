@@ -41,17 +41,17 @@ const (
 	EDIT   = 1 << 3
 	DELETE = 1 << 4
 	QUERY  = 1 << 5
-	BATCH  = 1 << 6
 )
 
 type GetDB func(c *gin.Context, isCreate bool) *gorm.DB // designed for group
 type PrepareQuery func(db *gorm.DB, c *gin.Context) (*gorm.DB, *QueryForm, error)
 
 type (
-	BeforeCreateFunc func(db *gorm.DB, ctx *gin.Context, vptr any) error
-	BeforeDeleteFunc func(db *gorm.DB, ctx *gin.Context, vptr any) error
-	BeforeUpdateFunc func(db *gorm.DB, ctx *gin.Context, vptr any, vals map[string]any) error
-	BeforeRenderFunc func(db *gorm.DB, ctx *gin.Context, vptr any) (any, error)
+	BeforeCreateFunc      func(db *gorm.DB, ctx *gin.Context, vptr any) error
+	BeforeDeleteFunc      func(db *gorm.DB, ctx *gin.Context, vptr any) error
+	BeforeUpdateFunc      func(db *gorm.DB, ctx *gin.Context, vptr any, vals map[string]any) error
+	BeforeRenderFunc      func(db *gorm.DB, ctx *gin.Context, vptr any) (any, error)
+	BeforeQueryRenderFunc func(db *gorm.DB, ctx *gin.Context, r *QueryResult) (any, error)
 )
 
 type QueryView struct {
@@ -67,18 +67,19 @@ type WebObjectPrimaryField struct {
 }
 
 type WebObject struct {
-	Model        any
-	Group        string
-	Name         string
-	Editables    []string
-	Filterables  []string
-	Orderables   []string
-	Searchables  []string
-	GetDB        GetDB
-	BeforeCreate BeforeCreateFunc
-	BeforeUpdate BeforeUpdateFunc
-	BeforeDelete BeforeDeleteFunc
-	BeforeRender BeforeRenderFunc
+	Model             any
+	Group             string
+	Name              string
+	Editables         []string
+	Filterables       []string
+	Orderables        []string
+	Searchables       []string
+	GetDB             GetDB
+	BeforeCreate      BeforeCreateFunc
+	BeforeUpdate      BeforeUpdateFunc
+	BeforeDelete      BeforeDeleteFunc
+	BeforeRender      BeforeRenderFunc
+	BeforeQueryRender BeforeQueryRenderFunc
 
 	Views        []QueryView
 	AllowMethods int
@@ -119,12 +120,12 @@ type QueryForm struct {
 	searchFields []string `json:"-"`       // for keyword
 }
 
-type QueryResult[T any] struct {
+type QueryResult struct {
 	TotalCount int    `json:"total,omitempty"`
 	Pos        int    `json:"pos,omitempty"`
 	Limit      int    `json:"limit,omitempty"`
 	Keyword    string `json:"keyword,omitempty"`
-	Items      T      `json:"items"`
+	Items      []any  `json:"items"`
 }
 
 // GetQuery return the combined filter SQL statement.
@@ -176,10 +177,10 @@ func (obj *WebObject) RegisterObject(r *gin.RouterGroup) error {
 	p := filepath.Join(obj.Group, obj.Name)
 	allowMethods := obj.AllowMethods
 	if allowMethods == 0 {
-		allowMethods = GET | CREATE | EDIT | DELETE | QUERY | BATCH
+		allowMethods = GET | CREATE | EDIT | DELETE | QUERY
 	}
+
 	primaryKeyPath := obj.BuildPrimaryPath(p)
-	log.Println("primaryKeyPath", primaryKeyPath)
 	if allowMethods&GET != 0 {
 		r.GET(primaryKeyPath, func(c *gin.Context) {
 			handleGetObject(c, obj)
@@ -205,12 +206,6 @@ func (obj *WebObject) RegisterObject(r *gin.RouterGroup) error {
 	if allowMethods&QUERY != 0 {
 		r.POST(p, func(c *gin.Context) {
 			handleQueryObject(c, obj, DefaultPrepareQuery)
-		})
-	}
-
-	if allowMethods&BATCH != 0 {
-		r.DELETE(p, func(c *gin.Context) {
-			handleBatchDelete(c, obj)
 		})
 	}
 
@@ -261,6 +256,46 @@ func (obj *WebObject) buildPrimaryCondition(db *gorm.DB, keys []string) *gorm.DB
 		tx = db.Where(col, keys[i])
 	}
 	return tx
+}
+
+/*
+Check Go type corresponds to JSON type.
+- float64, for JSON numbers
+- string, for JSON strings
+- []any, for JSON arrays
+- map[string]any, for JSON objects
+- nil, for JSON null
+*/
+func (obj *WebObject) checkType(db *gorm.DB, key string, value any) (string, bool, error) {
+	targetKind, ok := obj.jsonToKinds[key]
+	if !ok {
+		return "", false, nil
+	}
+
+	fieldName, ok := obj.jsonToFields[key]
+	if !ok {
+		return "", false, nil
+	}
+
+	valueKind := reflect.TypeOf(value).Kind()
+	var result bool
+
+	switch targetKind {
+	case reflect.Struct, reflect.Slice: // time.Time, associated structures
+		result = true
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Float32, reflect.Float64:
+		result = valueKind == reflect.Float64
+	default:
+		result = targetKind == valueKind
+	}
+
+	fieldName = db.NamingStrategy.ColumnName(obj.tableName, fieldName)
+	if !result {
+		return fieldName, false, fmt.Errorf("%s type not match", key)
+	}
+	return fieldName, true, nil
 }
 
 func RegisterObject(r *gin.RouterGroup, obj *WebObject) error {
@@ -443,28 +478,22 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 		if v == nil {
 			continue
 		}
-		// Check the kind to be edited.
-		kind, ok := obj.jsonToKinds[k]
-		if !ok {
-			continue
-		}
 
-		fname, ok := obj.jsonToFields[k]
-		if !ok {
-			continue
-		}
-
-		if !checkType(kind, reflect.TypeOf(v).Kind()) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("%s type not match", fname)})
+		fieldName, ok, err := obj.checkType(db, k, v)
+		if err != nil {
+			AbortWithJSONError(c, http.StatusBadRequest, fmt.Errorf("%s type not match", k))
 			return
 		}
-
-		vals[fname] = v
+		if !ok { // ignore invalid field
+			continue
+		}
+		vals[fieldName] = v
 	}
 
 	if len(obj.Editables) > 0 {
 		stripVals := make(map[string]any)
 		for _, k := range obj.Editables {
+			k = db.NamingStrategy.ColumnName(obj.tableName, k)
 			if v, ok := vals[k]; ok {
 				stripVals[k] = v
 			}
@@ -478,9 +507,7 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 		AbortWithJSONError(c, http.StatusBadRequest, errors.New("not changed"))
 		return
 	}
-
-	model := reflect.New(obj.modelElem).Interface()
-	db = obj.buildPrimaryCondition(db.Model(model), keys)
+	db = obj.buildPrimaryCondition(db.Table(db.NamingStrategy.TableName(obj.tableName)), keys)
 
 	if obj.BeforeUpdate != nil {
 		val := reflect.New(obj.modelElem).Interface()
@@ -533,25 +560,6 @@ func handleDeleteObject(c *gin.Context, obj *WebObject) {
 	}
 
 	r = db.Delete(val)
-	if r.Error != nil {
-		AbortWithJSONError(c, http.StatusInternalServerError, r.Error)
-		return
-	}
-
-	c.JSON(http.StatusOK, true)
-}
-
-func handleBatchDelete(c *gin.Context, obj *WebObject) {
-	var form []string
-	if err := c.BindJSON(&form); err != nil {
-		AbortWithJSONError(c, http.StatusBadRequest, err)
-		return
-	}
-
-	db := getDbConnection(c, obj.GetDB, false)
-
-	val := reflect.New(obj.modelElem).Interface()
-	r := db.Delete(&val, form)
 	if r.Error != nil {
 		AbortWithJSONError(c, http.StatusInternalServerError, r.Error)
 		return
@@ -632,43 +640,27 @@ func handleQueryObject(c *gin.Context, obj *WebObject, prepareQuery PrepareQuery
 		form.ViewFields = stripViewFields
 	}
 
-	r, err := QueryObjects(db, obj, form)
+	r, err := obj.queryObjects(db, c, form)
 	if err != nil {
 		AbortWithJSONError(c, http.StatusBadRequest, err)
 		return
 	}
 
-	if obj.BeforeRender != nil {
-		var newVals []any = make([]any, 0)
-		vals := reflect.ValueOf(r.Items)
-		if vals.Kind() == reflect.Slice {
-			for i := 0; i < vals.Len(); i++ {
-				v := vals.Index(i).Addr().Interface()
-				rr, err := obj.BeforeRender(db, c, v)
-				if err != nil {
-					AbortWithJSONError(c, http.StatusInternalServerError, err)
-					return
-				}
-				if rr != nil {
-					v = rr
-				}
-				newVals = append(newVals, v)
-			}
-			r.Items = newVals
+	if obj.BeforeQueryRender != nil {
+		obj, err := obj.BeforeQueryRender(db, c, &r)
+		if err != nil {
+			AbortWithJSONError(c, http.StatusBadRequest, err)
+			return
+		}
+		if obj != nil {
+			c.JSON(http.StatusOK, obj)
 		}
 	}
 	c.JSON(http.StatusOK, r)
 }
 
-// QueryObjects excute query and return data.
-
-func QueryObjects(db *gorm.DB, obj *WebObject, form *QueryForm) (r QueryResult[any], err error) {
-	// the real name of the db table
+func (obj *WebObject) queryObjects(db *gorm.DB, ctx *gin.Context, form *QueryForm) (r QueryResult, err error) {
 	tblName := db.NamingStrategy.TableName(obj.tableName)
-	return QueryObjectsEx(db, tblName, obj.modelElem, form)
-}
-
-func QueryObjectsEx(db *gorm.DB, tblName string, modelElem reflect.Type, form *QueryForm) (r QueryResult[any], err error) {
 	for _, v := range form.Filters {
 		if q := v.GetQuery(); q != "" {
 			if v.Op == FilterOpLike {
@@ -704,8 +696,7 @@ func QueryObjectsEx(db *gorm.DB, tblName string, modelElem reflect.Type, form *Q
 	r.Keyword = form.Keyword
 
 	var c int64
-	model := reflect.New(modelElem).Interface()
-	if err := db.Model(model).Count(&c).Error; err != nil {
+	if err := db.Table(tblName).Count(&c).Error; err != nil {
 		return r, err
 	}
 	if c <= 0 {
@@ -713,13 +704,28 @@ func QueryObjectsEx(db *gorm.DB, tblName string, modelElem reflect.Type, form *Q
 	}
 	r.TotalCount = int(c)
 
-	items := reflect.New(reflect.SliceOf(modelElem))
-	result := db.Offset(form.Pos).Limit(form.Limit).Find(items.Interface())
+	vals := reflect.New(reflect.SliceOf(obj.modelElem))
+	result := db.Offset(form.Pos).Limit(form.Limit).Find(vals.Interface())
 	if result.Error != nil {
 		return r, result.Error
 	}
-	r.Items = items.Elem().Interface()
-	r.Pos += int(result.RowsAffected)
+
+	r.Items = make([]any, 0, vals.Elem().Len())
+	for i := 0; i < vals.Elem().Len(); i++ {
+		modelObj := vals.Elem().Index(i).Addr().Interface()
+		if obj.BeforeRender != nil {
+			rr, err := obj.BeforeRender(db, ctx, modelObj)
+			if err != nil {
+				return r, err
+			}
+			if rr != nil {
+				// if BeforeRender return not nil, then use it as result
+				modelObj = rr
+			}
+		}
+		r.Items = append(r.Items, modelObj)
+	}
+	r.Pos += int(len(r.Items))
 	return r, nil
 }
 
@@ -740,25 +746,4 @@ func DefaultPrepareQuery(db *gorm.DB, c *gin.Context) (*gorm.DB, *QueryForm, err
 	}
 
 	return db, &form, nil
-}
-
-/*
-Check Go type corresponds to JSON type.
-- float64, for JSON numbers
-- string, for JSON strings
-- []any, for JSON arrays
-- map[string]any, for JSON objects
-- nil, for JSON null
-*/
-func checkType(goKind, jsonKind reflect.Kind) bool {
-	switch goKind {
-	case reflect.Struct, reflect.Slice: // time.Time, associated structures
-		return true
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
-		reflect.Float32, reflect.Float64:
-		return jsonKind == reflect.Float64
-	default:
-		return goKind == jsonKind
-	}
 }

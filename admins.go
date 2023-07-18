@@ -554,34 +554,17 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 	}
 	return nil
 }
+
 func formatAsInt64(v any) int64 {
-	// convert any to int64
-	switch v.(type) {
-	case int:
-		return int64(v.(int))
-	case int8:
-		return int64(v.(int8))
-	case int16:
-		return int64(v.(int16))
-	case int32:
-		return int64(v.(int32))
-	case int64:
-		return v.(int64)
-	case uint:
-		return int64(v.(uint))
-	case uint8:
-		return int64(v.(uint8))
-	case uint16:
-		return int64(v.(uint16))
-	case uint32:
-		return int64(v.(uint32))
-	case uint64:
-		return int64(v.(uint64))
-	case float32:
-		return int64(v.(float32))
-	case float64:
-		return int64(v.(float64))
-	case string:
+	srcKind := reflect.ValueOf(v).Kind()
+	switch srcKind {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return reflect.ValueOf(v).Int()
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return int64(reflect.ValueOf(v).Uint())
+	case reflect.Float32, reflect.Float64:
+		return int64(reflect.ValueOf(v).Float())
+	case reflect.String:
 		if v.(string) == "" {
 			return 0
 		}
@@ -875,7 +858,7 @@ func (obj *AdminObject) QueryObjects(db *gorm.DB, form *QueryForm, ctx *gin.Cont
 	}
 
 	for i := 0; i < vals.Elem().Len(); i++ {
-		modelObj := vals.Elem().Index(i).Interface()
+		modelObj := vals.Elem().Index(i).Addr().Interface()
 		r.objects = append(r.objects, modelObj)
 		if obj.BeforeRender != nil {
 			rr, err := obj.BeforeRender(db, ctx, modelObj)
