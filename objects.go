@@ -19,6 +19,7 @@ const (
 )
 
 const (
+	FilterOpIsNot          = "is not"
 	FilterOpEqual          = "="
 	FilterOpNotEqual       = "<>"
 	FilterOpIn             = "in"
@@ -134,6 +135,8 @@ type QueryResult struct {
 func (f *Filter) GetQuery() string {
 	var op string
 	switch f.Op {
+	case FilterOpIsNot:
+		op = "IS NOT"
 	case FilterOpEqual:
 		op = "="
 	case FilterOpNotEqual:

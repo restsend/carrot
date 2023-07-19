@@ -349,7 +349,7 @@ class SelectFilterWidget {
                 })
                 let selected = null
                 if (vals.length > 0) {
-                    const op = this.op || '='
+                    const op = opt.op || this.op || '='
                     selected = {
                         name: this.name || this.field.name,
                         op: vals.length > 1 ? 'in' : op,
@@ -418,7 +418,7 @@ class DateTimeFilterWidget extends SelectFilterWidget {
         thisYear.setHours(0, 0, 0, 0)
 
         const options = [
-            { label: 'Any date', value: null },
+            { label: 'Any date', value: null, op: 'is not' },
             { label: 'Today', value: today.toISOString() },
             { label: 'Past 7 days', value: past7.toISOString() },
             { label: 'This week', value: thisWeek.toISOString() },

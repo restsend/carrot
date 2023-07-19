@@ -195,7 +195,7 @@ class QueryResult {
         this.orders.push(...orders)
         return this
     }
-    refresh() {
+    refresh(source) {
         let query = {
             keyword: this.keyword,
             pos: this.pos,
@@ -205,11 +205,14 @@ class QueryResult {
         }
 
         let current = Alpine.store('current')
+
         if (current.prepareQuery) {
-            let q = current.prepareQuery(query)
-            if (q) {
-                query = q
+            let q = current.prepareQuery(query, source)
+            if (!q) {
+                // cancel query
+                return
             }
+            query = q
         }
 
         this.rows = []
@@ -249,10 +252,14 @@ class QueryResult {
                 row.selected = false
             })
             this.selected = 0
-            document.getElementById('btn_selectAll').checked = false
+            let btn_selectAll = document.getElementById('btn_selectAll')
+            if (btn_selectAll) {
+                btn_selectAll.checked = false
+            }
             Alpine.store('toasts').info(`${action.name} all records done`)
             this.refresh()
         }).catch(err => {
+            console.error(err)
             Alpine.store('toasts').error(`${action.name} fail : ${err.toString()}`)
         })
     }
@@ -287,6 +294,7 @@ class EditObject {
             Alpine.store('queryresult').refresh()
             Alpine.store('toasts').info(`Save Done`)
         } catch (err) {
+            console.error(err)
             Alpine.store('toasts').error(`Save Fail: ${err.toString()}`)
             this.closeEdit(ev)
         }
@@ -525,6 +533,7 @@ class AdminObject {
             })
             if (resp.status != 200) {
                 let reason = await parseResponseError(resp)
+                console.error(reason, resp)
                 Alpine.store('toasts').error(`${action.name} fail : ${reason}`)
                 if (action.onFail) {
                     let result = await resp.text()
