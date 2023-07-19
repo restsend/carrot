@@ -274,14 +274,15 @@ class EditObject {
         this.row = row
     }
 
-    get api_url() {
+    get apiUrl() {
         return Alpine.store('current').buildApiUrl(this.row)
     }
 
     async doSave(ev, closeWhenDone = true) {
         try {
             if (this.mode == 'create') {
-                await Alpine.store('current').doCreate(this.fields)
+                const obj = await Alpine.store('current').doCreate(this.fields)
+                this.primaryValue = Alpine.store('current').getPrimaryValue(obj)
             } else {
                 await Alpine.store('current').doSave(this.primaryValue, this.fields.filter(f => f.dirty))
             }
@@ -738,6 +739,9 @@ const adminapp = () => ({
                 f.value = editField.defaultvalue()
             } else {
                 f.value = row[editField.name]
+            }
+            if (f.value && f.foreign) {
+                f.value = f.value.value
             }
             names[editField.name] = f
             return f

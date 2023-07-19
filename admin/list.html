@@ -48,6 +48,27 @@
         </div>
         <div id="result_layout_form">
           <!-- result layout grid widget -->
+          <template x-if="current.listMode !== undefined">
+            <div class="flex mr-4 mt-2 space-x-1 rounded-lg bg-slate-100 p-0.5" role="tablist"
+              aria-orientation="horizontal">
+              <button :class="current.listMode=='grid'?'bg-white shadow':''" @click="current.listMode = 'grid'"
+                class="flex items-center rounded-md py-[0.4375rem] pl-2 pr-2 text-sm font-semibold lg:pr-3" role="tab"
+                type="button" aria-selected="false" tabindex="-1" aria-controls="headlessui-tabs-panel-16"><svg
+                  xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                  stroke="currentColor" class="w-5 h-5 stroke-slate-600">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+                </svg><span class="sr-only lg:not-sr-only lg:ml-2 text-slate-600">Grid</span></button>
+              <button :class="current.listMode=='list'?'bg-white shadow':''" @click="current.listMode = 'list'"
+                class="flex items-center rounded-md py-[0.4375rem] pl-2 pr-2 text-sm font-semibold lg:pr-3" role="tab"
+                type="button" aria-selected="true" tabindex="0" aria-controls="headlessui-tabs-panel-17"><svg
+                  xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                  stroke="currentColor" class="w-5 h-5 stroke-sky-500">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
+                </svg><span class="sr-only lg:not-sr-only lg:ml-2 text-slate-900">List</span></button>
+            </div>
+          </template>
         </div>
       </div>
       <template x-if="current.hasFilterSelected">
