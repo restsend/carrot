@@ -184,7 +184,6 @@ class QueryResult {
         row.selected = !row.selected
         this.selected = this.rows.filter(row => row.selected).length
     }
-
     setFilters(filters) {
         this.filters.splice(0, this.filters.length)
         this.filters.push(...filters)
@@ -204,7 +203,15 @@ class QueryResult {
             filters: this.filters,
             orders: this.orders
         }
+
         let current = Alpine.store('current')
+        if (current.prepareQuery) {
+            let q = current.prepareQuery(query)
+            if (q) {
+                query = q
+            }
+        }
+
         this.rows = []
 
         fetch(current.path, {
@@ -424,7 +431,7 @@ class AdminObject {
     get hasFilterSelected() {
         return this.filterables.some(f => f.selected && f.selected.op)
     }
-    get selectedFilter() {
+    get selectedFilters() {
         return this.filterables.filter(f => f.selected && f.selected.op)
     }
 

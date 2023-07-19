@@ -52,7 +52,7 @@
       </div>
       <template x-if="current.hasFilterSelected">
         <div class="flex w-full h-12 rounded-md shadow bg-white px-4 py-2 items-center space-x-2">
-          <template x-for="filter in current.selectedFilter">
+          <template x-for="filter in current.selectedFilters">
             <div class="flex space-x-1 text-xs items-center rounded bg-indigo-50 px-2 py-2">
               <span class="text-gray-600" x-text="filter.label"></span>
               <span class="font-semibold" x-text="filter.selected.showOp"></span>

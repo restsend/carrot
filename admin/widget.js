@@ -312,25 +312,36 @@ class PasswordWidget extends BaseWidget {
     }
 }
 
-class MultiSelectFilterWidget {
+class SelectFilterWidget {
     render(elm) {
         let options = [{ label: 'Empty value', value: null }]
         options.push(...this.field.attribute.choices)
-        this.renderWithOptions(elm, options)
+
+        let singleChoice = false
+        if (this.field.attribute && this.field.attribute.singleChoice !== undefined) {
+            singleChoice = this.field.attribute.singleChoice
+        }
+        this.renderWithOptions(elm, options, !singleChoice)
     }
 
-    renderWithOptions(elm, options) {
+    renderWithOptions(elm, options, multiple = false) {
         let node = document.createElement('div')
         options.forEach(opt => {
             let option = document.createElement('label')
             option.className = 'flex items-center hover:bg-gray-50 rounded py-2 px-2'
             let input = document.createElement('input')
-            input.type = 'checkbox'
+            input.type = multiple ? 'checkbox' : 'radio'
             input.data = opt
-            input.className = 'h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500'
+            input.className = `h-4 w-4 ${multiple ? 'rounded' : ''} border-gray-300 text-indigo-600 focus:ring-indigo-500`
 
             input.addEventListener('change', (e) => {
                 e.preventDefault()
+
+                if (!multiple) {
+                    node.querySelectorAll('input').forEach(el => {
+                        el.checked = el.data.value == e.target.data.value
+                    })
+                }
 
                 let vals = []
                 node.querySelectorAll('input:checked').forEach(n => {
@@ -341,7 +352,7 @@ class MultiSelectFilterWidget {
                     selected = {
                         name: this.name || this.field.name,
                         op: vals.length > 1 ? 'in' : '=',
-                        value: vals.map(v => v.value),
+                        value: vals.length > 1 ? vals.map(v => v.value) : vals[0].value,
                         showOp: vals.length > 1 ? 'in' : 'is',
                         showValue: vals.map(v => v.label).join(', '),
                     }
@@ -359,66 +370,6 @@ class MultiSelectFilterWidget {
     }
 }
 
-class SingleSelectFilterWidget {
-    render(elm) {
-        let options = [{ label: 'Empty value', value: null }]
-        options.push(...this.field.attribute.choices)
-        this.renderWithOptions(elm, options)
-    }
-
-    renderWithOptions(elm, options) {
-        let node = document.createElement('div')
-        options.forEach(opt => {
-            let option = document.createElement('label')
-            option.className = 'flex items-center hover:bg-gray-50 rounded py-2 px-4'
-            let input = document.createElement('input')
-            input.type = 'radio'
-            input.data = opt
-            input.className = 'h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600'
-
-            input.addEventListener('change', (e) => {
-                e.preventDefault()
-
-                node.querySelectorAll('input').forEach(el => {
-                    el.checked = el.data.value == e.target.data.value
-                })
-
-                const checked = node.querySelector('input:checked').data
-                let selected = null
-                if (checked) {
-                    const op = this.op || '='
-                    selected = {
-                        name: this.name || this.field.name,
-                        op: op,
-                        value: checked.value,
-                        showValue: checked.label,
-                        showOp: op == '=' ? 'is' : op,
-                    }
-                }
-                this.field.onSelect(this.field, selected)
-            })
-            option.appendChild(input)
-            let span = document.createElement('span')
-            span.className = 'ml-3 text-sm text-gray-500'
-            span.innerText = opt.label
-            option.appendChild(span)
-            node.appendChild(option)
-        })
-
-        let clean = document.createElement('button')
-        clean.className = 'mt-4 inline-flex items-center px-2.5 py-2 border border-transparent text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
-        clean.innerText = 'Clean'
-        clean.addEventListener('click', (e) => {
-            e.preventDefault()
-            node.querySelectorAll('input').forEach(el => {
-                el.checked = false
-            })
-            this.field.onSelect(this.field, null)
-        })
-        node.appendChild(clean)
-        elm.appendChild(node)
-    }
-}
 class BaseFilterWidget {
     render(elm) {
 
@@ -429,16 +380,16 @@ class NumberFilterWidget {
 
     }
 }
-class BooleanFilterWidget extends MultiSelectFilterWidget {
+class BooleanFilterWidget extends SelectFilterWidget {
     render(elm) {
         const options = [{ label: 'Empty value', value: null },
         { label: 'Yes', value: true },
         { label: 'No', value: false }]
-        super.renderWithOptions(elm, options)
+        super.renderWithOptions(elm, options, true)
     }
 }
 
-class DateTimeFilterWidget extends SingleSelectFilterWidget {
+class DateTimeFilterWidget extends SelectFilterWidget {
     render(elm) {
         let today = new Date()
         today.setHours(0, 0, 0, 0)
@@ -462,22 +413,28 @@ class DateTimeFilterWidget extends SingleSelectFilterWidget {
             { label: 'This year', value: thisYear.toISOString() },
         ]
         this.op = '>='
-        super.renderWithOptions(elm, options)
+        super.renderWithOptions(elm, options, false)
     }
 }
-class ForeignKeyFilterWidget extends MultiSelectFilterWidget {
+class ForeignKeyFilterWidget extends SelectFilterWidget {
     render(elm) {
         this.name = this.field.foreign.field // use the foreign field name as the filter name
         let options = []
         if (this.field.canNull) {
             options.push({ label: 'Empty value', value: null })
         }
+
         loadForeignValues(this.field.foreign.path).then(items => {
             if (items) {
                 options.push(...items)
             }
 
-            this.renderWithOptions(elm, options)
+            let singleChoice = false
+            if (this.field.attribute && this.field.attribute.singleChoice !== undefined) {
+                singleChoice = this.field.attribute.singleChoice
+            }
+
+            this.renderWithOptions(elm, options, !singleChoice)
         })
     }
 }
@@ -506,7 +463,7 @@ window.AdminFilterWidgets = {
     'bool': BooleanFilterWidget,
     'datetime': DateTimeFilterWidget,
     'foreign': ForeignKeyFilterWidget,
-    'select': MultiSelectFilterWidget,
+    'select': SelectFilterWidget,
 }
 
 
