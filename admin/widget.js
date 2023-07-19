@@ -349,9 +349,10 @@ class SelectFilterWidget {
                 })
                 let selected = null
                 if (vals.length > 0) {
+                    const op = this.op || '='
                     selected = {
                         name: this.name || this.field.name,
-                        op: vals.length > 1 ? 'in' : '=',
+                        op: vals.length > 1 ? 'in' : op,
                         value: vals.length > 1 ? vals.map(v => v.value) : vals[0].value,
                         showOp: vals.length > 1 ? 'in' : 'is',
                         showValue: vals.map(v => v.label).join(', '),
@@ -366,6 +367,18 @@ class SelectFilterWidget {
             option.appendChild(span)
             node.appendChild(option)
         })
+
+        let clean = document.createElement('button')
+        clean.className = 'mt-4 inline-flex items-center px-2.5 py-2 border border-transparent text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
+        clean.innerText = 'Clean'
+        clean.addEventListener('click', (e) => {
+            e.preventDefault()
+            node.querySelectorAll('input').forEach(el => {
+                el.checked = false
+            })
+            this.field.onSelect(this.field, null)
+        })
+        node.appendChild(clean)
         elm.appendChild(node)
     }
 }
