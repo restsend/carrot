@@ -170,25 +170,25 @@ class StructWidget extends BaseWidget {
     }
 }
 
+async function loadForeignValues(path) {
+    let req = await fetch(path, {
+        method: 'POST',
+        body: JSON.stringify({
+            foreign: true
+        }),
+    })
+    let data = await req.json()
+    if (!data.items) {
+        return
+    }
+    return data.items
+}
+
 class ForeignKeyWidget extends BaseWidget {
     render(elm) {
         if (this.field.value) {
             this.renderWith(elm, this.field.value.label || this.field.value.value || '')
         }
-    }
-
-    async loadForeignValues() {
-        let req = await fetch(this.field.foreign.path, {
-            method: 'POST',
-            body: JSON.stringify({
-                foreign: true
-            }),
-        })
-        let data = await req.json()
-        if (!data.items) {
-            return
-        }
-        return data.items
     }
 
     renderEdit(elm) {
@@ -200,7 +200,7 @@ class ForeignKeyWidget extends BaseWidget {
         firstOption.innerText = this.field.placeholder || 'Select A Value'
         node.appendChild(firstOption)
 
-        this.loadForeignValues().then(items => {
+        loadForeignValues(this.field.foreign.path).then(items => {
             if (!items) return
 
             if (!this.field.value) {
@@ -312,7 +312,174 @@ class PasswordWidget extends BaseWidget {
     }
 }
 
-let widgets = {
+class MultiSelectFilterWidget {
+    render(elm) {
+        let options = [{ label: 'Empty value', value: null }]
+        options.push(...this.field.attribute.choices)
+        this.renderWithOptions(elm, options)
+    }
+
+    renderWithOptions(elm, options) {
+        let node = document.createElement('div')
+        options.forEach(opt => {
+            let option = document.createElement('label')
+            option.className = 'flex items-center hover:bg-gray-50 rounded py-2 px-2'
+            let input = document.createElement('input')
+            input.type = 'checkbox'
+            input.data = opt
+            input.className = 'h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500'
+
+            input.addEventListener('change', (e) => {
+                e.preventDefault()
+
+                let vals = []
+                node.querySelectorAll('input:checked').forEach(n => {
+                    vals.push(n.data)
+                })
+                let selected = null
+                if (vals.length > 0) {
+                    selected = {
+                        name: this.name || this.field.name,
+                        op: 'in',
+                        value: vals.map(v => v.value),
+                        showValue: vals.map(v => v.label).join(', '),
+                    }
+                }
+                this.field.onSelect(this.field, selected)
+            })
+            option.appendChild(input)
+            let span = document.createElement('span')
+            span.className = 'ml-3 text-sm text-gray-500'
+            span.innerText = opt.label
+            option.appendChild(span)
+            node.appendChild(option)
+        })
+        elm.appendChild(node)
+    }
+}
+
+class SingleSelectFilterWidget {
+    render(elm) {
+        let options = [{ label: 'Empty value', value: null }]
+        options.push(...this.field.attribute.choices)
+        this.renderWithOptions(elm, options)
+    }
+
+    renderWithOptions(elm, options) {
+        let node = document.createElement('div')
+        options.forEach(opt => {
+            let option = document.createElement('label')
+            option.className = 'flex items-center hover:bg-gray-50 rounded py-2 px-4'
+            let input = document.createElement('input')
+            input.type = 'radio'
+            input.data = opt
+            input.className = 'h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600'
+
+            input.addEventListener('change', (e) => {
+                e.preventDefault()
+
+                node.querySelectorAll('input').forEach(el => {
+                    el.checked = el.data.value == e.target.data.value
+                })
+
+                const checked = node.querySelector('input:checked').data
+                let selected = null
+                if (checked) {
+                    selected = {
+                        name: this.name || this.field.name,
+                        op: '>=',
+                        value: checked.value,
+                        showValue: checked.label,
+                    }
+                }
+                this.field.onSelect(this.field, selected)
+            })
+            option.appendChild(input)
+            let span = document.createElement('span')
+            span.className = 'ml-3 text-sm text-gray-500'
+            span.innerText = opt.label
+            option.appendChild(span)
+            node.appendChild(option)
+        })
+
+        let clean = document.createElement('button')
+        clean.className = 'mt-4 inline-flex items-center px-2.5 py-2 border border-transparent text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
+        clean.innerText = 'Clean'
+        clean.addEventListener('click', (e) => {
+            e.preventDefault()
+            node.querySelectorAll('input').forEach(el => {
+                el.checked = false
+            })
+            this.field.onSelect(this.field, null)
+        })
+        node.appendChild(clean)
+        elm.appendChild(node)
+    }
+}
+class BaseFilterWidget {
+    render(elm) {
+
+    }
+}
+class NumberFilterWidget {
+    render(elm) {
+
+    }
+}
+class BooleanFilterWidget extends MultiSelectFilterWidget {
+    render(elm) {
+        const options = [{ label: 'Empty value', value: null },
+        { label: 'Yes', value: true },
+        { label: 'No', value: false }]
+        super.renderWithOptions(elm, options)
+    }
+}
+
+class DateTimeFilterWidget extends SingleSelectFilterWidget {
+    render(elm) {
+        let today = new Date()
+        today.setHours(0, 0, 0, 0)
+        let past7 = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
+        past7.setHours(0, 0, 0, 0)
+        let thisWeek = new Date(today.getTime() - today.getDay() * 24 * 60 * 60 * 1000)
+        thisWeek.setHours(0, 0, 0, 0)
+
+        let thisMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+        thisMonth.setHours(0, 0, 0, 0)
+
+        let thisYear = new Date(today.getFullYear(), 0, 1)
+        thisYear.setHours(0, 0, 0, 0)
+
+        const options = [
+            { label: 'Any date', value: null },
+            { label: 'Today', value: today.toISOString() },
+            { label: 'Past 7 days', value: past7.toISOString() },
+            { label: 'This week', value: thisWeek.toISOString() },
+            { label: 'This month', value: thisMonth.toISOString() },
+            { label: 'This year', value: thisYear.toISOString() },
+        ]
+
+        super.renderWithOptions(elm, options)
+    }
+}
+class ForeignKeyFilterWidget extends MultiSelectFilterWidget {
+    render(elm) {
+        this.name = this.field.foreign.field // use the foreign field name as the filter name
+        let options = []
+        if (this.field.canNull) {
+            options.push({ label: 'Empty value', value: null })
+        }
+        loadForeignValues(this.field.foreign.path).then(items => {
+            if (items) {
+                options.push(...items)
+            }
+
+            this.renderWithOptions(elm, options)
+        })
+    }
+}
+
+window.AdminWidgets = {
     'string': BaseWidget,
     'uint': BaseWidget,
     'int': BaseWidget,
@@ -327,7 +494,18 @@ let widgets = {
     'select': SelectWidget,
 }
 
-window.AdminWidgets = widgets
+window.AdminFilterWidgets = {
+    'string': BaseFilterWidget,
+    'uint': NumberFilterWidget,
+    'int': NumberFilterWidget,
+    'float': NumberFilterWidget,
+
+    'bool': BooleanFilterWidget,
+    'datetime': DateTimeFilterWidget,
+    'foreign': ForeignKeyFilterWidget,
+    'select': MultiSelectFilterWidget,
+}
+
 
 function getWidget(field) {
     let widgetType = null
@@ -376,6 +554,45 @@ function getWidget(field) {
     return widget
 }
 
+
+function getFilterWidget(field) {
+    let widgetType = null
+    if (field.foreign) {
+        widgetType = 'foreign'
+    } else {
+        switch (field.type) {
+            case 'string':
+            case 'bool':
+            case 'datetime':
+            case 'uint':
+            case 'int':
+            case 'float':
+                widgetType = field.type
+                break
+            default:
+                widgetType = 'string'
+                break
+        }
+    }
+
+    if (field.attribute) {
+        if (field.attribute.filterWidget) {
+            widgetType = field.attribute.filterWidget
+        } else if (field.attribute.choices) {
+            widgetType = 'select'
+        }
+    }
+    let widgetCls = window.AdminFilterWidgets[widgetType]
+    if (!widgetCls) {
+        //
+        console.warn(`FilterWidget ${widgetType} not found, using string widget`)
+        widgetCls = window.AdminFilterWidgets['string']
+    }
+    let widget = new widgetCls()
+    widget.field = field
+    return widget
+}
+
 document.addEventListener('alpine:init', () => {
     Alpine.directive('admin-render', (el, { expression }, { evaluate }) => {
         let col = evaluate(expression)
@@ -391,5 +608,9 @@ document.addEventListener('alpine:init', () => {
     Alpine.directive('admin-edit', (el, { expression }, { evaluate }) => {
         let field = evaluate(expression)
         getWidget(field).renderEdit(el)
+    })
+    Alpine.directive('admin-filter', (el, { expression }, { Alpine, evaluate }) => {
+        let field = evaluate(expression)
+        getFilterWidget(field).render(el, Alpine)
     })
 })

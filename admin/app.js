@@ -180,7 +180,7 @@ class QueryResult {
         this.selected = this.total
     }
 
-    onselect(event, row) {
+    onSelectRow(event, row) {
         row.selected = !row.selected
         this.selected = this.rows.filter(row => row.selected).length
     }
@@ -372,6 +372,10 @@ class AdminObject {
         this.filterables = filter_fields(meta.filterables)
         this.orderables = filter_fields(meta.orderables)
 
+        this.filterables.forEach(f => {
+            f.onSelect = this.onFilterSelect.bind(this)
+        })
+
         let actions = meta.actions || []
         // check user can delete
         if (this.permissions.can_delete) {
@@ -407,6 +411,20 @@ class AdminObject {
             }
             return action
         })
+    }
+
+    onFilterSelect(filter, value) {
+        filter.selected = value || {}
+        // refresh query
+        let filters = this.filterables.filter(f => f.selected && f.selected.op).map(f => f.selected)
+        Alpine.store('queryresult').setFilters(filters).refresh()
+    }
+
+    get hasFilterSelected() {
+        return this.filterables.some(f => f.selected && f.selected.op)
+    }
+    get selectedFilter() {
+        return this.filterables.filter(f => f.selected && f.selected.op)
     }
 
     getPrimaryValue(row) {

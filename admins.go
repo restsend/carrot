@@ -224,6 +224,7 @@ func GetCarrotAdminObjects() []AdminObject {
 			Name:        "GroupMember",
 			Desc:        "Group members", //
 			Shows:       []string{"ID", "User", "Group", "Role", "CreatedAt"},
+			Filterables: []string{"Group", "Role", "CreatedAt"},
 			Editables:   []string{"ID", "User", "Group", "Role"},
 			Orderables:  []string{"CreatedAt"},
 			Searchables: []string{"User", "Group"},
@@ -795,6 +796,12 @@ func (obj *AdminObject) QueryObjects(db *gorm.DB, form *QueryForm, ctx *gin.Cont
 			if v.Op == FilterOpLike {
 				kw := sql.Named("keyword", fmt.Sprintf(`%%%s%%`, v.Value))
 				db = db.Where(fmt.Sprintf("`%s`.%s @keyword", obj.tableName, q), kw)
+			} else if v.Op == FilterOpBetween {
+				vals, ok := v.Value.([]string)
+				if !ok || len(vals) != 2 {
+					return r, fmt.Errorf("invalid between value")
+				}
+				db = db.Where(fmt.Sprintf("`%s`.%s BETWEEN ? AND ?", obj.tableName, q), vals[0], vals[1])
 			} else {
 				db = db.Where(fmt.Sprintf("`%s`.%s", obj.tableName, q), v.Value)
 			}

@@ -28,6 +28,7 @@ const (
 	FilterOpLess           = "<"
 	FilterOpLessOrEqual    = "<="
 	FilterOpLike           = "like"
+	FilterOpBetween        = "between"
 )
 
 const (
@@ -151,6 +152,8 @@ func (f *Filter) GetQuery() string {
 		op = "<="
 	case FilterOpLike:
 		op = "LIKE"
+	case FilterOpBetween:
+		op = "BETWEEN"
 	}
 
 	if op == "" {
@@ -666,6 +669,12 @@ func (obj *WebObject) queryObjects(db *gorm.DB, ctx *gin.Context, form *QueryFor
 			if v.Op == FilterOpLike {
 				kw := sql.Named("keyword", fmt.Sprintf(`%%%s%%`, v.Value))
 				db = db.Where(fmt.Sprintf("`%s`.%s @keyword", tblName, q), kw)
+			} else if v.Op == FilterOpBetween {
+				vals, ok := v.Value.([]string)
+				if !ok || len(vals) != 2 {
+					return r, fmt.Errorf("invalid between value")
+				}
+				db = db.Where(fmt.Sprintf("`%s`.%s BETWEEN ? AND ?", obj.tableName, q), vals[0], vals[1])
 			} else {
 				db = db.Where(fmt.Sprintf("`%s`.%s", tblName, q), v.Value)
 			}

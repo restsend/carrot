@@ -3,7 +3,7 @@
     <div class="py-2">
       <div class="flex justify-between">
         <div class="flex mb-2 items-center" id="filter_form">
-          <div class="relative mt-2 rounded-md shadow-sm">
+          <div class="relative rounded-md shadow-sm">
             <div x-show="current.showSearch">
               <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke-width="1.5" stroke="currentColor"
@@ -18,23 +18,49 @@
             </div>
           </div>
           <template x-if="current.showFilter">
-            <span class="mx-2 relative mt-2 rounded-md shadow-sm">
-              <button type="button"
-                class="relative -ml-px inline-flex items-center rounded-md bg-white px-2 py-1.5 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50  ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:ring-2 focus:ring-inset focus:ring-indigo-600">
-                <span class="sr-only">Filters</span>
-                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                  <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
-                </svg>
-                <span class="mx-2">Filters</span>
-              </button>
-            </span>
+            <!-- Filters -->
+            <div class="flex items-center">
+              <template x-for="filter in current.filterables">
+                <div class="group border-gray-200 px-2 py-6">
+                  <h3 class="-my-2 flow-root group-hover:bg-gray-100 rounded">
+                    <button type="button"
+                      class="flex w-full items-center justify-between px-2 py-3 text-sm text-gray-400"
+                      aria-controls="filter-section-0" aria-expanded="false">
+                      <span class="font-medium text-gray-900" x-text="filter.label"></span>
+                      <span class="ml-6 flex items-center ">
+                        <svg class="group-hover:rotate-180 rotate-0 transition h-5 w-5 transform" viewBox="0 0 20 20"
+                          fill="currentColor" aria-hidden="true">
+                          <path fill-rule="evenodd"
+                            d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                            clip-rule="evenodd" />
+                        </svg>
+                      </span>
+                    </button>
+                  </h3>
+                  <div x-cloak
+                    class="group-hover:block hidden ease-in-out delay-150 absolute mt-4 -ml-2 px-6 py-4 bg-white shadow rounded-md z-20 flex-col"
+                    x-admin-filter="filter">
+                  </div>
+                </div>
+              </template>
+            </div>
           </template>
         </div>
         <div id="result_layout_form">
           <!-- result layout grid widget -->
         </div>
       </div>
+      <template x-if="current.hasFilterSelected">
+        <div class="flex w-full h-12 rounded-md shadow bg-white px-4 py-2 items-center space-x-2">
+          <template x-for="filter in current.selectedFilter">
+            <div class="flex space-x-1 text-xs items-center rounded bg-indigo-50 px-2 py-2">
+              <span class="text-gray-600" x-text="filter.label"></span>
+              <span class="font-semibold" x-text="filter.selected.op"></span>
+              <span class="text-blue-700" x-text="filter.selected.showValue"></span>
+            </div>
+          </template>
+        </div>
+      </template>
       <div class="flex mt-2">
         <div id="category_form">
           <!-- show category -->
@@ -89,7 +115,8 @@
                         <tr class="hover:bg-gray-50" :class="row.selected?'bg-gray-50':'bg-white'">
                           <template x-if="current.actions.length > 0">
                             <td class="border-b border-gray-200 relative px-7 sm:w-12 sm:px-6">
-                              <input type="checkbox" x-model="row.selected" @click="queryresult.onselect($event, row)"
+                              <input type="checkbox" x-model="row.selected"
+                                @click="queryresult.onSelectRow($event, row)"
                                 class="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600" />
                             </td>
                           </template>
