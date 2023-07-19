@@ -501,7 +501,17 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 		}
 
 		if strings.Contains(gormTag, "primarykey") || strings.Contains(gormTag, "unique") {
-			obj.PrimaryKey = append(obj.PrimaryKey, field.Name)
+			// hint foreignField
+			keyName := field.Name
+			if strings.HasSuffix(f.Name, "ID") {
+				n := f.Name[:len(f.Name)-2]
+				if ff, ok := rt.FieldByName(n); ok {
+					if ff.Type.Kind() == reflect.Struct || (ff.Type.Kind() == reflect.Ptr && ff.Type.Elem().Kind() == reflect.Struct) {
+						keyName = db.NamingStrategy.ColumnName(obj.tableName, ff.Name)
+					}
+				}
+			}
+			obj.PrimaryKey = append(obj.PrimaryKey, keyName)
 		}
 
 		foreignKey := ""

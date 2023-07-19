@@ -358,6 +358,7 @@ class AdminObject {
                         return value
                 }
             }
+            return f
         })
 
         let filter_fields = (names) => {
@@ -430,7 +431,16 @@ class AdminObject {
     getPrimaryValue(row) {
         let vals = {}
         this.primaryKey.forEach(key => {
-            vals[key] = row[key]
+            let f = this.fields.find(f => f.name === key)
+            let v = row[key]
+            if (v !== undefined) {
+                if (f.foreign) {
+                    vals[f.foreign.field] = v.value
+                } else {
+                    vals[key] = v
+                }
+
+            }
         })
         return vals
     }
@@ -440,7 +450,14 @@ class AdminObject {
         }
         let vals = ['api', this.name.toLowerCase()]
         this.primaryKey.forEach(key => {
-            vals.push(`${row[key]}`)
+            let f = this.fields.find(f => f.name === key)
+            let v = row[key]
+            if (v !== undefined) {
+                if (f.foreign) {
+                    v = v.value
+                }
+                vals.push(v)
+            }
         })
         let config = Alpine.store('config')
         let api_host = config.api_host || location.origin
@@ -651,6 +668,12 @@ const adminapp = () => ({
         }
 
         if (this.$store.current) {
+            // reset selected filters
+            if (this.$store.current.filterables) {
+                this.$store.current.filterables.forEach(f => {
+                    f.selected = undefined
+                })
+            }
             if (this.$store.current === obj) return
         }
         this.closeEdit()

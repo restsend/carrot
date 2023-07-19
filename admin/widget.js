@@ -340,8 +340,9 @@ class MultiSelectFilterWidget {
                 if (vals.length > 0) {
                     selected = {
                         name: this.name || this.field.name,
-                        op: 'in',
+                        op: vals.length > 1 ? 'in' : '=',
                         value: vals.map(v => v.value),
+                        showOp: vals.length > 1 ? 'in' : 'is',
                         showValue: vals.map(v => v.label).join(', '),
                     }
                 }
@@ -385,11 +386,13 @@ class SingleSelectFilterWidget {
                 const checked = node.querySelector('input:checked').data
                 let selected = null
                 if (checked) {
+                    const op = this.op || '='
                     selected = {
                         name: this.name || this.field.name,
-                        op: '>=',
+                        op: op,
                         value: checked.value,
                         showValue: checked.label,
+                        showOp: op == '=' ? 'is' : op,
                     }
                 }
                 this.field.onSelect(this.field, selected)
@@ -458,7 +461,7 @@ class DateTimeFilterWidget extends SingleSelectFilterWidget {
             { label: 'This month', value: thisMonth.toISOString() },
             { label: 'This year', value: thisYear.toISOString() },
         ]
-
+        this.op = '>='
         super.renderWithOptions(elm, options)
     }
 }
