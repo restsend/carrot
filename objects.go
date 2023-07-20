@@ -600,7 +600,7 @@ func handleQueryObject(c *gin.Context, obj *WebObject, prepareQuery PrepareQuery
 			if _, ok := filterFields[field]; !ok {
 				continue
 			}
-			filter.Name = namer.ColumnName(obj.tableName, filter.Name)
+			filter.Name = namer.ColumnName(obj.tableName, field)
 			stripFilters = append(stripFilters, filter)
 		}
 		form.Filters = stripFilters
@@ -668,6 +668,8 @@ func handleQueryObject(c *gin.Context, obj *WebObject, prepareQuery PrepareQuery
 
 func (obj *WebObject) queryObjects(db *gorm.DB, ctx *gin.Context, form *QueryForm) (r QueryResult, err error) {
 	tblName := db.NamingStrategy.TableName(obj.tableName)
+	Debug("queryObjects", tblName, form.Filters, form.Orders, form.Pos, form.Limit, form.Keyword)
+
 	for _, v := range form.Filters {
 		if q := v.GetQuery(); q != "" {
 			if v.Op == FilterOpLike {
