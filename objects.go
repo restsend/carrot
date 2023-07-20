@@ -660,6 +660,7 @@ func handleQueryObject(c *gin.Context, obj *WebObject, prepareQuery PrepareQuery
 		}
 		if obj != nil {
 			c.JSON(http.StatusOK, obj)
+			return
 		}
 	}
 	c.JSON(http.StatusOK, r)
