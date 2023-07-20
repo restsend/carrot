@@ -76,7 +76,7 @@ class BooleanWidget extends BaseWidget {
         node.value = this.field.value
         node.addEventListener('change', (e) => {
             e.preventDefault()
-            this.field.value = e.target.value
+            this.field.value = e.target.checked
             this.field.dirty = true
         })
         elm.appendChild(node)
