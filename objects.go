@@ -357,7 +357,8 @@ func (obj *WebObject) parseFields(rt reflect.Type) {
 			continue
 		}
 
-		jsonTag := f.Tag.Get("json")
+		jsonTag := strings.TrimSpace(strings.Split(f.Tag.Get("json"), ",")[0])
+
 		if jsonTag == "" {
 			obj.jsonToFields[f.Name] = f.Name
 
@@ -588,6 +589,7 @@ func handleQueryObject(c *gin.Context, obj *WebObject, prepareQuery PrepareQuery
 	for _, k := range obj.Filterables {
 		filterFields[k] = struct{}{}
 	}
+
 	if len(filterFields) > 0 {
 		var stripFilters []Filter
 		for i := 0; i < len(form.Filters); i++ {
@@ -668,7 +670,6 @@ func handleQueryObject(c *gin.Context, obj *WebObject, prepareQuery PrepareQuery
 
 func (obj *WebObject) queryObjects(db *gorm.DB, ctx *gin.Context, form *QueryForm) (r QueryResult, err error) {
 	tblName := db.NamingStrategy.TableName(obj.tableName)
-	Debug("queryObjects", tblName, form.Filters, form.Orders, form.Pos, form.Limit, form.Keyword)
 
 	for _, v := range form.Filters {
 		if q := v.GetQuery(); q != "" {
