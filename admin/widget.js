@@ -73,7 +73,7 @@ class BooleanWidget extends BaseWidget {
         let node = document.createElement('input')
         node.type = 'checkbox'
         node.className = 'mr-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600'
-        node.value = this.field.value
+        node.checked = this.field.value === true
         node.addEventListener('change', (e) => {
             e.preventDefault()
             this.field.value = e.target.checked
