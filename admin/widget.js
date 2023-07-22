@@ -121,7 +121,7 @@ class DateTimeWidget extends BaseWidget {
         let v = this.field.value
         if (typeof v == 'string' && v.length >= 16) {
             node.value = v.substring(0, 16)
-        } else if (v.Valid && v.Time) {  // golang sql.NullTime
+        } else if (v && v.Valid && v.Time) {  // golang sql.NullTime
             node.value = v.Time.substring(0, 16)
             this.field.value = v.Time
         }
@@ -480,7 +480,7 @@ window.AdminFilterWidgets = {
 }
 
 
-function getWidget(field) {
+function getWidget(field, col) {
     let widgetType = null
     if (field.foreign) {
         widgetType = 'foreign'
@@ -524,6 +524,7 @@ function getWidget(field) {
     }
     let widget = new widgetCls()
     widget.field = field
+    widget.col = col
     return widget
 }
 
@@ -570,7 +571,7 @@ document.addEventListener('alpine:init', () => {
     Alpine.directive('admin-render', (el, { expression }, { evaluate }) => {
         let col = evaluate(expression)
         col.field.value = col.value
-        getWidget(col.field).render(el)
+        getWidget(col.field, col).render(el)
     })
 
     Alpine.directive('admin-edit-label', (el, { expression }, { evaluate }) => {

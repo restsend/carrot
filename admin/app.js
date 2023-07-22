@@ -106,7 +106,7 @@ class QueryResult {
         this.filters = []
     }
 
-    attach(data) {
+    async attach(data) {
         this.pos = data.pos || 0
         this.total = data.total || 0
         this.limit = data.limit || 20
@@ -114,23 +114,26 @@ class QueryResult {
         this.count = items.length
 
         let current = Alpine.store('current')
-        this.rows = items.map(row => {
-            row.primaryValue = current.getPrimaryValue(row)
-            row.selected = false
-            row.cols = current.shows.map(field => {
-                return {
-                    value: row[field.name],
-                    field,
-                    name: field.name,
-                    primary: field.primary,
-                }
-            })
-            return row
+        items = items.map(item => {
+            return {
+                primaryValue: current.getPrimaryValue(item),
+                selected: false,
+                rawData: item,
+                cols: current.shows.map(field => {
+                    return {
+                        value: item[field.name],
+                        field,
+                        name: field.name,
+                        primary: field.primary,
+                    }
+                }),
+            }
         })
 
         if (current.prepareResult) {
-            current.prepareResult(this.rows, this.total)
+            await current.prepareResult(items, this.total)
         }
+        this.rows = items
     }
 
     get pos_value() {
@@ -234,7 +237,7 @@ class QueryResult {
             body: JSON.stringify(query),
         }).then(resp => {
             resp.json().then(data => {
-                this.attach(data)
+                this.attach(data).then()
             })
         })
     }
@@ -754,7 +757,7 @@ const adminapp = () => ({
             if (isCreate) {
                 f.value = editField.defaultValue()
             } else {
-                f.value = row[editField.name]
+                f.value = row.rawData[editField.name]
             }
             if (f.value && f.foreign) {
                 f.value = f.value.value
