@@ -324,11 +324,12 @@ class AdminObject {
 
 
         this.fields = fields.map(f => {
-            f.headerName = f.name.toUpperCase().replace(/_/g, ' ')
+            const headerName = f.label || f.name
+            f.headerName = headerName.toUpperCase().replace(/_/g, ' ')
             f.primary = f.primary
             f.required = requireds.includes(f.name)
 
-            f.defaultvalue = () => {
+            f.defaultValue = () => {
                 if (f.attribute && f.attribute.default !== undefined) {
                     return f.attribute.default
                 }
@@ -739,7 +740,7 @@ const adminapp = () => ({
         let fields = this.$store.current.editables.map(editField => {
             let f = { ...editField }
             if (isCreate) {
-                f.value = editField.defaultvalue()
+                f.value = editField.defaultValue()
             } else {
                 f.value = row[editField.name]
             }
