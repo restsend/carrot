@@ -186,7 +186,7 @@ class QueryResult {
     }
     setFilters(filters) {
         this.filters.splice(0, this.filters.length)
-        if (filters) {
+        if (!filters) {
             return this
         }
 
