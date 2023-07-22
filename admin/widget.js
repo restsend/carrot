@@ -549,8 +549,8 @@ function getFilterWidget(field) {
     }
 
     if (field.attribute) {
-        if (field.attribute.widget) {
-            widgetType = field.attribute.widget
+        if (field.attribute.filterWidget) {
+            widgetType = field.attribute.filterWidget
         } else if (field.attribute.choices) {
             widgetType = 'select'
         }
