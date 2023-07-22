@@ -674,14 +674,23 @@ func (obj *WebObject) queryObjects(db *gorm.DB, ctx *gin.Context, form *QueryFor
 	for _, v := range form.Filters {
 		if q := v.GetQuery(); q != "" {
 			if v.Op == FilterOpLike {
-				kw := sql.Named("keyword", fmt.Sprintf(`%%%s%%`, v.Value))
-				db = db.Where(fmt.Sprintf("`%s`.%s @keyword", tblName, q), kw)
+				if kws, ok := v.Value.([]any); ok {
+					qs := []string{}
+					for _, kw := range kws {
+						k := fmt.Sprintf("\"%%%s%%\"", strings.ReplaceAll(kw.(string), "\"", "\\\""))
+						q := fmt.Sprintf("`%s`.`%s` LIKE %s", tblName, v.Name, k)
+						qs = append(qs, q)
+					}
+					db = db.Where(strings.Join(qs, " OR "))
+				} else {
+					db = db.Where(fmt.Sprintf("`%s`.%s", tblName, q), fmt.Sprintf("%%%s%%", v.Value))
+				}
 			} else if v.Op == FilterOpBetween {
 				vals, ok := v.Value.([]string)
 				if !ok || len(vals) != 2 {
 					return r, fmt.Errorf("invalid between value")
 				}
-				db = db.Where(fmt.Sprintf("`%s`.%s BETWEEN ? AND ?", obj.tableName, q), vals[0], vals[1])
+				db = db.Where(fmt.Sprintf("`%s`.%s BETWEEN ? AND ?", tblName, q), vals[0], vals[1])
 			} else {
 				db = db.Where(fmt.Sprintf("`%s`.%s", tblName, q), v.Value)
 			}

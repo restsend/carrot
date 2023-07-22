@@ -199,6 +199,32 @@ func TestAdminCRUD(t *testing.T) {
 		assert.Equal(t, 1, len(result.Items))
 	}
 	{
+		var result AdminQueryResult
+		var form QueryForm
+		form.Keyword = ""
+		form.Filters = []Filter{
+			{
+				Name:  "key",
+				Op:    "like",
+				Value: []string{"test", "test2"},
+			},
+			{
+				Name:  "id",
+				Op:    ">=",
+				Value: "1024",
+			},
+		}
+		form.Orders = []Order{
+			{
+				Name: "id",
+				Op:   "desc",
+			},
+		}
+		err := client.CallPost("/admin/config/", &form, &result)
+		assert.Nil(t, err)
+		assert.Equal(t, 1, len(result.Items))
+	}
+	{
 		var form QueryForm
 		var result AdminQueryResult
 		err := client.CallPost("/admin/user/", &form, &result)

@@ -805,8 +805,17 @@ func (obj *AdminObject) QueryObjects(db *gorm.DB, form *QueryForm, ctx *gin.Cont
 	for _, v := range form.Filters {
 		if q := v.GetQuery(); q != "" {
 			if v.Op == FilterOpLike {
-				kw := sql.Named("keyword", fmt.Sprintf(`%%%s%%`, v.Value))
-				db = db.Where(fmt.Sprintf("`%s`.%s @keyword", obj.tableName, q), kw)
+				if kws, ok := v.Value.([]any); ok {
+					qs := []string{}
+					for _, kw := range kws {
+						k := fmt.Sprintf("\"%%%s%%\"", strings.ReplaceAll(kw.(string), "\"", "\\\""))
+						q := fmt.Sprintf("`%s`.`%s` LIKE %s", obj.tableName, v.Name, k)
+						qs = append(qs, q)
+					}
+					db = db.Where(strings.Join(qs, " OR "))
+				} else {
+					db = db.Where(fmt.Sprintf("`%s`.%s", obj.tableName, q), fmt.Sprintf("%%%s%%", v.Value))
+				}
 			} else if v.Op == FilterOpBetween {
 				vals, ok := v.Value.([]string)
 				if !ok || len(vals) != 2 {
