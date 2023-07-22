@@ -486,7 +486,7 @@ class AdminObject {
         let vals = ['api', this.name.toLowerCase()]
         this.primaryKey.forEach(key => {
             let f = this.fields.find(f => f.name === key)
-            let v = row[key]
+            let v = row.rawData[key]
             if (v !== undefined) {
                 if (f.foreign) {
                     v = v.value
