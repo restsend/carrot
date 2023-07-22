@@ -186,7 +186,19 @@ class QueryResult {
     }
     setFilters(filters) {
         this.filters.splice(0, this.filters.length)
-        this.filters.push(...filters)
+        if (filters) {
+            return this
+        }
+
+        filters.forEach(f => {
+            if (f instanceof Array) {
+                f.forEach(sub => {
+                    this.filters.push(sub)
+                })
+            } else {
+                this.filters.push(f)
+            }
+        })
         return this
     }
 
