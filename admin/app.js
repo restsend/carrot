@@ -329,6 +329,9 @@ class AdminObject {
             f.required = requireds.includes(f.name)
 
             f.defaultvalue = () => {
+                if (f.attribute && f.attribute.default !== undefined) {
+                    return f.attribute.default
+                }
                 switch (f.type) {
                     case 'bool': return false
                     case 'int': return 0
