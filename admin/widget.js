@@ -326,6 +326,14 @@ class SelectFilterWidget {
 
     renderWithOptions(elm, options, multiple = false) {
         let node = document.createElement('div')
+        if (options.length > 20) {
+            node.className = 'grid grid-cols-3 gap-2'
+        } else if (options.length > 10) {
+            node.className = 'grid grid-cols-2 gap-2'
+        } else {
+            node.className = 'grid grid-cols-1 gap-2'
+        }
+
         options.forEach(opt => {
             let option = document.createElement('label')
             option.className = 'flex items-center hover:bg-gray-50 rounded py-2 px-2'
@@ -369,7 +377,7 @@ class SelectFilterWidget {
         })
 
         let clean = document.createElement('button')
-        clean.className = 'mt-4 inline-flex items-center px-2.5 py-2 border border-transparent text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
+        clean.className = 'mt-4 inline-flex items-center  justify-center px-2.5 py-2 border border-transparent text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
         clean.innerText = 'Clean'
         clean.addEventListener('click', (e) => {
             e.preventDefault()
