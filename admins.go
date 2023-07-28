@@ -68,6 +68,7 @@ type AdminIcon struct {
 type AdminField struct {
 	Placeholder string          `json:"placeholder,omitempty"` // Placeholder of the filed
 	Label       string          `json:"label"`                 // Label of the filed
+	NotColumn   bool            `json:"notColumn,omitempty"`   // Not a column
 	Required    bool            `json:"required,omitempty"`
 	Name        string          `json:"name"`
 	Type        string          `json:"type"`
@@ -463,15 +464,16 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 		}
 
 		gormTag := strings.ToLower(f.Tag.Get("gorm"))
-		if gormTag == "-" {
-			continue
-		}
+		//if gormTag == "-" {
+		//	continue
+		//}
 		field := AdminField{
 			Name:      db.NamingStrategy.ColumnName(obj.tableName, f.Name),
 			Tag:       gormTag,
 			elemType:  f.Type,
 			fieldName: f.Name,
 			Label:     f.Tag.Get("label"),
+			NotColumn: gormTag == "-",
 		}
 		if field.elemType.Kind() == reflect.Ptr {
 			field.elemType = field.elemType.Elem()
@@ -802,7 +804,7 @@ func (obj *AdminObject) handleGetOne(c *gin.Context) {
 	c.JSON(http.StatusOK, data)
 }
 
-func (obj *AdminObject) QueryObjects(db *gorm.DB, form *QueryForm, ctx *gin.Context) (r AdminQueryResult, err error) {
+func (obj *AdminObject) QueryObjects(session *gorm.DB, form *QueryForm, ctx *gin.Context) (r AdminQueryResult, err error) {
 	for _, v := range form.Filters {
 		if q := v.GetQuery(); q != "" {
 			if v.Op == FilterOpLike {
@@ -813,18 +815,18 @@ func (obj *AdminObject) QueryObjects(db *gorm.DB, form *QueryForm, ctx *gin.Cont
 						q := fmt.Sprintf("`%s`.`%s` LIKE %s", obj.tableName, v.Name, k)
 						qs = append(qs, q)
 					}
-					db = db.Where(strings.Join(qs, " OR "))
+					session = session.Where(strings.Join(qs, " OR "))
 				} else {
-					db = db.Where(fmt.Sprintf("`%s`.%s", obj.tableName, q), fmt.Sprintf("%%%s%%", v.Value))
+					session = session.Where(fmt.Sprintf("`%s`.%s", obj.tableName, q), fmt.Sprintf("%%%s%%", v.Value))
 				}
 			} else if v.Op == FilterOpBetween {
 				vals, ok := v.Value.([]string)
 				if !ok || len(vals) != 2 {
 					return r, fmt.Errorf("invalid between value")
 				}
-				db = db.Where(fmt.Sprintf("`%s`.%s BETWEEN ? AND ?", obj.tableName, q), vals[0], vals[1])
+				session = session.Where(fmt.Sprintf("`%s`.%s BETWEEN ? AND ?", obj.tableName, q), vals[0], vals[1])
 			} else {
-				db = db.Where(fmt.Sprintf("`%s`.%s", obj.tableName, q), v.Value)
+				session = session.Where(fmt.Sprintf("`%s`.%s", obj.tableName, q), v.Value)
 			}
 		}
 	}
@@ -838,7 +840,7 @@ func (obj *AdminObject) QueryObjects(db *gorm.DB, form *QueryForm, ctx *gin.Cont
 
 	for _, v := range orders {
 		if q := v.GetQuery(); q != "" {
-			db = db.Order(fmt.Sprintf("`%s`.%s", obj.tableName, q))
+			session = session.Order(fmt.Sprintf("`%s`.%s", obj.tableName, q))
 		}
 	}
 
@@ -848,17 +850,17 @@ func (obj *AdminObject) QueryObjects(db *gorm.DB, form *QueryForm, ctx *gin.Cont
 			query = append(query, fmt.Sprintf("`%s`.`%s` LIKE @keyword", obj.tableName, v))
 		}
 		searchKey := strings.Join(query, " OR ")
-		db = db.Where(searchKey, sql.Named("keyword", "%"+form.Keyword+"%"))
+		session = session.Where(searchKey, sql.Named("keyword", "%"+form.Keyword+"%"))
 	}
 
 	r.Pos = form.Pos
 	r.Limit = form.Limit
 	r.Keyword = form.Keyword
 
-	db = db.Table(obj.tableName)
+	session = session.Table(obj.tableName)
 
 	var c int64
-	if err := db.Count(&c).Error; err != nil {
+	if err := session.Count(&c).Error; err != nil {
 		return r, err
 	}
 	if c <= 0 {
@@ -868,6 +870,9 @@ func (obj *AdminObject) QueryObjects(db *gorm.DB, form *QueryForm, ctx *gin.Cont
 
 	selected := []string{}
 	for _, v := range obj.Fields {
+		if v.NotColumn {
+			continue
+		}
 		if v.Foreign != nil {
 			selected = append(selected, v.Foreign.Field)
 		} else {
@@ -876,7 +881,7 @@ func (obj *AdminObject) QueryObjects(db *gorm.DB, form *QueryForm, ctx *gin.Cont
 	}
 
 	vals := reflect.New(reflect.SliceOf(obj.modelElem))
-	tx := db.Preload(clause.Associations).Select(selected).Offset(form.Pos)
+	tx := session.Preload(clause.Associations).Select(selected).Offset(form.Pos)
 	if form.Limit > 0 {
 		tx = tx.Limit(form.Limit)
 	}
@@ -889,6 +894,7 @@ func (obj *AdminObject) QueryObjects(db *gorm.DB, form *QueryForm, ctx *gin.Cont
 		modelObj := vals.Elem().Index(i).Addr().Interface()
 		r.objects = append(r.objects, modelObj)
 		if obj.BeforeRender != nil {
+			db := getDbConnection(ctx, obj.GetDB, false)
 			rr, err := obj.BeforeRender(db, ctx, modelObj)
 			if err != nil {
 				return r, err
@@ -983,7 +989,17 @@ func (obj *AdminObject) handleCreate(c *gin.Context) {
 		AbortWithJSONError(c, http.StatusInternalServerError, result.Error)
 		return
 	}
-
+	if obj.BeforeRender != nil {
+		rr, err := obj.BeforeRender(db, c, elm)
+		if err != nil {
+			AbortWithJSONError(c, http.StatusInternalServerError, err)
+			return
+		}
+		if rr != nil {
+			// if BeforeRender return not nil, then use it as result
+			elm = rr
+		}
+	}
 	c.JSON(http.StatusOK, elm)
 }
 
