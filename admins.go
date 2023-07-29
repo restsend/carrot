@@ -700,6 +700,11 @@ func (obj *AdminObject) UnmarshalFrom(elemObj reflect.Value, keys, vals map[stri
 		if field.Foreign != nil {
 			target = elemObj.Elem().FieldByName(field.Foreign.foreignKey)
 			targetType = target.Type()
+			if valMap, ok := val.(map[string]any); ok {
+				if v, ok := valMap["value"]; ok {
+					val = v
+				}
+			}
 		} else {
 			target = elemObj.Elem().FieldByName(field.fieldName)
 		}
