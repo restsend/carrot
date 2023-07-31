@@ -30,16 +30,27 @@ class BaseWidget {
         elm.innerText = text
     }
     renderEditLabel(elm) {
-        if (this.field.required) {
-            let node = document.createElement('span')
-            node.innerText = '*'
-            node.className = 'text-red-600'
-            elm.appendChild(node)
-        }
-        let node = document.createElement('span')
-        node.innerText = this.field.label
-        node.className = 'text-gray-700'
+        let node = document.createElement('div')
+        node.className = 'flex items-center space-x-1'
         elm.appendChild(node)
+
+        if (this.field.required) {
+            let r = document.createElement('span')
+            r.innerText = '*'
+            r.className = 'text-red-600'
+            node.appendChild(r)
+        }
+        let label = document.createElement('span')
+        label.innerText = this.field.label
+        label.className = 'text-gray-700'
+        node.appendChild(label)
+
+        if (this.field.attribute && this.field.attribute.help) {
+            let help = document.createElement('span')
+            help.innerText = this.field.attribute.help
+            help.className = 'text-gray-400 text-xs'
+            node.appendChild(help)
+        }
     }
 
     renderEdit(elm) {

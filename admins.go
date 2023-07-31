@@ -49,6 +49,7 @@ type AdminAttribute struct {
 	SingleChoice bool                `json:"singleChoice,omitempty"`
 	Widget       string              `json:"widget,omitempty"`
 	FilterWidget string              `json:"filterWidget,omitempty"`
+	Help         string              `json:"help,omitempty"`
 }
 type AdminForeign struct {
 	Path       string `json:"path"`
