@@ -105,7 +105,7 @@ type AdminObject struct {
 	Desc        string          `json:"desc,omitempty"`      // Description
 	Path        string          `json:"path"`                // Path prefix
 	Shows       []string        `json:"shows"`               // Show fields
-	Orders      []Order         `json:"-"`                   // Default orders of the object
+	Orders      []Order         `json:"orders"`              // Default orders of the object
 	Editables   []string        `json:"editables"`           // Editable fields
 	Filterables []string        `json:"filterables"`         // Filterable fields
 	Orderables  []string        `json:"orderables"`          // Orderable fields, can override Orders
@@ -156,7 +156,7 @@ func GetCarrotAdminObjects() []AdminObject {
 			Group:       "Settings",
 			Name:        "User",
 			Desc:        "Builtin user management system",
-			Shows:       []string{"ID", "Email", "Username", "FirstName", "ListName", "IsStaff", "IsSuperUser", "Enabled", "Activated", "LastLogin", "LastLoginIP", "Source", "Locale", "Timezone"},
+			Shows:       []string{"ID", "Email", "Username", "FirstName", "ListName", "IsStaff", "IsSuperUser", "Enabled", "Activated", "UpdatedAt", "LastLogin", "LastLoginIP", "Source", "Locale", "Timezone"},
 			Editables:   []string{"Email", "Password", "Username", "FirstName", "ListName", "IsStaff", "IsSuperUser", "Enabled", "Activated", "Profile", "Source", "Locale", "Timezone"},
 			Filterables: []string{"CreatedAt", "UpdatedAt", "Username", "IsStaff", "IsSuperUser", "Enabled", "Activated "},
 			Orderables:  []string{"CreatedAt", "UpdatedAt", "Enabled", "Activated"},
@@ -826,11 +826,11 @@ func (obj *AdminObject) QueryObjects(session *gorm.DB, form *QueryForm, ctx *gin
 					session = session.Where(fmt.Sprintf("`%s`.%s", obj.tableName, q), fmt.Sprintf("%%%s%%", v.Value))
 				}
 			} else if v.Op == FilterOpBetween {
-				vals, ok := v.Value.([]string)
-				if !ok || len(vals) != 2 {
-					return r, fmt.Errorf("invalid between value")
+				vt := reflect.ValueOf(v.Value)
+				if vt.Kind() != reflect.Slice && vt.Len() != 2 {
+					return r, fmt.Errorf("invalid between value, must be slice with 2 elements")
 				}
-				session = session.Where(fmt.Sprintf("`%s`.%s BETWEEN ? AND ?", obj.tableName, q), vals[0], vals[1])
+				session = session.Where(fmt.Sprintf("`%s`.%s", obj.tableName, q), vt.Index(0).Interface(), vt.Index(1).Interface())
 			} else {
 				session = session.Where(fmt.Sprintf("`%s`.%s", obj.tableName, q), v.Value)
 			}
@@ -845,7 +845,7 @@ func (obj *AdminObject) QueryObjects(session *gorm.DB, form *QueryForm, ctx *gin
 	}
 
 	for _, v := range orders {
-		if q := v.GetQuery(); q != "" {
+		if q := v.GetQuery(); q != "" && v.Op != "" {
 			session = session.Order(fmt.Sprintf("`%s`.%s", obj.tableName, q))
 		}
 	}

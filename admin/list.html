@@ -108,12 +108,45 @@
                           </template>
                           <template x-if="current.shows">
                             <template x-for="col in current.shows">
-                              <th scope="col" x-text="col.headerName"
-                                class="sticky w-72 border-b border-gray-300 bg-opacity-75 py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
+                              <th scope="col"
+                                class="sticky w-72 border-b border-gray-300 bg-opacity-75 py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-600 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
+                                <template x-if="col.canSort">
+                                  <div class="flex justify-between text-blue-900 h-6 group items-center">
+                                    <span class="cursor-pointer" x-text="col.headerName"
+                                      @click="queryresult.toggleOrder(col)"></span>
+                                    <div x-show="col.sort != ''" class="flex space-x-1 h-5 text-xs cursor-pointer">
+                                      <span class="hidden group-hover:block hover:text-gray-400 w-4 h-4"
+                                        @click="queryresult.toggleOrder(col, '')">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                          stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                                          <path stroke-linecap="round" stroke-linejoin="round"
+                                            d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                                        </svg>
+                                      </span>
+                                      <span>
+                                        <svg @click="queryresult.toggleOrder(col)" x-show="col.sort == 'desc'"
+                                          xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                          stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                                          <path stroke-linecap="round" stroke-linejoin="round"
+                                            d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                        </svg>
+                                        <svg @click="queryresult.toggleOrder(col)" x-show="col.sort == 'asc'"
+                                          xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                          stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                                          <path stroke-linecap="round" stroke-linejoin="round"
+                                            d="M4.5 15.75l7.5-7.5 7.5 7.5" />
+                                        </svg>
+                                      </span>
+                                    </div>
+                                  </div>
+                                </template>
+                                <template x-if="!col.canSort">
+                                  <span x-text="col.headerName"></span>
+                                </template>
                               </th>
                             </template>
                           </template>
-                          <th scope="col"
+                          <th scope=" col"
                             class=" w-12 border-b border-gray-300 bg-opacity-75 relative py-3.5 pl-3 pr-4 sm:pr-0">
                             <span class="sr-only">Edit</span>
                           </th>

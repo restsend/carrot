@@ -157,6 +157,7 @@ func (f *Filter) GetQuery() string {
 		op = "LIKE"
 	case FilterOpBetween:
 		op = "BETWEEN"
+		return fmt.Sprintf("`%s` BETWEEN ? AND ?", f.Name)
 	}
 
 	if op == "" {
@@ -686,11 +687,12 @@ func (obj *WebObject) queryObjects(db *gorm.DB, ctx *gin.Context, form *QueryFor
 					db = db.Where(fmt.Sprintf("`%s`.%s", tblName, q), fmt.Sprintf("%%%s%%", v.Value))
 				}
 			} else if v.Op == FilterOpBetween {
-				vals, ok := v.Value.([]string)
-				if !ok || len(vals) != 2 {
-					return r, fmt.Errorf("invalid between value")
+				vt := reflect.ValueOf(v.Value)
+				if vt.Kind() != reflect.Slice && vt.Len() != 2 {
+					return r, fmt.Errorf("invalid between value, must be slice with 2 elements")
 				}
-				db = db.Where(fmt.Sprintf("`%s`.%s BETWEEN ? AND ?", tblName, q), vals[0], vals[1])
+				db = db.Where(fmt.Sprintf("`%s`.%s", obj.tableName, q), vt.Index(0).Interface(), vt.Index(1).Interface())
+
 			} else {
 				db = db.Where(fmt.Sprintf("`%s`.%s", tblName, q), v.Value)
 			}

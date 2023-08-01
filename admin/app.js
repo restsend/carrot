@@ -187,6 +187,7 @@ class QueryResult {
         row.selected = !row.selected
         this.selected = this.rows.filter(row => row.selected).length
     }
+
     setFilters(filters) {
         this.filters.splice(0, this.filters.length)
         if (!filters) {
@@ -206,11 +207,36 @@ class QueryResult {
     }
 
     setOrders(orders) {
+        console.log('setOrders', orders)
         this.orders.splice(0, this.orders.length)
         this.orders.push(...orders)
         return this
     }
+
+    toggleOrder(field, value) {
+        let of = this.orders.find(o => o.name === field.name)
+        if (!of) {
+            console.error(`order field ${field.name} not found`, this.orders)
+            return
+        }
+
+        if (value === '') {
+            field.sort = ''
+            of.op = ''
+            this.refresh()
+            return
+        }
+        if (field.sort == '' || field.sort === 'desc') {
+            field.sort = 'asc'
+        } else if (field.sort === 'asc') {
+            field.sort = 'desc'
+        }
+        of.op = field.sort
+        this.refresh()
+    }
+
     refresh(source) {
+        let current = Alpine.store('current')
         let query = {
             keyword: this.keyword,
             pos: this.pos,
@@ -218,8 +244,6 @@ class QueryResult {
             filters: this.filters,
             orders: this.orders
         }
-
-        let current = Alpine.store('current')
 
         if (current.prepareQuery) {
             let q = current.prepareQuery(query, source)
@@ -407,6 +431,20 @@ class AdminObject {
         this.searchables = filter_fields(meta.searchables)
         this.filterables = filter_fields(meta.filterables)
         this.orderables = filter_fields(meta.orderables)
+        this.orders = meta.orders || []
+
+        this.orderables.forEach(f => {
+            const o = this.orders.find(of => of.name === f.name)
+            if (!o) {
+                this.orders.push({ name: f.name, op: '' })
+            }
+        })
+
+        this.shows.forEach(f => {
+            const o = this.orders.find(of => of.name === f.name)
+            f.sort = o ? o.op : ''
+            f.canSort = this.orderables.find(of => of.name === f.name) !== undefined
+        })
 
         this.filterables.forEach(f => {
             f.onSelect = this.onFilterSelect.bind(this)
@@ -724,6 +762,7 @@ const adminapp = () => ({
         }).then(resp => {
             resp.text().then(text => {
                 const elm = document.getElementById('query_content')
+                this.$store.queryresult.setOrders(obj.orders)
                 if (!this.injectHtml(elm, text, obj)) {
                     this.$store.queryresult.refresh()
                 }

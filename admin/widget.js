@@ -425,26 +425,39 @@ class DateTimeFilterWidget extends SelectFilterWidget {
     render(elm) {
         let today = new Date()
         today.setHours(0, 0, 0, 0)
+        let endOfToday = new Date(today.getTime() + 24 * 60 * 60 * 1000)
+        endOfToday.setHours(0, 0, 0, 0)
+
         let past7 = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
         past7.setHours(0, 0, 0, 0)
+
+        let endOfPast7 = new Date(today.getTime() + 24 * 60 * 60 * 1000)
+        endOfPast7.setHours(0, 0, 0, 0)
+
         let thisWeek = new Date(today.getTime() - today.getDay() * 24 * 60 * 60 * 1000)
         thisWeek.setHours(0, 0, 0, 0)
+        let endOfThisWeek = new Date(thisWeek.getTime() + 7 * 24 * 60 * 60 * 1000)
+        endOfThisWeek.setHours(0, 0, 0, 0)
 
         let thisMonth = new Date(today.getFullYear(), today.getMonth(), 1)
         thisMonth.setHours(0, 0, 0, 0)
+        let endOfThisMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1)
+        endOfThisMonth.setHours(0, 0, 0, 0)
 
         let thisYear = new Date(today.getFullYear(), 0, 1)
         thisYear.setHours(0, 0, 0, 0)
+        let endOfThisYear = new Date(today.getFullYear() + 1, 0, 1)
+        endOfThisYear.setHours(0, 0, 0, 0)
 
         const options = [
             { label: 'Any date', value: null, op: 'is not' },
-            { label: 'Today', value: today.toISOString() },
-            { label: 'Past 7 days', value: past7.toISOString() },
-            { label: 'This week', value: thisWeek.toISOString() },
-            { label: 'This month', value: thisMonth.toISOString() },
-            { label: 'This year', value: thisYear.toISOString() },
+            { label: 'Today', value: [today.toISOString(), endOfToday.toISOString()] },
+            { label: 'Past 7 days', value: [past7.toISOString(), endOfPast7.toISOString()] },
+            { label: 'This week', value: [thisWeek.toISOString(), endOfThisWeek.toISOString()] },
+            { label: 'This month', value: [thisMonth.toISOString(), endOfThisMonth.toISOString()] },
+            { label: 'This year', value: [thisYear.toISOString(), endOfThisYear.toISOString()] },
         ]
-        this.op = '>='
+        this.op = 'between'
         super.renderWithOptions(elm, options, false)
     }
 }
