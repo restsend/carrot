@@ -195,8 +195,8 @@ class QueryResult {
         }
 
         filters.forEach(f => {
-            if (f instanceof Array) {
-                f.forEach(sub => {
+            if (f.isGroup) {
+                f.value.forEach(sub => {
                     this.filters.push(sub)
                 })
             } else {
@@ -207,7 +207,6 @@ class QueryResult {
     }
 
     setOrders(orders) {
-        console.log('setOrders', orders)
         this.orders.splice(0, this.orders.length)
         this.orders.push(...orders)
         return this
@@ -489,7 +488,6 @@ class AdminObject {
 
     onFilterSelect(filter, value) {
         filter.selected = value || {}
-        // refresh query
         let filters = this.filterables.filter(f => f.selected && f.selected.op).map(f => f.selected)
         Alpine.store('queryresult').setFilters(filters).refresh()
     }
