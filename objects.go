@@ -359,7 +359,6 @@ func (obj *WebObject) parseFields(rt reflect.Type) {
 		}
 
 		jsonTag := strings.TrimSpace(strings.Split(f.Tag.Get("json"), ",")[0])
-
 		if jsonTag == "" {
 			obj.jsonToFields[f.Name] = f.Name
 
@@ -388,6 +387,11 @@ func (obj *WebObject) parseFields(rt reflect.Type) {
 			Kind:      f.Type.Kind(),
 			IsPrimary: strings.Contains(gormTag, "primarykey"),
 		}
+
+		if pkField.JSONName == "" {
+			pkField.JSONName = pkField.Name
+		}
+
 		if pkField.IsPrimary {
 			obj.primaryKey = &pkField
 		} else if strings.Contains(gormTag, "unique") {
