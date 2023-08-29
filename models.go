@@ -22,6 +22,11 @@ const (
 	GroupRoleMember = "member"
 )
 
+const (
+	GroupTypeAdmin = "admin" // carrot admin, for /admin path with permissions check
+	GroupTypeApp   = "app"
+)
+
 type Config struct {
 	ID    uint   `json:"id" gorm:"primaryKey"`
 	Key   string `json:"key" gorm:"size:128;uniqueIndex"`
@@ -74,12 +79,21 @@ type User struct {
 	AuthToken string   `json:"token,omitempty" gorm:"-"`
 }
 
+// permission format
+// users.read,users.create,users.update,users.delete, user.*
+// pages.publish,pages.update,page.delete,page.*
+type GroupPermission struct {
+	Permissions []string
+}
+
 type Group struct {
-	ID        uint      `json:"-" gorm:"primaryKey"`
-	CreatedAt time.Time `json:"-" gorm:"autoCreateTime"`
-	UpdatedAt time.Time `json:"-"`
-	Name      string    `json:"name" gorm:"size:200"`
-	Extra     string    `json:"extra"`
+	ID         uint            `json:"-" gorm:"primaryKey"`
+	CreatedAt  time.Time       `json:"-" gorm:"autoCreateTime"`
+	UpdatedAt  time.Time       `json:"-"`
+	Name       string          `json:"name" gorm:"size:200"`
+	Type       string          `json:"type" gorm:"size:24;index"`
+	Extra      string          `json:"extra"`
+	Permission GroupPermission `json:"-"`
 }
 
 type GroupMember struct {
@@ -90,14 +104,6 @@ type GroupMember struct {
 	GroupID   uint      `json:"-"`
 	Group     Group     `json:"group"`
 	Role      string    `json:"role" gorm:"size:60"`
-}
-
-type GroupPermission struct {
-	ID      uint   `json:"-" gorm:"primaryKey"`
-	GroupID uint   `json:"groupId"`
-	Group   Group  `json:"-"`
-	Content string `json:"content" gorm:"size:200"`
-	Code    string `json:"code" gorm:"size:200"`
 }
 
 func (u User) String() string {
@@ -129,13 +135,23 @@ func (u *User) GetProfile() Profile {
 	return Profile{}
 }
 
+func (p *GroupPermission) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+	return json.Unmarshal(value.([]byte), p)
+}
+
+func (p GroupPermission) Value() (driver.Value, error) {
+	return json.Marshal(p)
+}
+
 func InitMigrate(db *gorm.DB) error {
 	return MakeMigrates(db, []any{
 		&Config{},
 		&User{},
 		&Group{},
 		&GroupMember{},
-		&GroupPermission{},
 	})
 }
 
