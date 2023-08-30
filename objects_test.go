@@ -835,3 +835,51 @@ func TestQueryViews(t *testing.T) {
 	assert.Equal(t, float64(0), result.Items[10].(map[string]any)["age"])
 	assert.NotZero(t, result.Items[10].(map[string]any)["id"])
 }
+
+func TestActions(t *testing.T) {
+	db, _ := gorm.Open(sqlite.Open("file::memory:"), nil)
+	db.AutoMigrate(UnittestUser{})
+
+	r := gin.Default()
+	r.Use(WithGormDB(db))
+
+	webobject := WebObject{
+		Name:        "user",
+		Model:       UnittestUser{},
+		Editables:   []string{"Name"},
+		Filterables: []string{"Name, Age"},
+		Searchables: []string{"Name"},
+		BeforeRender: func(db *gorm.DB, ctx *gin.Context, vptr any) (any, error) {
+			ctx.Redirect(http.StatusMovedPermanently, "/not_found")
+			return nil, nil
+		},
+
+		Actions: []WebObjectAction{
+			{
+				Path: "hello",
+				Handler: func(db *gorm.DB, ctx *gin.Context) {
+					ctx.JSON(http.StatusOK, map[string]any{"hello": "world"})
+				},
+			},
+		},
+	}
+	err := webobject.RegisterObject(&r.RouterGroup)
+	assert.Nil(t, err)
+
+	client := NewTestClient(r)
+	var result map[string]string
+	err = client.CallPost("/user/hello", nil, &result)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(result))
+	assert.Equal(t, "world", result["hello"])
+
+	user := UnittestUser{
+		ID:   1,
+		Name: fmt.Sprintf("user-%d", 1),
+		Age:  1,
+	}
+	db.Create(&user)
+
+	err = client.CallGet("/user/1", nil, nil)
+	assert.Contains(t, err.Error(), "Moved Permanently")
+}

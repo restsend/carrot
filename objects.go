@@ -47,6 +47,7 @@ const (
 
 type GetDB func(c *gin.Context, isCreate bool) *gorm.DB // designed for group
 type PrepareQuery func(db *gorm.DB, c *gin.Context) (*gorm.DB, *QueryForm, error)
+type ActionHandler func(db *gorm.DB, c *gin.Context)
 
 type (
 	BeforeCreateFunc      func(db *gorm.DB, ctx *gin.Context, vptr any) error
@@ -61,6 +62,11 @@ type QueryView struct {
 	Method  string
 	Prepare PrepareQuery
 }
+type WebObjectAction struct {
+	Path    string        `json:"path"`
+	Handler ActionHandler `json:"-"`
+}
+
 type WebObjectPrimaryField struct {
 	IsPrimary bool
 	Name      string
@@ -84,6 +90,7 @@ type WebObject struct {
 	BeforeQueryRender BeforeQueryRenderFunc
 
 	Views        []QueryView
+	Actions      []WebObjectAction
 	AllowMethods int
 
 	primaryKey *WebObjectPrimaryField
@@ -229,6 +236,15 @@ func (obj *WebObject) RegisterObject(r *gin.RouterGroup) error {
 		}
 		r.Handle(v.Method, filepath.Join(p, v.Name), func(ctx *gin.Context) {
 			handleQueryObject(ctx, obj, v.Prepare)
+		})
+	}
+
+	for i := 0; i < len(obj.Actions); i++ {
+		a := &obj.Actions[i]
+		p := filepath.Join(p, a.Path)
+
+		r.POST(p, func(ctx *gin.Context) {
+			a.Handler(getDbConnection(ctx, obj.GetDB, false), ctx)
 		})
 	}
 
@@ -432,6 +448,13 @@ func handleGetObject(c *gin.Context, obj *WebObject) {
 			AbortWithJSONError(c, http.StatusInternalServerError, err)
 			return
 		}
+		c.Redirect(http.StatusFound, rr.(string))
+
+		if c.Writer.Written() || c.Writer.Status() != http.StatusOK {
+			// if body has written, return
+			return
+		}
+
 		if rr != nil {
 			val = rr
 		}
@@ -665,6 +688,12 @@ func handleQueryObject(c *gin.Context, obj *WebObject, prepareQuery PrepareQuery
 			AbortWithJSONError(c, http.StatusBadRequest, err)
 			return
 		}
+
+		if c.Writer.Written() || c.Writer.Status() != http.StatusOK {
+			// if body has written, return
+			return
+		}
+
 		if obj != nil {
 			c.JSON(http.StatusOK, obj)
 			return
