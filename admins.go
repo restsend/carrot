@@ -555,11 +555,11 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 			}
 		}
 
-		if field.Type == "NullTime" || field.Type == "Time" {
+		if field.Type == "NullTime" || field.Type == "Time" || field.Type == "DeletedAt" {
 			field.Type = "datetime"
 		}
 
-		if field.Type == "NullBool" {
+		if field.Type == "DeletedAt" || strings.HasPrefix("Null", field.Type) {
 			field.CanNull = true
 		}
 

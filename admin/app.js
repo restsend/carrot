@@ -367,6 +367,14 @@ class AdminObject {
             f.primary = f.primary
             f.required = requireds.includes(f.name)
 
+            if (/int/i.test(f.type)) {
+                f.type = 'int'
+            }
+
+            if (/float/i.test(f.type)) {
+                f.type = 'float'
+            }
+
             f.defaultValue = () => {
                 if (f.attribute && f.attribute.default !== undefined) {
                     return f.attribute.default
@@ -419,14 +427,17 @@ class AdminObject {
             return f
         })
 
-        let filter_fields = (names) => {
+        let filter_fields = (names, defaults) => {
+            if (!names) {
+                return defaults || []
+            }
             return (names || []).map(name => {
                 return fields.find(f => f.name === name)
             }).filter(f => f)
         }
 
-        this.shows = filter_fields(meta.shows)
-        this.editables = filter_fields(meta.editables)
+        this.shows = filter_fields(meta.shows, fields)
+        this.editables = filter_fields(meta.editables, fields)
         this.searchables = filter_fields(meta.searchables)
         this.filterables = filter_fields(meta.filterables)
         this.orderables = filter_fields(meta.orderables)
@@ -589,7 +600,6 @@ class AdminObject {
             })
             if (resp.status != 200) {
                 let reason = await parseResponseError(resp)
-                console.error(reason, resp)
                 Alpine.store('toasts').error(`${action.name} fail : ${reason}`)
                 if (action.onFail) {
                     let result = await resp.text()
