@@ -808,7 +808,7 @@ func TestQueryViews(t *testing.T) {
 		Searchables: []string{"Name"},
 		Views: []QueryView{
 			{
-				Name:   "names",
+				Path:   "names",
 				Method: http.MethodGet,
 				Prepare: func(db *gorm.DB, ctx *gin.Context) (*gorm.DB, *QueryForm, error) {
 					return db, &QueryForm{Limit: -1, ViewFields: []string{"ID", "Name"}}, nil

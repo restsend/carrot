@@ -209,7 +209,7 @@ func GetWebObjects(db *gorm.DB) []carrot.WebObject {
 			// GET http://localhost:8890/product/all_enabled
 			Views: []carrot.QueryView{
 				{
-					Name:   "all_enabled",
+					Path:   "all_enabled",
 					Method: "GET",
 					Prepare: func(db *gorm.DB, c *gin.Context) (*gorm.DB, *carrot.QueryForm, error) {
 						// SELECT (id, name) FROM products WHERE enabled = true

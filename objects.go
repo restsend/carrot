@@ -58,13 +58,15 @@ type (
 )
 
 type QueryView struct {
-	Name    string
-	Method  string
+	Path    string `json:"path"`
+	Method  string `json:"method"`
+	Desc    string `json:"desc"`
 	Prepare PrepareQuery
 }
 type WebObjectAction struct {
 	Path    string        `json:"path"`
 	Handler ActionHandler `json:"-"`
+	Desc    string        `json:"desc"`
 }
 
 type WebObjectPrimaryField struct {
@@ -78,6 +80,8 @@ type WebObject struct {
 	Model             any
 	Group             string
 	Name              string
+	Desc              string
+	AuthRequired      bool
 	Editables         []string
 	Filterables       []string
 	Orderables        []string
@@ -225,7 +229,7 @@ func (obj *WebObject) RegisterObject(r *gin.RouterGroup) error {
 
 	for i := 0; i < len(obj.Views); i++ {
 		v := &obj.Views[i]
-		if v.Name == "" {
+		if v.Path == "" {
 			return errors.New("with invalid view")
 		}
 		if v.Method == "" {
@@ -234,7 +238,7 @@ func (obj *WebObject) RegisterObject(r *gin.RouterGroup) error {
 		if v.Prepare == nil {
 			v.Prepare = DefaultPrepareQuery
 		}
-		r.Handle(v.Method, filepath.Join(p, v.Name), func(ctx *gin.Context) {
+		r.Handle(v.Method, filepath.Join(p, v.Path), func(ctx *gin.Context) {
 			handleQueryObject(ctx, obj, v.Prepare)
 		})
 	}
