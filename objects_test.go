@@ -836,7 +836,7 @@ func TestQueryViews(t *testing.T) {
 	assert.NotZero(t, result.Items[10].(map[string]any)["id"])
 }
 
-func TestActions(t *testing.T) {
+func TestBeforeRender(t *testing.T) {
 	db, _ := gorm.Open(sqlite.Open("file::memory:"), nil)
 	db.AutoMigrate(UnittestUser{})
 
@@ -853,26 +853,11 @@ func TestActions(t *testing.T) {
 			ctx.Redirect(http.StatusMovedPermanently, "/not_found")
 			return nil, nil
 		},
-
-		Actions: []WebObjectAction{
-			{
-				Path: "hello",
-				Handler: func(db *gorm.DB, ctx *gin.Context) {
-					ctx.JSON(http.StatusOK, map[string]any{"hello": "world"})
-				},
-			},
-		},
 	}
 	err := webobject.RegisterObject(&r.RouterGroup)
 	assert.Nil(t, err)
 
 	client := NewTestClient(r)
-	var result map[string]string
-	err = client.CallPost("/user/hello", nil, &result)
-	assert.Nil(t, err)
-	assert.Equal(t, 1, len(result))
-	assert.Equal(t, "world", result["hello"])
-
 	user := UnittestUser{
 		ID:   1,
 		Name: fmt.Sprintf("user-%d", 1),

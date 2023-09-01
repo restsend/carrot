@@ -30,7 +30,7 @@ type RegisterUserForm struct {
 }
 
 type LoginForm struct {
-	Email     string `json:"email" comment:"Email address Map json tag to struct field name. such as:Map json tag to struct field name. such as:"`
+	Email     string `json:"email" comment:"Email address"`
 	Password  string `json:"password,omitempty"`
 	Timezone  string `json:"timezone,omitempty"`
 	Remember  bool   `json:"remember,omitempty"`

@@ -51,7 +51,6 @@ type WebObjectDoc struct {
 	Searches     []string   `json:"searches,omitempty"`
 	Editables    []string   `json:"editables,omitempty"`
 	Views        []UriDoc   `json:"views,omitempty"`
-	Actions      []UriDoc   `json:"actions,omitempty"`
 }
 
 type UriDoc struct {
@@ -146,13 +145,6 @@ func GetWebObjectDocDefine(prefix string, obj carrot.WebObject) WebObjectDoc {
 		})
 	}
 
-	for _, action := range obj.Actions {
-		doc.Actions = append(doc.Actions, UriDoc{
-			Path:   filepath.Join(doc.Path, action.Path),
-			Method: http.MethodPost,
-			Desc:   action.Desc,
-		})
-	}
 	return doc
 }
 

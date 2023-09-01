@@ -47,7 +47,6 @@ const (
 
 type GetDB func(c *gin.Context, isCreate bool) *gorm.DB // designed for group
 type PrepareQuery func(db *gorm.DB, c *gin.Context) (*gorm.DB, *QueryForm, error)
-type ActionHandler func(db *gorm.DB, c *gin.Context)
 
 type (
 	BeforeCreateFunc      func(db *gorm.DB, ctx *gin.Context, vptr any) error
@@ -62,11 +61,6 @@ type QueryView struct {
 	Method  string `json:"method"`
 	Desc    string `json:"desc"`
 	Prepare PrepareQuery
-}
-type WebObjectAction struct {
-	Path    string        `json:"path"`
-	Handler ActionHandler `json:"-"`
-	Desc    string        `json:"desc"`
 }
 
 type WebObjectPrimaryField struct {
@@ -94,7 +88,6 @@ type WebObject struct {
 	BeforeQueryRender BeforeQueryRenderFunc
 
 	Views        []QueryView
-	Actions      []WebObjectAction
 	AllowMethods int
 
 	primaryKey *WebObjectPrimaryField
@@ -240,15 +233,6 @@ func (obj *WebObject) RegisterObject(r *gin.RouterGroup) error {
 		}
 		r.Handle(v.Method, filepath.Join(p, v.Path), func(ctx *gin.Context) {
 			handleQueryObject(ctx, obj, v.Prepare)
-		})
-	}
-
-	for i := 0; i < len(obj.Actions); i++ {
-		a := &obj.Actions[i]
-		p := filepath.Join(p, a.Path)
-
-		r.POST(p, func(ctx *gin.Context) {
-			a.Handler(getDbConnection(ctx, obj.GetDB, false), ctx)
 		})
 	}
 

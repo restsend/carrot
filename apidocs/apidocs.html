@@ -6,6 +6,7 @@
     <link rel="stylesheet" href="/static/inter.css" />
     <script src="/static/tailwind-3.3.2.js"></script>
     <script src="/static/alpinejs-3.12.3.min.js" defer></script>
+    <script src="//cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 
 <body class="h-full">
@@ -19,6 +20,12 @@
         }
     </style>
     <script>
+
+        document.addEventListener('alpine:init', () => {
+            Alpine.directive('markdown', el => {
+                el.innerHTML = marked.parse(el.textContent)
+            })
+        })
 
         function renderMethodClass(method) {
             var color = 'emerald'
@@ -132,7 +139,7 @@
                                             :class="item.methodClass" x-text="item.method"></span>
                                         <span class="font-mono text-xs text-zinc-400" x-text="item.path"></span>
                                     </div>
-                                    <p class="lead" x-text="item.desc"></p>
+                                    <p class="lead" x-text="item.desc" x-markdown></p>
                                     <template x-if="item.request">
                                         <div class="gap-y-3">
                                             <h3>
@@ -143,65 +150,70 @@
                                                     <span class="font-mono text-xs text-sky-500">Array</span>
                                                 </template>
                                             </h3>
-                                            <div class="px-4 sm:px-6 lg:px-8">
-                                                <div class="sm:flex sm:items-center">
-                                                    <table class="w-2/3 divide-y divide-gray-300">
-                                                        <thead>
-                                                            <tr>
-                                                                <th scope="col"
-                                                                    class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0">
-                                                                    Name</th>
-                                                                <th scope="col"
-                                                                    class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                                                                    Type</th>
-                                                                <th scope="col"
-                                                                    class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                                                                    Required</th>
-                                                                <th scope="col"
-                                                                    class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                                                                    Can Empty</th>
-                                                                </th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody class="divide-y divide-gray-200 bg-white">
-                                                            <template x-for="field in item.request.fields">
-                                                                <tr>
-                                                                    <td class="w-96 py-2 text-sm sm:pl-0">
-                                                                        <div class="px-2 font-medium text-gray-900"
-                                                                            x-text="field.name"></div>
-                                                                        <div class="px-2 text-gray-500 "
-                                                                            x-text="field.desc"></div>
-                                                                    </td>
-                                                                    <td class="px-3 py-3 text-sm text-gray-500">
-                                                                        <template x-if="field.isArray">
-                                                                            <span
-                                                                                class="font-mono text-xs text-sky-500">[]</span>
-                                                                        </template>
-                                                                        <span x-text="field.type"></span>
-                                                                    </td>
-                                                                    <td class="px-3 py-3 text-sm text-gray-500">
-                                                                        <template x-if="field.required">
-                                                                            <span
-                                                                                class="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Required</span>
-                                                                        </template>
-                                                                    </td>
-                                                                    <td class="px-3 py-3 text-sm">
-                                                                        <template x-if="field.canNull">
-                                                                            <svg class="h-5 w-5 text-emerald-500 undefined"
-                                                                                viewBox="0 0 20 20" fill="currentColor"
-                                                                                aria-hidden="true">
-                                                                                <path fill-rule="evenodd"
-                                                                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
-                                                                                    clip-rule="evenodd"></path>
-                                                                            </svg>
-                                                                        </template>
-                                                                    </td>
-                                                                </tr>
-                                                            </template>
-                                                        </tbody>
-                                                    </table>
-                                                </div>
+                                            <div class="px-2 text-gray-500 " x-text="item.response.desc" x-markdown>
                                             </div>
+                                            <template x-if="item.request.fields">
+                                                <div class="px-4 sm:px-6 lg:px-8">
+                                                    <div class="sm:flex sm:items-center">
+                                                        <table class="w-2/3 divide-y divide-gray-300">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th scope="col"
+                                                                        class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0">
+                                                                        Name</th>
+                                                                    <th scope="col"
+                                                                        class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                                                                        Type</th>
+                                                                    <th scope="col"
+                                                                        class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                                                                        Required</th>
+                                                                    <th scope="col"
+                                                                        class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                                                                        Can Empty</th>
+                                                                    </th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody class="divide-y divide-gray-200 bg-white">
+                                                                <template x-for="field in item.request.fields">
+                                                                    <tr>
+                                                                        <td class="w-96 py-2 text-sm sm:pl-0">
+                                                                            <div class="px-2 font-medium text-gray-900"
+                                                                                x-text="field.name"></div>
+                                                                            <div class="px-2 text-gray-500 "
+                                                                                x-text="field.desc" x-markdown></div>
+                                                                        </td>
+                                                                        <td class="px-3 py-3 text-sm text-gray-500">
+                                                                            <template x-if="field.isArray">
+                                                                                <span
+                                                                                    class="font-mono text-xs text-sky-500">[]</span>
+                                                                            </template>
+                                                                            <span x-text="field.type"></span>
+                                                                        </td>
+                                                                        <td class="px-3 py-3 text-sm text-gray-500">
+                                                                            <template x-if="field.required">
+                                                                                <span
+                                                                                    class="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Required</span>
+                                                                            </template>
+                                                                        </td>
+                                                                        <td class="px-3 py-3 text-sm">
+                                                                            <template x-if="field.canNull">
+                                                                                <svg class="h-5 w-5 text-emerald-500 undefined"
+                                                                                    viewBox="0 0 20 20"
+                                                                                    fill="currentColor"
+                                                                                    aria-hidden="true">
+                                                                                    <path fill-rule="evenodd"
+                                                                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
+                                                                                        clip-rule="evenodd"></path>
+                                                                                </svg>
+                                                                            </template>
+                                                                        </td>
+                                                                    </tr>
+                                                                </template>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </template>
                                     </template>
                                     <template x-if="item.response">
                                         <div class="gap-y-3">
@@ -213,65 +225,70 @@
                                                     <span class="font-mono text-xs text-sky-500">Array</span>
                                                 </template>
                                             </h3>
-                                            <div class="px-4 sm:px-6 lg:px-8">
-                                                <div class="sm:flex sm:items-center">
-                                                    <table class="w-2/3 divide-y divide-gray-300">
-                                                        <thead>
-                                                            <tr>
-                                                                <th scope="col"
-                                                                    class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0">
-                                                                    Name</th>
-                                                                <th scope="col"
-                                                                    class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                                                                    Type</th>
-                                                                <th scope="col"
-                                                                    class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                                                                    Required</th>
-                                                                <th scope="col"
-                                                                    class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                                                                    Can Empty</th>
-                                                                </th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody class="divide-y divide-gray-200 bg-white">
-                                                            <template x-for="field in item.response.fields">
-                                                                <tr>
-                                                                    <td class="w-96 py-2 text-sm sm:pl-0">
-                                                                        <div class="px-2 font-medium text-gray-900"
-                                                                            x-text="field.name"></div>
-                                                                        <div class="px-2 text-gray-500 "
-                                                                            x-text="field.desc"></div>
-                                                                    </td>
-                                                                    <td class="px-3 py-3 text-sm text-gray-500">
-                                                                        <template x-if="field.isArray">
-                                                                            <span
-                                                                                class="font-mono text-xs text-sky-500">[]</span>
-                                                                        </template>
-                                                                        <span x-text="field.type"></span>
-                                                                    </td>
-                                                                    <td class="px-3 py-3 text-sm text-gray-500">
-                                                                        <template x-if="field.required">
-                                                                            <span
-                                                                                class="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Required</span>
-                                                                        </template>
-                                                                    </td>
-                                                                    <td class="px-3 py-3 text-sm">
-                                                                        <template x-if="field.canNull">
-                                                                            <svg class="h-5 w-5 text-emerald-500 undefined"
-                                                                                viewBox="0 0 20 20" fill="currentColor"
-                                                                                aria-hidden="true">
-                                                                                <path fill-rule="evenodd"
-                                                                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
-                                                                                    clip-rule="evenodd"></path>
-                                                                            </svg>
-                                                                        </template>
-                                                                    </td>
-                                                                </tr>
-                                                            </template>
-                                                        </tbody>
-                                                    </table>
-                                                </div>
+                                            <div class="px-2 text-gray-500 " x-text="item.response.desc" x-markdown>
                                             </div>
+                                            <template x-if="item.response.fields">
+                                                <div class="px-4 sm:px-6 lg:px-8">
+                                                    <div class="sm:flex sm:items-center">
+                                                        <table class="w-2/3 divide-y divide-gray-300">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th scope="col"
+                                                                        class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0">
+                                                                        Name</th>
+                                                                    <th scope="col"
+                                                                        class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                                                                        Type</th>
+                                                                    <th scope="col"
+                                                                        class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                                                                        Required</th>
+                                                                    <th scope="col"
+                                                                        class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                                                                        Can Empty</th>
+                                                                    </th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody class="divide-y divide-gray-200 bg-white">
+                                                                <template x-for="field in item.response.fields">
+                                                                    <tr>
+                                                                        <td class="w-96 py-2 text-sm sm:pl-0">
+                                                                            <div class="px-2 font-medium text-gray-900"
+                                                                                x-text="field.name"></div>
+                                                                            <div class="px-2 text-gray-500 "
+                                                                                x-text="field.desc" x-markdown></div>
+                                                                        </td>
+                                                                        <td class="px-3 py-3 text-sm text-gray-500">
+                                                                            <template x-if="field.isArray">
+                                                                                <span
+                                                                                    class="font-mono text-xs text-sky-500">[]</span>
+                                                                            </template>
+                                                                            <span x-text="field.type"></span>
+                                                                        </td>
+                                                                        <td class="px-3 py-3 text-sm text-gray-500">
+                                                                            <template x-if="field.required">
+                                                                                <span
+                                                                                    class="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Required</span>
+                                                                            </template>
+                                                                        </td>
+                                                                        <td class="px-3 py-3 text-sm">
+                                                                            <template x-if="field.canNull">
+                                                                                <svg class="h-5 w-5 text-emerald-500 undefined"
+                                                                                    viewBox="0 0 20 20"
+                                                                                    fill="currentColor"
+                                                                                    aria-hidden="true">
+                                                                                    <path fill-rule="evenodd"
+                                                                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
+                                                                                        clip-rule="evenodd"></path>
+                                                                                </svg>
+                                                                            </template>
+                                                                        </td>
+                                                                    </tr>
+                                                                </template>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </template>
                                         </div>
                                     </template>
                                     <template x-if="item.isObject">
@@ -314,7 +331,7 @@
                                                                         <div class="px-2 font-medium text-gray-900"
                                                                             x-text="field.name"></div>
                                                                         <div class="px-2 text-gray-500 "
-                                                                            x-text="field.desc"></div>
+                                                                            x-text="field.desc" x-markdown></div>
                                                                     </td>
                                                                     <td class="px-3 py-3 text-sm text-gray-500">
                                                                         <template x-if="field.isArray">
@@ -386,28 +403,8 @@
                                                                     <span class="font-mono text-xs text-zinc-400"
                                                                         x-text="view.path"></span>
                                                                     <span class="font-mono text-xs text-zinc-400"
-                                                                        x-text="view.desc"></span>
+                                                                        x-text="view.desc" x-markdown></span>
                                                                 </div>
-                                                            </li>
-                                                        </template>
-                                                    </ul>
-                                                </div>
-                                            </template>
-                                            <template x-if="item.actions">
-                                                <div class="pt-4 px-4 sm:px-6 lg:px-8">
-                                                    <h4>Actions</h4>
-                                                    <ul class="gap-y-2">
-                                                        <template x-for="action in item.actions">
-                                                            <li>
-                                                                <div class="flex items-center gap-x-3">
-                                                                    <span
-                                                                        class="font-mono text-[0.625rem] font-semibold leading-6 rounded-lg px-1.5 ring-1 ring-inset"
-                                                                        :class="renderMethodClass(action.method)"
-                                                                        x-text="action.method"></span>
-                                                                    <span class="font-mono text-xs text-zinc-400"
-                                                                        x-text="action.path"></span>
-                                                                </div>
-                                                                <p class="lead" x-text="action.desc"></p>
                                                             </li>
                                                         </template>
                                                     </ul>
