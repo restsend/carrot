@@ -62,10 +62,13 @@ func (c *TestClient) Post(method, path string, body []byte) *httptest.ResponseRe
 	return c.SendReq(path, req)
 }
 
-func (c *TestClient) Call(method, path string, form any, result any) error {
-	body, err := json.Marshal(form)
-	if err != nil {
-		return err
+func (c *TestClient) Call(method, path string, form any, result any) (err error) {
+	body := []byte("")
+	if form != nil {
+		body, err = json.Marshal(form)
+		if err != nil {
+			return err
+		}
 	}
 	req, _ := http.NewRequest(method, path, bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
