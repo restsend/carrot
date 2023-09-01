@@ -454,10 +454,13 @@ func handleGetObject(c *gin.Context, obj *WebObject) {
 func handleCreateObject(c *gin.Context, obj *WebObject) {
 	val := reflect.New(obj.modelElem).Interface()
 
-	if err := c.BindJSON(&val); err != nil {
-		AbortWithJSONError(c, http.StatusBadRequest, err)
-		return
+	if c.Request.ContentLength > 0 {
+		if err := c.BindJSON(&val); err != nil {
+			AbortWithJSONError(c, http.StatusBadRequest, err)
+			return
+		}
 	}
+
 	db := getDbConnection(c, obj.GetDB, true)
 	if obj.BeforeCreate != nil {
 		if err := obj.BeforeCreate(db, c, val); err != nil {
