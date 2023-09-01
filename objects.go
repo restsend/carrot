@@ -185,7 +185,7 @@ func (obj *WebObject) RegisterObject(r *gin.RouterGroup) error {
 		return err
 	}
 
-	p := filepath.Join(obj.Group, obj.Name)
+	p := obj.Name
 	allowMethods := obj.AllowMethods
 	if allowMethods == 0 {
 		allowMethods = GET | CREATE | EDIT | DELETE | QUERY
