@@ -436,7 +436,6 @@ func handleGetObject(c *gin.Context, obj *WebObject) {
 			AbortWithJSONError(c, http.StatusInternalServerError, err)
 			return
 		}
-		c.Redirect(http.StatusFound, rr.(string))
 
 		if c.Writer.Written() || c.Writer.Status() != http.StatusOK {
 			// if body has written, return
