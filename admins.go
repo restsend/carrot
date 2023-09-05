@@ -741,6 +741,9 @@ func (obj *AdminObject) MarshalOne(val interface{}) (map[string]any, error) {
 		rv = rv.Elem()
 	}
 	for _, field := range obj.Fields {
+		if field.NotColumn {
+			continue
+		}
 		var fieldVal any
 		if field.Foreign != nil {
 			v := AdminValue{
