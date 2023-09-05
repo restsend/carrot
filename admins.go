@@ -464,6 +464,10 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 			continue
 		}
 
+		if f.Type.Kind() == reflect.Chan {
+			continue
+		}
+
 		gormTag := strings.ToLower(f.Tag.Get("gorm"))
 		//if gormTag == "-" {
 		//	continue
@@ -474,7 +478,7 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 			elemType:  f.Type,
 			fieldName: f.Name,
 			Label:     f.Tag.Get("label"),
-			NotColumn: gormTag == "-",
+			NotColumn: gormTag == "-" || f.Type.Kind() == reflect.Func,
 		}
 		if field.elemType.Kind() == reflect.Ptr {
 			field.elemType = field.elemType.Elem()
