@@ -20,6 +20,33 @@
         }
     </style>
     <script>
+        const renderer = {
+            heading(text, level) {
+                return `<h${level} class="py-4 font-medium">${text}</h${level}>`;
+            },
+            strong(text) {
+                return `<span class="font-semibold">${text}</span>`;
+            },
+            em(text) {
+                return `<span class="italic text-gray-500">${text}</span>`;
+            },
+            list(body, ordered, start) {
+                if (ordered) {
+                    return `<ol class="space-y-1  list-decimal list-inside">${body}</ol>`;
+                }
+                return `<ul class="space-y-1 list-disc list-inside">${body}</ul>`;
+            },
+            listitem(text, task, checked) {
+                if (task) {
+                    return `<li class="flex pl-4 items-center gap-x-2"><input type="checkbox" disabled ${checked ? 'checked' : ''} /><span>${text}</span></li>`;
+                }
+                return `<li class="pl-4">${text}</li>`;
+            },
+            blockquote(quote) {
+                return `<blockquote class="pl-4 border-l-2 border-gray-300 dark:border-gray-700 text-gray-500 my-2 py-2">${quote}</blockquote>`;
+            },
+        };
+        marked.use({ renderer });
 
         document.addEventListener('alpine:init', () => {
             Alpine.directive('markdown', el => {
