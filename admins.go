@@ -741,15 +741,16 @@ func (obj *AdminObject) MarshalOne(val interface{}) (map[string]any, error) {
 		rv = rv.Elem()
 	}
 	for _, field := range obj.Fields {
-		if field.NotColumn {
-			continue
-		}
 		var fieldVal any
 		if field.Foreign != nil {
 			v := AdminValue{
 				Value: rv.FieldByName(field.Foreign.foreignKey).Interface(),
 			}
 			fv := rv.FieldByName(field.Foreign.fieldName)
+			if fv.Kind() == reflect.Chan || fv.Kind() == reflect.Func {
+				continue
+			}
+
 			if fv.IsValid() {
 				if sv, ok := fv.Interface().(fmt.Stringer); ok {
 					v.Label = sv.String()
@@ -761,6 +762,9 @@ func (obj *AdminObject) MarshalOne(val interface{}) (map[string]any, error) {
 			fieldVal = v
 		} else {
 			v := rv.FieldByName(field.fieldName)
+			if v.Kind() == reflect.Chan || v.Kind() == reflect.Func {
+				continue
+			}
 			if v.IsValid() {
 				fieldVal = v.Interface()
 			}
