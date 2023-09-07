@@ -3,7 +3,6 @@ package carrot
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"reflect"
 	"testing"
@@ -29,9 +28,11 @@ type ProductItem struct {
 }
 
 type Product struct {
-	UUID   string      `json:"id" gorm:"primarykey;size:20"`
-	ItemID uint        `json:"-"`
-	Item   ProductItem `json:"product_item"`
+	UUID          string      `json:"id" gorm:"primarykey;size:20"`
+	ItemID        uint        `json:"-"`
+	Item          ProductItem `json:"product_item"`
+	invalid_field AdminActionHandler
+	Func_field    AdminActionHandler
 }
 
 func (item ProductItem) String() string {
@@ -351,7 +352,6 @@ func TestAdminForeign(t *testing.T) {
 			Name: "item one",
 		},
 	}
-	log.Println(p.Item)
 	assert.Equal(t, "1024 (item one)", fmt.Sprintf("%v", p.Item))
 	vals, err := productObj.MarshalOne(&p)
 	assert.Nil(t, err)
@@ -372,4 +372,17 @@ func TestAdminConvert(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, int64(2), v)
 	}
+}
+
+func TestParseField(t *testing.T) {
+	productObj := AdminObject{
+		Model: &Product{},
+		Path:  "unittest",
+	}
+	db, _ := InitDatabase(nil, "", "")
+	MakeMigrates(db, []any{&ProductItem{}, &Product{}})
+
+	err := productObj.Build(db)
+	assert.Nil(t, err)
+	assert.Equal(t, len(productObj.Fields), 2)
 }

@@ -464,11 +464,7 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 			continue
 		}
 
-		if f.Type.Kind() == reflect.Chan || f.Type.Kind() == reflect.Func {
-			continue
-		}
-
-		if !f.IsExported() {
+		if f.Type.Kind() == reflect.Chan || f.Type.Kind() == reflect.Func || !f.IsExported() {
 			continue
 		}
 
@@ -479,7 +475,7 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 			elemType:  f.Type,
 			fieldName: f.Name,
 			Label:     f.Tag.Get("label"),
-			NotColumn: gormTag == "-" || f.Type.Kind() == reflect.Func,
+			NotColumn: gormTag == "-",
 		}
 		if field.elemType.Kind() == reflect.Ptr {
 			field.elemType = field.elemType.Elem()
