@@ -597,6 +597,11 @@ func convertValue(elemType reflect.Type, source any) (any, error) {
 	if srcType == elemType {
 		return source, nil
 	}
+
+	// if srcType.Kind() == reflect.Array || srcType.Kind() == reflect.Slice || srcType.Kind() == reflect.Map {
+	// 	return source, nil
+	// }
+
 	var targetType reflect.Type = elemType
 	var err error
 	switch elemType.Name() {

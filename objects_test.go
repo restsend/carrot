@@ -639,6 +639,20 @@ func TestObjectRegister(t *testing.T) {
 				},
 				Except{4},
 			},
+			{"filter by time type",
+				Param{
+					[]string{"Birthday"},
+					[]map[string]any{{"name": "birthday", "op": ">=", "value": time.Now().Add(time.Hour * -1).Format(time.RFC3339)}},
+				},
+				Except{1},
+			},
+			{"filter by time type between",
+				Param{
+					[]string{"Birthday"},
+					[]map[string]any{{"name": "birthday", "op": "between", "value": []any{time.Now().Add(time.Hour * -1).Format(time.RFC3339), time.Now().Format(time.RFC3339)}}},
+				},
+				Except{1},
+			},
 		}
 
 		for _, tt := range tests {
@@ -661,7 +675,7 @@ func TestObjectRegister(t *testing.T) {
 					db.Create(&User{UUID: "1", Name: "alice", Age: 9})
 					db.Create(&User{UUID: "2", Name: "bob", Age: 10})
 					db.Create(&User{UUID: "3", Name: "clash", Age: 11})
-					db.Create(&User{UUID: "4", Name: "duck", Age: 12})
+					db.Create(&User{UUID: "4", Name: "duck", Age: 12, Birthday: time.Now().Add(time.Minute * -10)})
 				}
 
 				data := map[string]any{

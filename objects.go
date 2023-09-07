@@ -9,13 +9,14 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
 const (
-	DefaultQueryLimit = 100
+	DefaultQueryLimit = 102400 // 100k
 )
 
 const (
@@ -105,9 +106,10 @@ type WebObject struct {
 }
 
 type Filter struct {
-	Name  string `json:"name"`
-	Op    string `json:"op"`
-	Value any    `json:"value"`
+	isTimeType bool   `json:"-"`
+	Name       string `json:"name"`
+	Op         string `json:"op"`
+	Value      any    `json:"value"`
 }
 
 type Order struct {
@@ -620,6 +622,14 @@ func handleQueryObject(c *gin.Context, obj *WebObject, prepareQuery PrepareQuery
 			if _, ok := filterFields[field]; !ok {
 				continue
 			}
+
+			if f, ok := obj.modelElem.FieldByName(field); ok {
+				var typeName string = f.Type.Name()
+				if f.Type.Kind() == reflect.Ptr {
+					typeName = f.Type.Elem().Name()
+				}
+				filter.isTimeType = typeName == "Time" || typeName == "NullTime" || typeName == "DeletedAt"
+			}
 			filter.Name = namer.ColumnName(obj.tableName, field)
 			stripFilters = append(stripFilters, filter)
 		}
@@ -692,6 +702,18 @@ func handleQueryObject(c *gin.Context, obj *WebObject, prepareQuery PrepareQuery
 	c.JSON(http.StatusOK, r)
 }
 
+func castTime(value any) any {
+	if tv, ok := value.(string); ok {
+		for _, tf := range []string{time.RFC3339, time.RFC3339Nano, "2006-01-02 15:04:05", "2006-01-02", time.RFC1123} {
+			t, err := time.Parse(tf, tv)
+			if err == nil {
+				return t
+			}
+		}
+	}
+	return value
+}
+
 func (obj *WebObject) queryObjects(db *gorm.DB, ctx *gin.Context, form *QueryForm) (r QueryResult, err error) {
 	tblName := db.NamingStrategy.TableName(obj.tableName)
 
@@ -714,9 +736,18 @@ func (obj *WebObject) queryObjects(db *gorm.DB, ctx *gin.Context, form *QueryFor
 				if vt.Kind() != reflect.Slice && vt.Len() != 2 {
 					return r, fmt.Errorf("invalid between value, must be slice with 2 elements")
 				}
-				db = db.Where(fmt.Sprintf("`%s`.%s", obj.tableName, q), vt.Index(0).Interface(), vt.Index(1).Interface())
 
+				leftValue := vt.Index(0).Interface()
+				rightValue := vt.Index(1).Interface()
+				if v.isTimeType {
+					leftValue = castTime(leftValue)
+					rightValue = castTime(rightValue)
+				}
+				db = db.Where(fmt.Sprintf("`%s`.%s", tblName, q), leftValue, rightValue)
 			} else {
+				if v.isTimeType {
+					v.Value = castTime(v.Value)
+				}
 				db = db.Where(fmt.Sprintf("`%s`.%s", tblName, q), v.Value)
 			}
 		}
