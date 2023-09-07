@@ -464,14 +464,15 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 			continue
 		}
 
-		if f.Type.Kind() == reflect.Chan {
+		if f.Type.Kind() == reflect.Chan || f.Type.Kind() == reflect.Func {
+			continue
+		}
+
+		if !f.IsExported() {
 			continue
 		}
 
 		gormTag := strings.ToLower(f.Tag.Get("gorm"))
-		//if gormTag == "-" {
-		//	continue
-		//}
 		field := AdminField{
 			Name:      db.NamingStrategy.ColumnName(obj.tableName, f.Name),
 			Tag:       gormTag,
@@ -747,10 +748,6 @@ func (obj *AdminObject) MarshalOne(val interface{}) (map[string]any, error) {
 				Value: rv.FieldByName(field.Foreign.foreignKey).Interface(),
 			}
 			fv := rv.FieldByName(field.Foreign.fieldName)
-			if fv.Kind() == reflect.Chan || fv.Kind() == reflect.Func {
-				continue
-			}
-
 			if fv.IsValid() {
 				if sv, ok := fv.Interface().(fmt.Stringer); ok {
 					v.Label = sv.String()
@@ -762,9 +759,6 @@ func (obj *AdminObject) MarshalOne(val interface{}) (map[string]any, error) {
 			fieldVal = v
 		} else {
 			v := rv.FieldByName(field.fieldName)
-			if v.Kind() == reflect.Chan || v.Kind() == reflect.Func {
-				continue
-			}
 			if v.IsValid() {
 				fieldVal = v.Interface()
 			}
