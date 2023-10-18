@@ -52,4 +52,13 @@ func TestUserProfile(t *testing.T) {
 	u, _ := GetUserByEmail(db, "bob@example.org")
 	assert.Equal(t, u.Profile.Avatar, "mock_img")
 
+	err = DeactiveUser(db, u)
+	assert.Nil(t, err)
+
+	_, err = GetUserByEmail(db, "bob@example.org")
+	assert.NotNil(t, err)
+
+	err = DeactiveUser(db, u)
+	assert.Nil(t, err)
+
 }

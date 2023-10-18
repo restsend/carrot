@@ -164,6 +164,9 @@ func GetUserByUID(db *gorm.DB, userID uint) (*User, error) {
 	var val User
 	result := db.Where("id", userID).Where("enabled", true).Take(&val)
 	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, errors.New("user not found")
+		}
 		return nil, result.Error
 	}
 	return &val, nil
@@ -173,6 +176,9 @@ func GetUserByEmail(db *gorm.DB, email string) (user *User, err error) {
 	var val User
 	result := db.Where("email", strings.ToLower(email)).Take(&val)
 	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, errors.New("user not found")
+		}
 		return nil, result.Error
 	}
 	return &val, nil
@@ -193,6 +199,11 @@ func CreateUser(db *gorm.DB, email, password string) (*User, error) {
 
 	result := db.Create(&user)
 	return &user, result.Error
+}
+
+func DeactiveUser(db *gorm.DB, user *User) error {
+	Warning("DeactiveUser", user.ID, user.Email)
+	return db.Delete(user).Error
 }
 
 func UpdateUserFields(db *gorm.DB, user *User, vals map[string]any) error {
