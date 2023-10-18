@@ -152,6 +152,9 @@ func SetPassword(db *gorm.DB, user *User, password string) (err error) {
 }
 
 func HashPassword(password string) string {
+	if password == "" {
+		return ""
+	}
 	salt := GetEnv(ENV_SALT)
 	hashVal := sha256.Sum256([]byte(salt + password))
 	return fmt.Sprintf("sha256$%s%x", salt, hashVal)
@@ -254,4 +257,28 @@ func DecodeHashToken(db *gorm.DB, hash string, useLastLogin bool) (user *User, e
 		return nil, errors.New("bad token")
 	}
 	return user, nil
+}
+
+func CheckUserAllowLogin(db *gorm.DB, user *User) error {
+	if !user.Enabled {
+		return errors.New("user not allow login")
+	}
+
+	if GetBoolValue(db, KEY_USER_ACTIVATED) && !user.Activated {
+		return errors.New("waiting for activation")
+	}
+	return nil
+}
+
+// Build a token for user.
+// If useLoginTime is true, the token will be expired after user login.
+func BuildAuthToken(db *gorm.DB, user *User, useLoginTime bool) string {
+	val := GetValue(db, KEY_AUTH_TOKEN_EXPIRED) // 7d
+	expired, err := time.ParseDuration(val)
+	if err != nil {
+		// 7 days
+		expired = 7 * 24 * time.Hour
+	}
+	n := time.Now().Add(expired)
+	return EncodeHashToken(user, n.Unix(), useLoginTime)
 }

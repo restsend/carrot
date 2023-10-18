@@ -54,6 +54,7 @@ type WebObjectDoc struct {
 }
 
 type UriDoc struct {
+	MethodRef    any       `json:"-"` // just for quick jump to method
 	Group        string    `json:"group"`
 	Path         string    `json:"path"`
 	Desc         string    `json:"desc,omitempty"`

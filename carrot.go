@@ -27,6 +27,7 @@ const ENV_AUTH_PREFIX = "AUTH_PREFIX"
 const ENV_STATIC_ROOT = "STATIC_ROOT"
 
 const KEY_USER_ACTIVATED = "USER_ACTIVATED"
+const KEY_AUTH_TOKEN_EXPIRED = "AUTH_TOKEN_EXPIRED"
 const KEY_RESET_PASSWD_EXPIRED = "RESET_PASSWD_EXPIRED"
 const KEY_VERIFY_EMAIL_EXPIRED = "VERIFY_EMAIL_EXPIRED"
 
@@ -53,7 +54,6 @@ const CORS_ALLOW_ALL = "*"
 const CORS_ALLOW_CREDENTIALS = "true"
 const CORS_ALLOW_HEADERS = "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, X-Auth-Token"
 const CORS_ALLOW_METHODS = "POST, OPTIONS, GET, PUT, PATCH, DELETE"
-const XAuthTokenHeader = "X-Auth-Token"
 
 func InitCarrot(db *gorm.DB, r *gin.Engine) (err error) {
 	err = InitMigrate(db)

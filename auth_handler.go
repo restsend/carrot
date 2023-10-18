@@ -240,13 +240,9 @@ func handleUserSignin(c *gin.Context) {
 		}
 	}
 
-	if !user.Enabled {
-		AbortWithJSONError(c, http.StatusForbidden, errors.New("user not allow login"))
-		return
-	}
-
-	if GetBoolValue(db, KEY_USER_ACTIVATED) && !user.Activated {
-		AbortWithJSONError(c, http.StatusUnauthorized, errors.New("waiting for activation"))
+	err = CheckUserAllowLogin(db, user)
+	if err != nil {
+		AbortWithJSONError(c, http.StatusForbidden, err)
 		return
 	}
 
@@ -257,11 +253,8 @@ func handleUserSignin(c *gin.Context) {
 	Login(c, user)
 
 	if form.Remember {
-		// 7 days
-		n := time.Now().Add(7 * 24 * time.Hour)
-		user.AuthToken = EncodeHashToken(user, n.Unix(), false)
+		user.AuthToken = BuildAuthToken(db, user, false)
 	}
-
 	c.JSON(http.StatusOK, user)
 }
 
@@ -339,17 +332,13 @@ func handleUserChangePassword(c *gin.Context) {
 		return
 	}
 
-	if !user.Enabled {
-		AbortWithJSONError(c, http.StatusForbidden, errors.New("user not allow login"))
-		return
-	}
-
 	db := c.MustGet(DbField).(*gorm.DB)
-	if GetBoolValue(db, KEY_USER_ACTIVATED) && !user.Activated {
-		AbortWithJSONError(c, http.StatusUnauthorized, errors.New("waiting for activation"))
+	err := CheckUserAllowLogin(db, user)
+	if err != nil {
+		AbortWithJSONError(c, http.StatusForbidden, err)
 		return
 	}
-	err := SetPassword(db, user, form.Password)
+	err = SetPassword(db, user, form.Password)
 	if err != nil {
 		Warning("changed user password fail user:", user.ID, err.Error())
 		AbortWithJSONError(c, http.StatusInternalServerError, errors.New("changed fail"))
