@@ -105,6 +105,12 @@ func (s *Signals) Disconnect(event string, id uint) {
 	s.processEvents()
 }
 
+func (s *Signals) Clear(events ...string) {
+	for _, event := range events {
+		delete(s.sigHandlers, event)
+	}
+}
+
 func (s *Signals) Emit(event string, sender any, params ...any) {
 	s.inLoop = true
 	defer func() {
