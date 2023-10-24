@@ -17,6 +17,6 @@ func TestSignal(t *testing.T) {
 	Sig().Emit("mock_test", "unittest")
 	assert.Equal(t, val, "unittest")
 	assert.Equal(t, 0, len(Sig().events))
-	Sig().Clear("mock_test")
+	Sig().Clear("mock_test", SigUserResetPassword, SigUserVerifyEmail)
 	assert.Equal(t, 0, len(Sig().sigHandlers))
 }
