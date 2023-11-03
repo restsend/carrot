@@ -32,6 +32,11 @@ func GetEnv(key string) string {
 	return v
 }
 
+func GetBoolEnv(key string) bool {
+	v := strings.ToLower(GetEnv(key))
+	return v == "1" || v == "yes" || v == "true" || v == "on"
+}
+
 func LookupEnv(key string) (string, bool) {
 	// Check .env file
 	//
@@ -112,7 +117,7 @@ func GetBoolValue(db *gorm.DB, key string) bool {
 		return false
 	}
 	v = strings.ToLower(v)
-	if v == "1" || v == "yes" || v == "true" {
+	if v == "1" || v == "yes" || v == "true" || v == "on" {
 		return true
 	}
 	return false
