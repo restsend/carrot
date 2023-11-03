@@ -6,17 +6,10 @@ import (
 	"strings"
 	"time"
 
-	lru "github.com/hashicorp/golang-lru/v2"
 	"gorm.io/gorm"
 )
 
-var configValueCache *lru.Cache[string, *ConfigCacheItem]
-var configCacheExpired time.Duration = 10 * time.Second
-
-type ConfigCacheItem struct {
-	n   time.Time
-	val string
-}
+var configValueCache *ExpiredLRUCache[string, string]
 
 func init() {
 	size := 1024 // fixed size
@@ -24,12 +17,14 @@ func init() {
 	if v > 0 {
 		size = int(v)
 	}
-	configValueCache, _ = lru.New[string, *ConfigCacheItem](size)
 
+	var configCacheExpired time.Duration = 10 * time.Second
 	exp, err := time.ParseDuration(GetEnv(ENV_CONFIG_CACHE_EXPIRED))
 	if err == nil {
 		configCacheExpired = exp
 	}
+
+	configValueCache = NewExpiredLRUCache[string, string](size, configCacheExpired)
 }
 
 func GetEnv(key string) string {
@@ -86,9 +81,7 @@ func GetValue(db *gorm.DB, key string) string {
 	key = strings.ToUpper(key)
 	cobj, ok := configValueCache.Get(key)
 	if ok {
-		if time.Since(cobj.n) < configCacheExpired {
-			return cobj.val
-		}
+		return cobj
 	}
 
 	var v Config
@@ -97,10 +90,7 @@ func GetValue(db *gorm.DB, key string) string {
 		return ""
 	}
 
-	configValueCache.Add(key, &ConfigCacheItem{
-		n:   time.Now(),
-		val: v.Value,
-	})
+	configValueCache.Add(key, v.Value)
 	return v.Value
 }
 
