@@ -27,14 +27,13 @@ func NewExpiredLRUCache[K comparable, V any](size int, expired time.Duration) *E
 func (c *ExpiredLRUCache[K, V]) Get(key K) (value V, ok bool) {
 	storeValue, ok := c.Cache.Get(key)
 	if ok {
-		return storeValue.val, true
-	}
-	if time.Since(storeValue.n) >= c.expired {
+		if time.Since(storeValue.n) <= c.expired {
+			return storeValue.val, true
+		}
 		c.Cache.Remove(key)
-		ok = false
-		return
 	}
-	return storeValue.val, true
+	ok = false
+	return
 }
 
 func (c *ExpiredLRUCache[K, V]) Add(key K, value V) (evicted bool) {
