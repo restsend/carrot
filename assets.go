@@ -108,6 +108,7 @@ func GetRenderPageContext(c *gin.Context) map[string]any {
 		"reset_password_url": GetValue(db, KEY_SITE_RESET_PASSWORD_URL),
 		"login_next":         GetValue(db, KEY_SITE_LOGIN_NEXT),
 		"slogan":             GetValue(db, KEY_SITE_SLOGAN),
+		"user_id_type":       GetValue(db, KEY_SITE_USER_ID_TYPE),
 	}
 }
 

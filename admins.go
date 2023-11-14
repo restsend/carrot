@@ -1048,12 +1048,23 @@ func (obj *AdminObject) handleUpdate(c *gin.Context) {
 			return
 		}
 	}
-	result := db.Where(keys).Save(val)
+
+	primaryKeys := []clause.Column{}
+	for _, k := range obj.PrimaryKey {
+		if _, ok := keys[k]; ok {
+			primaryKeys = append(primaryKeys, clause.Column{Name: k})
+		}
+	}
+
+	result := db.Clauses(clause.OnConflict{
+		Columns:   primaryKeys,
+		UpdateAll: true,
+	}).Where(keys).Create(val)
+
 	if result.Error != nil {
 		AbortWithJSONError(c, http.StatusInternalServerError, result.Error)
 		return
 	}
-
 	c.JSON(http.StatusOK, true)
 }
 

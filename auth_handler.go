@@ -156,7 +156,7 @@ func handleUserSignup(c *gin.Context) {
 
 	user, err := CreateUser(db, form.Email, form.Password)
 	if err != nil {
-		Warning("create user fail", form, err)
+		Warning("create user failed", form, err)
 		AbortWithJSONError(c, http.StatusBadRequest, err)
 		return
 	}
@@ -341,7 +341,7 @@ func handleUserChangePassword(c *gin.Context) {
 	err = SetPassword(db, user, form.Password)
 	if err != nil {
 		Warning("changed user password fail user:", user.ID, err.Error())
-		AbortWithJSONError(c, http.StatusInternalServerError, errors.New("changed fail"))
+		AbortWithJSONError(c, http.StatusInternalServerError, errors.New("changed failed"))
 		return
 	}
 	c.JSON(http.StatusOK, true)
@@ -397,7 +397,7 @@ func handleUserResetPasswordDone(c *gin.Context) {
 	err = SetPassword(db, user, form.Password)
 	if err != nil {
 		Warning("reset user password fail user:", user.ID, err.Error())
-		AbortWithJSONError(c, http.StatusInternalServerError, errors.New("reset fail"))
+		AbortWithJSONError(c, http.StatusInternalServerError, errors.New("reset failed"))
 		return
 	}
 	c.JSON(http.StatusOK, true)

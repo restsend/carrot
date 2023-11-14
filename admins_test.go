@@ -1,9 +1,12 @@
 package carrot
 
 import (
+	"bytes"
+	"database/sql/driver"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"testing"
 	"time"
@@ -16,6 +19,14 @@ import (
 type ProductModel struct {
 	Name  string `json:"name" gorm:"size:40"`
 	Image string `json:"image" gorm:"size:200"`
+}
+
+func (s ProductModel) Value() (driver.Value, error) {
+	return json.Marshal(s)
+}
+
+func (s *ProductModel) Scan(input interface{}) error {
+	return json.Unmarshal(input.([]byte), s)
 }
 
 type ProductItem struct {
@@ -385,4 +396,72 @@ func TestParseField(t *testing.T) {
 	err := productObj.Build(db)
 	assert.Nil(t, err)
 	assert.Equal(t, len(productObj.Fields), 2)
+}
+
+func TestAdminUpdatePrimaryKeys(t *testing.T) {
+	type UniqueItem struct {
+		ID         string        `json:"id" gorm:"uniqueIndex:idx_id_name"`
+		Name       string        `json:"name" gorm:"size:40;uniqueIndex:idx_id_name"`
+		JoinedAt   time.Time     `json:"joined_at"`
+		UpdatedAt  *time.Time    `json:"updated_at"`
+		ModelPtr   *ProductModel `json:"model_ptr"`
+		ModelValue ProductModel  `json:"model_value"`
+	}
+
+	itemObj := AdminObject{
+		Model: &UniqueItem{},
+		Path:  "unittest",
+	}
+	db, _ := InitDatabase(nil, "", "")
+	db = db.Debug()
+	MakeMigrates(db.Debug(), []any{&UniqueItem{}})
+	err := itemObj.Build(db)
+	assert.Nil(t, err)
+	itemObj.GetDB = func(c *gin.Context, isCreate bool) *gorm.DB {
+		return db
+	}
+	r := gin.Default()
+	{
+		w := httptest.NewRecorder()
+		c := gin.CreateTestContextOnly(w, r)
+		body := []byte(`{ "name": "test", "joined_at": "2018-09-10T11:02:00Z" }`)
+		c.Request, _ = http.NewRequest(http.MethodPut, "/unittest/?id=100", bytes.NewBuffer(body))
+		c.Request.Header.Add("Content-Type", "application/json")
+		itemObj.handleCreate(c)
+		assert.Equal(t, http.StatusOK, c.Writer.Status())
+	}
+
+	{
+		w := httptest.NewRecorder()
+		c := gin.CreateTestContextOnly(w, r)
+		body := []byte(`{"joined_at": "2000-09-10T11:02:00Z"}`)
+		c.Request, _ = http.NewRequest(http.MethodPatch, "/unittest/?id=100&name=test", bytes.NewBuffer(body))
+		c.Request.Header.Add("Content-Type", "application/json")
+		itemObj.handleUpdate(c)
+
+		var total int64
+		itemObj.GetDB(c, false).Model(&UniqueItem{}).Count(&total)
+
+		assert.Equal(t, 1, int(total))
+
+		assert.Equal(t, http.StatusOK, c.Writer.Status())
+		var obj UniqueItem
+		r := itemObj.GetDB(c, false).Where("id", 100).Where("name", "test").Take(&obj)
+		assert.Nil(t, r.Error)
+		assert.Equal(t, 2000, obj.JoinedAt.Year())
+	}
+
+	{
+		w := httptest.NewRecorder()
+		c := gin.CreateTestContextOnly(w, r)
+		body := []byte(`{ "name": "test101",  "id":101 }`)
+		c.Request, _ = http.NewRequest(http.MethodPatch, "/unittest/?id=100&name=test", bytes.NewBuffer(body))
+		c.Request.Header.Add("Content-Type", "application/json")
+		itemObj.handleUpdate(c)
+		assert.Equal(t, http.StatusOK, c.Writer.Status())
+		var obj UniqueItem
+		r := itemObj.GetDB(c, false).Where("id", 101).Where("name", "test101").Take(&obj)
+		assert.Nil(t, r.Error)
+		assert.Equal(t, "test101", obj.Name)
+	}
 }

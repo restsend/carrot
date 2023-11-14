@@ -48,6 +48,7 @@ const KEY_SITE_SIGNUP_URL = "SITE_SIGNUP_URL"
 const KEY_SITE_LOGOUT_URL = "SITE_LOGOUT_URL"
 const KEY_SITE_RESET_PASSWORD_URL = "SITE_RESET_PASSWORD_URL"
 const KEY_SITE_LOGIN_NEXT = "SITE_LOGIN_NEXT"
+const KEY_SITE_USER_ID_TYPE = "SITE_USER_ID_TYPE"
 
 // Cors
 const CORS_ALLOW_ALL = "*"
@@ -58,7 +59,7 @@ const CORS_ALLOW_METHODS = "POST, OPTIONS, GET, PUT, PATCH, DELETE"
 func InitCarrot(db *gorm.DB, r *gin.Engine) (err error) {
 	err = InitMigrate(db)
 	if err != nil {
-		log.Fatal("migrate fail", err)
+		log.Fatal("migrate failed", err)
 	}
 
 	r.Use(WithGormDB(db), CORSEnabled())
