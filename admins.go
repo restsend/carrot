@@ -123,17 +123,18 @@ type AdminObject struct {
 	Icon        *AdminIcon      `json:"icon,omitempty"`
 	Invisible   bool            `json:"invisible,omitempty"`
 
-	Attributes   map[string]AdminAttribute `json:"-"` // Field's extra attributes
-	AccessCheck  AdminAccessCheck          `json:"-"` // Access control function
-	GetDB        GetDB                     `json:"-"`
-	BeforeCreate BeforeCreateFunc          `json:"-"`
-	BeforeRender BeforeRenderFunc          `json:"-"`
-	BeforeUpdate BeforeUpdateFunc          `json:"-"`
-	BeforeDelete BeforeDeleteFunc          `json:"-"`
-	tableName    string                    `json:"-"`
-	modelElem    reflect.Type              `json:"-"`
-	ignores      map[string]bool           `json:"-"`
-	primaryKey   string                    `json:"-"`
+	Attributes       map[string]AdminAttribute `json:"-"` // Field's extra attributes
+	AccessCheck      AdminAccessCheck          `json:"-"` // Access control function
+	GetDB            GetDB                     `json:"-"`
+	BeforeCreate     BeforeCreateFunc          `json:"-"`
+	BeforeRender     BeforeRenderFunc          `json:"-"`
+	BeforeUpdate     BeforeUpdateFunc          `json:"-"`
+	BeforeDelete     BeforeDeleteFunc          `json:"-"`
+	tableName        string                    `json:"-"`
+	modelElem        reflect.Type              `json:"-"`
+	ignores          map[string]bool           `json:"-"`
+	primaryKey       string                    `json:"-"`
+	markDeletedField string                    `json:"-"`
 }
 
 // Returns all admin objects
@@ -558,6 +559,10 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 			}
 		}
 
+		if field.Type == "DeletedAt" {
+			obj.markDeletedField = field.Name
+		}
+
 		if field.Type == "NullTime" || field.Type == "Time" || field.Type == "DeletedAt" {
 			field.Type = "datetime"
 		}
@@ -876,6 +881,10 @@ func (obj *AdminObject) QueryObjects(session *gorm.DB, form *QueryForm, ctx *gin
 	r.Pos = form.Pos
 	r.Limit = form.Limit
 	r.Keyword = form.Keyword
+
+	if obj.markDeletedField != "" {
+		session = session.Where(fmt.Sprintf("`%s`.`%s` IS NULL", obj.tableName, obj.markDeletedField))
+	}
 
 	session = session.Table(obj.tableName)
 
