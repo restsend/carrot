@@ -111,7 +111,7 @@ type AdminObject struct {
 	Orderables  []string        `json:"orderables"`          // Orderable fields, can override Orders
 	Searchables []string        `json:"searchables"`         // Searchable fields
 	Requireds   []string        `json:"requireds,omitempty"` // Required fields
-	PrimaryKey  []string        `json:"primaryKey"`          // Primary key name
+	PrimaryKeys []string        `json:"primaryKeys"`         // Primary keys name
 	PluralName  string          `json:"pluralName"`
 	Fields      []AdminField    `json:"fields"`
 	EditPage    string          `json:"editpage,omitempty"`
@@ -133,6 +133,7 @@ type AdminObject struct {
 	tableName    string                    `json:"-"`
 	modelElem    reflect.Type              `json:"-"`
 	ignores      map[string]bool           `json:"-"`
+	primaryKey   string                    `json:"-"`
 }
 
 // Returns all admin objects
@@ -439,7 +440,7 @@ func (obj *AdminObject) Build(db *gorm.DB) error {
 	if err != nil {
 		return err
 	}
-	if len(obj.PrimaryKey) <= 0 {
+	if len(obj.PrimaryKeys) <= 0 {
 		return fmt.Errorf("%s not has primaryKey", obj.Name)
 	}
 
@@ -501,6 +502,7 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 
 		if strings.Contains(gormTag, "primarykey") {
 			field.Primary = true
+			obj.primaryKey = field.Name
 			if strings.Contains(field.Type, "int") {
 				field.IsAutoID = true
 			}
@@ -517,7 +519,7 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 					}
 				}
 			}
-			obj.PrimaryKey = append(obj.PrimaryKey, keyName)
+			obj.PrimaryKeys = append(obj.PrimaryKeys, keyName)
 		}
 
 		foreignKey := ""
@@ -771,7 +773,13 @@ func (obj *AdminObject) MarshalOne(val interface{}) (map[string]any, error) {
 
 func (obj *AdminObject) getPrimaryValues(c *gin.Context) map[string]any {
 	var result = make(map[string]any)
-	for _, field := range obj.PrimaryKey {
+	if obj.primaryKey != "" && c.Query(obj.primaryKey) != "" {
+		if v := c.Query(obj.primaryKey); v != "" {
+			result[obj.primaryKey] = v
+		}
+		return result
+	}
+	for _, field := range obj.PrimaryKeys {
 		if v := c.Query(field); v != "" {
 			result[field] = v
 		}
@@ -1050,7 +1058,7 @@ func (obj *AdminObject) handleUpdate(c *gin.Context) {
 	}
 
 	primaryKeys := []clause.Column{}
-	for _, k := range obj.PrimaryKey {
+	for _, k := range obj.PrimaryKeys {
 		if _, ok := keys[k]; ok {
 			primaryKeys = append(primaryKeys, clause.Column{Name: k})
 		}
@@ -1139,6 +1147,7 @@ func (obj *AdminObject) handleAction(c *gin.Context) {
 		r, err := action.Handler(db, c, modelObj)
 		if err != nil {
 			AbortWithJSONError(c, http.StatusInternalServerError, err)
+			return
 		}
 		c.JSON(http.StatusOK, r)
 		return

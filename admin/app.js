@@ -351,7 +351,7 @@ class AdminObject {
         this.group = meta.group
         this.listpage = meta.listpage || 'list.html'
         this.editpage = meta.editpage || 'edit.html'
-        this.primaryKey = meta.primaryKey
+        this.primaryKeys = meta.primaryKeys
         this.pluralName = meta.pluralName
         this.scripts = meta.scripts || []
         this.styles = meta.styles || []
@@ -512,7 +512,7 @@ class AdminObject {
 
     getPrimaryValue(row) {
         let vals = {}
-        this.primaryKey.forEach(key => {
+        this.primaryKeys.forEach(key => {
             let f = this.fields.find(f => f.name === key)
             let v = row[key]
             if (v !== undefined) {
@@ -531,7 +531,7 @@ class AdminObject {
             return ''
         }
         let vals = ['api', this.name.toLowerCase()]
-        this.primaryKey.forEach(key => {
+        this.primaryKeys.forEach(key => {
             let f = this.fields.find(f => f.name === key)
             let v = row.rawData[key]
             if (v !== undefined) {

@@ -55,7 +55,7 @@ func TestAdminObjects(t *testing.T) {
 	objs := GetCarrotAdminObjects()
 	err := objs[0].Build(db)
 	assert.Nil(t, err)
-	assert.Equal(t, []string{"id", "email"}, objs[0].PrimaryKey)
+	assert.Equal(t, []string{"id", "email"}, objs[0].PrimaryKeys)
 	user := User{
 		ID:    1,
 		Phone: "+1234567890",
@@ -400,7 +400,7 @@ func TestParseField(t *testing.T) {
 
 func TestAdminUpdatePrimaryKeys(t *testing.T) {
 	type UniqueItem struct {
-		ID         string        `json:"id" gorm:"uniqueIndex:idx_id_name"`
+		ID         string        `json:"id" gorm:"primarykey"`
 		Name       string        `json:"name" gorm:"size:40;uniqueIndex:idx_id_name"`
 		JoinedAt   time.Time     `json:"joined_at"`
 		UpdatedAt  *time.Time    `json:"updated_at"`
