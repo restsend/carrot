@@ -2,6 +2,7 @@ package carrot
 
 import (
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -63,6 +64,47 @@ func LookupEnv(key string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// load envs to struct
+func LoadEnvs(objPtr any) {
+	if objPtr == nil {
+		return
+	}
+	elm := reflect.ValueOf(objPtr).Elem()
+	elmType := elm.Type()
+
+	for i := 0; i < elm.NumField(); i++ {
+		f := elm.Field(i)
+		if !f.CanSet() {
+			continue
+		}
+		keyName := elmType.Field(i).Tag.Get("env")
+		if keyName == "-" {
+			continue
+		}
+		if keyName == "" {
+			keyName = elmType.Field(i).Name
+		}
+		switch f.Kind() {
+		case reflect.String:
+			if v, ok := LookupEnv(keyName); ok {
+				f.SetString(v)
+			}
+		case reflect.Int:
+			if v, ok := LookupEnv(keyName); ok {
+				if iv, err := strconv.ParseInt(v, 10, 32); err == nil {
+					f.SetInt(iv)
+				}
+			}
+		case reflect.Bool:
+			if v, ok := LookupEnv(keyName); ok {
+				v := strings.ToLower(v)
+				yes := v == "1" || v == "yes" || v == "true" || v == "on"
+				f.SetBool(yes)
+			}
+		}
+	}
 }
 
 func SetValue(db *gorm.DB, key, value string) {

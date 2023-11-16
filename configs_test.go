@@ -10,13 +10,23 @@ import (
 func TestEnv(t *testing.T) {
 	v := GetEnv("NOT_EXIST_ENV")
 	assert.Empty(t, v)
-	defer func() {
-		os.Remove(".env")
-	}()
+	defer os.Remove(".env")
 
-	os.WriteFile(".env", []byte("#hello\nxx\n\nNOT_EXIST_ENV = 100 "), 0666)
+	os.WriteFile(".env", []byte("#hello\nxx\n\nNOT_EXIST_ENV = 100\nBAD=\nGOOD=XXX"), 0666)
 	v = GetEnv("NOT_EXIST_ENV")
 	assert.Equal(t, v, "100")
+	type testEnv struct {
+		NotExistEnv string `env:"NOT_EXIST_ENV"`
+		Bad         string `env:"BAD"`
+		Good        string `env:"-"`
+	}
+	var env testEnv
+	env.Bad = "abcd"
+	env.Good = "1234"
+	LoadEnvs(&env)
+	assert.Equal(t, env.NotExistEnv, "100")
+	assert.Empty(t, env.Bad)
+	assert.Equal(t, env.Good, "1234")
 }
 
 func TestConfig(t *testing.T) {
