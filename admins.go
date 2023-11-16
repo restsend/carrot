@@ -134,6 +134,7 @@ type AdminObject struct {
 	modelElem        reflect.Type              `json:"-"`
 	ignores          map[string]bool           `json:"-"`
 	primaryKey       string                    `json:"-"`
+	primaryKeyMaping map[string]string         `json:"-"`
 	markDeletedField string                    `json:"-"`
 }
 
@@ -430,6 +431,7 @@ func (obj *AdminObject) Build(db *gorm.DB) error {
 	obj.Searchables = obj.asColNames(db, obj.Searchables)
 	obj.Filterables = obj.asColNames(db, obj.Filterables)
 	obj.Requireds = obj.asColNames(db, obj.Requireds)
+	obj.primaryKeyMaping = map[string]string{}
 
 	for idx := range obj.Orders {
 		o := &obj.Orders[idx]
@@ -519,6 +521,7 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 						keyName = db.NamingStrategy.ColumnName(obj.tableName, ff.Name)
 					}
 				}
+				obj.primaryKeyMaping[keyName] = field.Name
 			}
 			obj.PrimaryKeys = append(obj.PrimaryKeys, keyName)
 		}
@@ -784,11 +787,16 @@ func (obj *AdminObject) getPrimaryValues(c *gin.Context) map[string]any {
 		}
 		return result
 	}
+
 	for _, field := range obj.PrimaryKeys {
+		if key, ok := obj.primaryKeyMaping[field]; ok {
+			field = key
+		}
 		if v := c.Query(field); v != "" {
 			result[field] = v
 		}
 	}
+
 	return result
 }
 
