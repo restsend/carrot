@@ -796,7 +796,6 @@ func (obj *AdminObject) getPrimaryValues(c *gin.Context) map[string]any {
 			result[field] = v
 		}
 	}
-
 	return result
 }
 
@@ -1075,10 +1074,8 @@ func (obj *AdminObject) handleUpdate(c *gin.Context) {
 	}
 
 	primaryKeys := []clause.Column{}
-	for _, k := range obj.PrimaryKeys {
-		if _, ok := keys[k]; ok {
-			primaryKeys = append(primaryKeys, clause.Column{Name: k})
-		}
+	for k := range keys {
+		primaryKeys = append(primaryKeys, clause.Column{Name: k})
 	}
 
 	result := db.Clauses(clause.OnConflict{
