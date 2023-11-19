@@ -406,11 +406,13 @@ func (obj *WebObject) parseFields(rt reflect.Type) {
 	}
 }
 
-func getDbConnection(c *gin.Context, objFn GetDB, isCreate bool) *gorm.DB {
+func getDbConnection(c *gin.Context, objFn GetDB, isCreate bool) (tx *gorm.DB) {
 	if objFn != nil {
-		return objFn(c, isCreate)
+		tx = objFn(c, isCreate)
+	} else {
+		tx = c.MustGet(DbField).(*gorm.DB)
 	}
-	return c.MustGet(DbField).(*gorm.DB)
+	return tx.Session(&gorm.Session{})
 }
 
 func handleGetObject(c *gin.Context, obj *WebObject) {
@@ -538,7 +540,8 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 
 	if obj.BeforeUpdate != nil {
 		val := reflect.New(obj.modelElem).Interface()
-		if err := db.First(val).Error; err != nil {
+		tx := db.Session(&gorm.Session{})
+		if err := tx.First(val).Error; err != nil {
 			AbortWithJSONError(c, http.StatusNotFound, errors.New("not found"))
 			return
 		}
@@ -567,7 +570,7 @@ func handleDeleteObject(c *gin.Context, obj *WebObject) {
 	db := getDbConnection(c, obj.GetDB, false)
 	val := reflect.New(obj.modelElem).Interface()
 
-	r := obj.buildPrimaryCondition(db, keys).First(val)
+	r := obj.buildPrimaryCondition(db, keys).Session(&gorm.Session{}).First(val)
 
 	// for gorm delete hook, need to load model first.
 	if r.Error != nil {
