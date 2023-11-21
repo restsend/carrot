@@ -21,6 +21,7 @@ type Worker[T any] struct {
 	Num       int
 	QueueSize int
 	Handler   func(T) error
+	DumpStats func(queueSize, doneCount int, avgUsage time.Duration)
 }
 
 func (at *AvgUsage) GetCount() int {
@@ -84,8 +85,12 @@ func (w *Worker[T]) Start(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case <-t.C:
-				Info(fmt.Sprintf("worker stats: %s num:%d queue size: %d/%d avg usage:%v count/m:%d",
-					w.Name, w.Num, len(w.queue), w.QueueSize, w.usage.Get(), w.usage.GetCount()))
+				if w.DumpStats != nil {
+					w.DumpStats(len(w.queue), w.usage.GetCount(), w.usage.Get())
+				} else {
+					Info(fmt.Sprintf("worker stats: %s num:%d queue size: %d/%d avg usage:%v count/m:%d",
+						w.Name, w.Num, len(w.queue), w.QueueSize, w.usage.Get(), w.usage.GetCount()))
+				}
 			}
 		}
 	}()
