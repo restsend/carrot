@@ -55,7 +55,8 @@ func TestAdminObjects(t *testing.T) {
 	objs := GetCarrotAdminObjects()
 	err := objs[0].Build(db)
 	assert.Nil(t, err)
-	assert.Equal(t, []string{"id", "email"}, objs[0].PrimaryKeys)
+	assert.Equal(t, []string{"id"}, objs[0].PrimaryKeys)
+	assert.Equal(t, []string{"email"}, objs[0].UniqueKeys)
 	user := User{
 		ID:    1,
 		Phone: "+1234567890",

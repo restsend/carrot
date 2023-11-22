@@ -112,6 +112,7 @@ type AdminObject struct {
 	Searchables []string        `json:"searchables"`         // Searchable fields
 	Requireds   []string        `json:"requireds,omitempty"` // Required fields
 	PrimaryKeys []string        `json:"primaryKeys"`         // Primary keys name
+	UniqueKeys  []string        `json:"uniqueKeys"`          // Primary keys name
 	PluralName  string          `json:"pluralName"`
 	Fields      []AdminField    `json:"fields"`
 	EditPage    string          `json:"editpage,omitempty"`
@@ -133,7 +134,6 @@ type AdminObject struct {
 	tableName        string                    `json:"-"`
 	modelElem        reflect.Type              `json:"-"`
 	ignores          map[string]bool           `json:"-"`
-	primaryKey       string                    `json:"-"`
 	primaryKeyMaping map[string]string         `json:"-"`
 	markDeletedField string                    `json:"-"`
 }
@@ -443,8 +443,8 @@ func (obj *AdminObject) Build(db *gorm.DB) error {
 	if err != nil {
 		return err
 	}
-	if len(obj.PrimaryKeys) <= 0 {
-		return fmt.Errorf("%s not has primaryKey", obj.Name)
+	if len(obj.PrimaryKeys) <= 0 && len(obj.UniqueKeys) <= 0 {
+		return fmt.Errorf("%s not has primaryKey or uniqueKeys", obj.Name)
 	}
 
 	for idx := range obj.Actions {
@@ -505,7 +505,7 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 
 		if strings.Contains(gormTag, "primarykey") {
 			field.Primary = true
-			obj.primaryKey = field.Name
+			//obj.primaryKeys = append(obj.primaryKeys, field.Name)
 			if strings.Contains(field.Type, "int") {
 				field.IsAutoID = true
 			}
@@ -523,7 +523,11 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 				}
 				obj.primaryKeyMaping[keyName] = field.Name
 			}
-			obj.PrimaryKeys = append(obj.PrimaryKeys, keyName)
+			if strings.Contains(gormTag, "primarykey") {
+				obj.PrimaryKeys = append(obj.PrimaryKeys, keyName)
+			} else {
+				obj.UniqueKeys = append(obj.UniqueKeys, keyName)
+			}
 		}
 
 		foreignKey := ""
@@ -781,14 +785,19 @@ func (obj *AdminObject) MarshalOne(val interface{}) (map[string]any, error) {
 
 func (obj *AdminObject) getPrimaryValues(c *gin.Context) map[string]any {
 	var result = make(map[string]any)
-	if obj.primaryKey != "" && c.Query(obj.primaryKey) != "" {
-		if v := c.Query(obj.primaryKey); v != "" {
-			result[obj.primaryKey] = v
+	hasPrimaryQuery := false
+	for _, field := range obj.PrimaryKeys {
+		if v := c.Query(field); v != "" {
+			result[field] = v
+			hasPrimaryQuery = true
 		}
+	}
+
+	if hasPrimaryQuery {
 		return result
 	}
 
-	for _, field := range obj.PrimaryKeys {
+	for _, field := range obj.UniqueKeys {
 		if key, ok := obj.primaryKeyMaping[field]; ok {
 			field = key
 		}
@@ -1073,13 +1082,26 @@ func (obj *AdminObject) handleUpdate(c *gin.Context) {
 		}
 	}
 
-	primaryKeys := []clause.Column{}
-	for k := range keys {
-		primaryKeys = append(primaryKeys, clause.Column{Name: k})
+	conflictKeys := []clause.Column{}
+	if len(obj.PrimaryKeys) > 0 {
+		for _, k := range obj.PrimaryKeys {
+			conflictKeys = append(conflictKeys, clause.Column{Name: k})
+		}
+	} else {
+		for _, k := range obj.UniqueKeys {
+			conflictKeys = append(conflictKeys, clause.Column{Name: k})
+		}
+	}
+
+	for idx := range conflictKeys {
+		k := &conflictKeys[idx]
+		if v, ok := obj.primaryKeyMaping[k.Name]; ok {
+			k.Name = v
+		}
 	}
 
 	result := db.Clauses(clause.OnConflict{
-		Columns:   primaryKeys,
+		Columns:   conflictKeys,
 		UpdateAll: true,
 	}).Where(keys).Create(val)
 
