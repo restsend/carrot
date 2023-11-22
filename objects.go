@@ -91,9 +91,9 @@ type WebObject struct {
 	Views        []QueryView
 	AllowMethods int
 
-	primaryKey *WebObjectPrimaryField
-	uniqueKeys []WebObjectPrimaryField
-	tableName  string
+	primaryKeys []WebObjectPrimaryField
+	uniqueKeys  []WebObjectPrimaryField
+	tableName   string
 
 	// Model type
 	modelElem reflect.Type
@@ -343,11 +343,11 @@ func (obj *WebObject) Build() error {
 	obj.jsonToKinds = make(map[string]reflect.Kind)
 	obj.parseFields(obj.modelElem)
 
-	if obj.primaryKey != nil {
-		obj.uniqueKeys = []WebObjectPrimaryField{*obj.primaryKey}
+	if obj.primaryKeys != nil {
+		obj.uniqueKeys = obj.primaryKeys
 	}
 
-	if len(obj.uniqueKeys) == 0 {
+	if len(obj.uniqueKeys) <= 0 && len(obj.primaryKeys) <= 0 {
 		return fmt.Errorf("%s not has primaryKey", obj.Name)
 	}
 	return nil
@@ -399,7 +399,7 @@ func (obj *WebObject) parseFields(rt reflect.Type) {
 		}
 
 		if pkField.IsPrimary {
-			obj.primaryKey = &pkField
+			obj.primaryKeys = append(obj.primaryKeys, pkField)
 		} else if strings.Contains(gormTag, "unique") {
 			obj.uniqueKeys = append(obj.uniqueKeys, pkField)
 		}
