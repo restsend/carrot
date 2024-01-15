@@ -136,6 +136,9 @@ func Logout(c *gin.Context, user *User) {
 }
 
 func CheckPassword(user *User, password string) bool {
+	if user.Password == "" {
+		return false
+	}
 	return user.Password == HashPassword(password)
 }
 

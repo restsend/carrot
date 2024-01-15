@@ -37,6 +37,16 @@ func TestUserHashToken(t *testing.T) {
 	assert.Equal(t, u.ID, bob.ID)
 }
 
+func TestUserEmptyPassword(t *testing.T) {
+
+	db, err := InitDatabase(nil, "", "")
+	MakeMigrates(db, []any{&User{}, &Config{}})
+	assert.Nil(t, err)
+	bob, _ := CreateUser(db, "bob@example.org", "")
+	assert.Equal(t, bob.Password, "")
+	assert.False(t, CheckPassword(bob, ""))
+}
+
 func TestUserProfile(t *testing.T) {
 	db, err := InitDatabase(nil, "", "")
 	MakeMigrates(db, []any{&User{}})
