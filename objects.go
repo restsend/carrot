@@ -458,9 +458,11 @@ func handleCreateObject(c *gin.Context, obj *WebObject) {
 	val := reflect.New(obj.modelElem).Interface()
 
 	if c.Request.ContentLength > 0 {
-		if err := c.BindJSON(&val); err != nil {
-			AbortWithJSONError(c, http.StatusBadRequest, err)
-			return
+		if strings.Contains(c.Request.Header.Get("Content-Type"), "application/json") {
+			if err := c.BindJSON(&val); err != nil {
+				AbortWithJSONError(c, http.StatusBadRequest, err)
+				return
+			}
 		}
 	}
 
