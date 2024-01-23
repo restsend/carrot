@@ -538,7 +538,7 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 		AbortWithJSONError(c, http.StatusBadRequest, errors.New("not changed"))
 		return
 	}
-	db = obj.buildPrimaryCondition(db.Table(db.NamingStrategy.TableName(obj.tableName)), keys)
+	db = obj.buildPrimaryCondition(db.Model(obj.Model), keys)
 
 	if obj.BeforeUpdate != nil {
 		val := reflect.New(obj.modelElem).Interface()
@@ -782,7 +782,7 @@ func (obj *WebObject) queryObjects(db *gorm.DB, ctx *gin.Context, form *QueryFor
 	r.Keyword = form.Keyword
 
 	var c int64
-	if err := db.Table(tblName).Count(&c).Error; err != nil {
+	if err := db.Model(obj.Model).Count(&c).Error; err != nil {
 		return r, err
 	}
 	if c <= 0 {
