@@ -135,7 +135,6 @@ type AdminObject struct {
 	modelElem        reflect.Type              `json:"-"`
 	ignores          map[string]bool           `json:"-"`
 	primaryKeyMaping map[string]string         `json:"-"`
-	markDeletedField string                    `json:"-"`
 }
 
 // Returns all admin objects
@@ -566,10 +565,6 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 			}
 		}
 
-		if field.Type == "DeletedAt" {
-			obj.markDeletedField = field.Name
-		}
-
 		if field.Type == "NullTime" || field.Type == "Time" || field.Type == "DeletedAt" {
 			field.Type = "datetime"
 		}
@@ -898,11 +893,7 @@ func (obj *AdminObject) QueryObjects(session *gorm.DB, form *QueryForm, ctx *gin
 	r.Limit = form.Limit
 	r.Keyword = form.Keyword
 
-	if obj.markDeletedField != "" {
-		session = session.Where(fmt.Sprintf("`%s`.`%s` IS NULL", obj.tableName, obj.markDeletedField))
-	}
-
-	session = session.Table(obj.tableName)
+	session = session.Model(obj.Model)
 
 	var c int64
 	if err := session.Count(&c).Error; err != nil {
