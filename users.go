@@ -280,13 +280,7 @@ func CheckUserAllowLogin(db *gorm.DB, user *User) error {
 
 // Build a token for user.
 // If useLoginTime is true, the token will be expired after user login.
-func BuildAuthToken(db *gorm.DB, user *User, useLoginTime bool) string {
-	val := GetValue(db, KEY_AUTH_TOKEN_EXPIRED) // 7d
-	expired, err := time.ParseDuration(val)
-	if err != nil {
-		// 7 days
-		expired = 7 * 24 * time.Hour
-	}
+func BuildAuthToken(db *gorm.DB, user *User, expired time.Duration, useLoginTime bool) string {
 	n := time.Now().Add(expired)
 	return EncodeHashToken(user, n.Unix(), useLoginTime)
 }

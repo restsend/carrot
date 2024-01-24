@@ -85,6 +85,16 @@ func handleUserInfo(c *gin.Context) {
 		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
+	withToken := c.Query("with_token")
+	if withToken != "" {
+		expired, err := time.ParseDuration(withToken)
+		if err == nil {
+			if expired >= 24*time.Hour {
+				expired = 24 * time.Hour
+			}
+			user.AuthToken = BuildAuthToken(db, user, expired, false)
+		}
+	}
 	c.JSON(http.StatusOK, user)
 }
 
@@ -253,7 +263,13 @@ func handleUserSignin(c *gin.Context) {
 	Login(c, user)
 
 	if form.Remember {
-		user.AuthToken = BuildAuthToken(db, user, false)
+		val := GetValue(db, KEY_AUTH_TOKEN_EXPIRED) // 7d
+		expired, err := time.ParseDuration(val)
+		if err != nil {
+			// 7 days
+			expired = 7 * 24 * time.Hour
+		}
+		user.AuthToken = BuildAuthToken(db, user, expired, false)
 	}
 	c.JSON(http.StatusOK, user)
 }
