@@ -82,6 +82,7 @@ type WebObject struct {
 	Orderables        []string
 	Searchables       []string
 	GetDB             GetDB
+	PrepareQuery      PrepareQuery
 	BeforeCreate      BeforeCreateFunc
 	BeforeUpdate      BeforeUpdateFunc
 	BeforeDelete      BeforeDeleteFunc
@@ -218,7 +219,7 @@ func (obj *WebObject) RegisterObject(r *gin.RouterGroup) error {
 
 	if allowMethods&QUERY != 0 {
 		r.POST(p, func(c *gin.Context) {
-			handleQueryObject(c, obj, DefaultPrepareQuery)
+			handleQueryObject(c, obj, obj.PrepareQuery)
 		})
 	}
 
@@ -229,9 +230,6 @@ func (obj *WebObject) RegisterObject(r *gin.RouterGroup) error {
 		}
 		if v.Method == "" {
 			v.Method = http.MethodPost
-		}
-		if v.Prepare == nil {
-			v.Prepare = DefaultPrepareQuery
 		}
 		r.Handle(v.Method, filepath.Join(p, v.Path), func(ctx *gin.Context) {
 			handleQueryObject(ctx, obj, v.Prepare)
@@ -601,6 +599,9 @@ func handleDeleteObject(c *gin.Context, obj *WebObject) {
 }
 
 func handleQueryObject(c *gin.Context, obj *WebObject, prepareQuery PrepareQuery) {
+	if prepareQuery == nil {
+		prepareQuery = DefaultPrepareQuery
+	}
 	db, form, err := prepareQuery(getDbConnection(c, obj.GetDB, false), c)
 	if err != nil {
 		AbortWithJSONError(c, http.StatusBadRequest, err)
