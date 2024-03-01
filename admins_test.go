@@ -323,22 +323,35 @@ func TestAdminFieldMarshal(t *testing.T) {
 	MakeMigrates(db, []any{&ProductItem{}})
 	err := obj.Build(db)
 	assert.Nil(t, err)
-	elemObj := reflect.New(obj.modelElem)
-	v, err := obj.UnmarshalFrom(elemObj, nil, map[string]any{
-		"id":         1024,
-		"name":       "mock item",
-		"created_at": "2020-01-01T00:00:00Z",
-		"updated_at": "2020-01-01T00:00:00Z",
-		"model_ptr": map[string]any{
-			"name": "test", "image": "http://test.com",
-		},
-		"model_value": map[string]any{
-			"name": "test2", "image": "http://test.com",
-		},
-	})
-	assert.Nil(t, err)
-	assert.Equal(t, "test", v.(*ProductItem).ModelPtr.Name)
-	assert.Equal(t, "test2", v.(*ProductItem).ModelValue.Name)
+	{
+		elemObj := reflect.New(obj.modelElem)
+		v, err := obj.UnmarshalFrom(elemObj, nil, map[string]any{
+			"id":         1024,
+			"name":       "mock item",
+			"created_at": "2020-01-01T00:00:00Z",
+			"updated_at": "2020-01-01T00:00:00Z",
+			"model_ptr": map[string]any{
+				"name": "test", "image": "http://test.com",
+			},
+			"model_value": map[string]any{
+				"name": "test2", "image": "http://test.com",
+			},
+		})
+		assert.Nil(t, err)
+		assert.Equal(t, "test", v.(*ProductItem).ModelPtr.Name)
+		assert.Equal(t, "test2", v.(*ProductItem).ModelValue.Name)
+	}
+	{
+		elemObj := reflect.New(obj.modelElem)
+		v, err := obj.UnmarshalFrom(elemObj, nil, map[string]any{
+			"created_at": "",
+			"updated_at": "",
+		})
+		assert.Nil(t, err)
+		assert.True(t, v.(*ProductItem).CreatedAt.IsZero())
+		assert.Nil(t, v.(*ProductItem).UpdatedAt)
+
+	}
 }
 
 func TestAdminForeign(t *testing.T) {
@@ -374,13 +387,13 @@ func TestAdminForeign(t *testing.T) {
 func TestAdminConvert(t *testing.T) {
 	{
 		var x int64
-		v, err := convertValue(reflect.TypeOf(x), 1.000000001)
+		v, err := convertValue(reflect.TypeOf(x), 1.000000001, false)
 		assert.Nil(t, err)
 		assert.Equal(t, int64(1), v)
 	}
 	{
 		var x int64
-		v, err := convertValue(reflect.TypeOf(x), 2)
+		v, err := convertValue(reflect.TypeOf(x), 2, false)
 		assert.Nil(t, err)
 		assert.Equal(t, int64(2), v)
 	}

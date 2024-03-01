@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"path"
 	"reflect"
 	"regexp"
@@ -324,15 +326,55 @@ func RegisterAdmins(r *gin.RouterGroup, db *gorm.DB, adminAssetsRoot string, obj
 
 	handledObjects := BuildAdminObjects(r, db, objs)
 	r.POST("/admin.json", func(ctx *gin.Context) {
-		HandleAdminIndex(ctx, handledObjects, func(ctx *gin.Context, m map[string]any) map[string]any {
+		HandleAdminJson(ctx, handledObjects, func(ctx *gin.Context, m map[string]any) map[string]any {
 			m["dashboard"] = GetValue(db, KEY_ADMIN_DASHBOARD)
 			return m
 		})
 	})
-	r.StaticFS("/", NewCombineEmbedFS(adminAssetsRoot, EmbedFS{"admin", EmbedAdminAssets}))
+
+	adminAssets := NewCombineEmbedFS(adminAssetsRoot, EmbedFS{"admin", EmbedAdminAssets})
+	r.GET("/*filepath", func(ctx *gin.Context) {
+		name := ctx.Param("filepath")
+		if name == "/" {
+			indexData, err := adminAssets.Open("index.html")
+			if err != nil {
+				ctx.AbortWithStatus(http.StatusNotFound)
+				return
+			}
+			defer indexData.Close()
+			pageData, err := io.ReadAll(indexData)
+			if err != nil {
+				ctx.AbortWithStatus(http.StatusInternalServerError)
+				return
+			}
+			// walk all *.js and *.css files put them into index.html
+			var files string
+			dirs, err := os.ReadDir(adminAssetsRoot)
+			if err == nil {
+				for _, dir := range dirs {
+					if dir.IsDir() {
+						continue
+					}
+					if strings.HasSuffix(dir.Name(), ".css") {
+						files += fmt.Sprintf(`<link rel="stylesheet" href="./%s" type="text/css">`, dir.Name())
+					}
+					if strings.HasSuffix(dir.Name(), ".js") {
+						files += fmt.Sprintf(`<script src="./%s"></script>`, dir.Name())
+					}
+				}
+			}
+			var pageDataString = string(pageData)
+			if files != "" {
+				pageDataString = strings.Replace(string(pageDataString), "<!--REPLACE_JS_LOAD-->", files, 1)
+			}
+			ctx.Data(http.StatusOK, "text/html; charset=utf-8", []byte(pageDataString))
+			return
+		}
+		ctx.FileFromFS(name, adminAssets)
+	})
 }
 
-func HandleAdminIndex(c *gin.Context, objects []*AdminObject, buildContext AdminBuildContext) {
+func HandleAdminJson(c *gin.Context, objects []*AdminObject, buildContext AdminBuildContext) {
 	var viewObjects []AdminObject
 	for _, obj := range objects {
 		if obj.AccessCheck != nil {
@@ -604,7 +646,7 @@ func formatAsInt64(v any) int64 {
 	return 0
 }
 
-func convertValue(elemType reflect.Type, source any) (any, error) {
+func convertValue(elemType reflect.Type, source any, targetIsPtr bool) (any, error) {
 	srcType := reflect.TypeOf(source)
 	if srcType == elemType {
 		return source, nil
@@ -649,6 +691,9 @@ func convertValue(elemType reflect.Type, source any) (any, error) {
 	case "NullTime":
 		tv, ok := source.(string)
 		if tv == "" || !ok {
+			if targetIsPtr {
+				return nil, nil
+			}
 			return &sql.NullTime{}, nil
 		} else {
 			for _, tf := range []string{time.RFC3339, time.RFC3339Nano, "2006-01-02 15:04:05", "2006-01-02", time.RFC1123} {
@@ -662,6 +707,9 @@ func convertValue(elemType reflect.Type, source any) (any, error) {
 	case "Time":
 		tv, ok := source.(string)
 		if tv == "" || !ok {
+			if targetIsPtr {
+				return nil, nil
+			}
 			return &time.Time{}, nil
 		} else {
 			for _, tf := range []string{time.RFC3339, time.RFC3339Nano, "2006-01-02 15:04:05", "2006-01-02", time.RFC1123} {
@@ -728,7 +776,7 @@ func (obj *AdminObject) UnmarshalFrom(elemObj reflect.Value, keys, vals map[stri
 			target = elemObj.Elem().FieldByName(field.fieldName)
 		}
 
-		fieldValue, err := convertValue(targetType, val)
+		fieldValue, err := convertValue(targetType, val, field.IsPtr)
 		if err != nil {
 			return nil, fmt.Errorf("invalid type: %s except: %s actual: %s error:%v", field.Name, field.Type, reflect.TypeOf(val).Name(), err)
 		}
@@ -736,7 +784,9 @@ func (obj *AdminObject) UnmarshalFrom(elemObj reflect.Value, keys, vals map[stri
 
 		if target.Kind() == reflect.Ptr {
 			ptrValue := reflect.New(reflect.PointerTo(field.elemType))
-			ptrValue.Elem().Set(targetValue)
+			if fieldValue != nil {
+				ptrValue.Elem().Set(targetValue)
+			}
 			targetValue = ptrValue.Elem()
 		} else {
 			if targetValue.Kind() == reflect.Ptr {
