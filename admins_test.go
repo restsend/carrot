@@ -62,7 +62,7 @@ func TestAdminObjects(t *testing.T) {
 		Phone: "+1234567890",
 		Email: "bob@restsend.com",
 	}
-	vals, err := objs[0].MarshalOne(&user)
+	vals, err := objs[0].MarshalOne(nil, &user)
 	assert.Nil(t, err)
 	assert.Equal(t, uint(1), vals["id"])
 	assert.Equal(t, "+1234567890", vals["phone"])
@@ -365,7 +365,7 @@ func TestAdminForeign(t *testing.T) {
 		},
 	}
 	assert.Equal(t, "1024 (item one)", fmt.Sprintf("%v", p.Item))
-	vals, err := productObj.MarshalOne(&p)
+	vals, err := productObj.MarshalOne(nil, &p)
 	assert.Nil(t, err)
 	assert.Equal(t, "1024 (item one)", vals["item"].(AdminValue).Label)
 	assert.Equal(t, uint(1024), vals["item"].(AdminValue).Value)

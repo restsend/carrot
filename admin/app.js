@@ -127,6 +127,7 @@ class QueryResult {
                         primary: field.primary,
                     }
                 }),
+                ...item._adminExtra,
             }
         })
 
@@ -136,7 +137,7 @@ class QueryResult {
         this.rows = items
     }
 
-    get pos_value() {
+    get posValue() {
         if (this.count == 0) { return 0 }
         return this.pos + 1
     }
@@ -297,7 +298,6 @@ class QueryResult {
             Alpine.store('toasts').info(`${action.name} all records done`)
             this.refresh()
         }).catch(err => {
-            console.error(err)
             Alpine.store('toasts').error(`${action.name} fail : ${err.toString()}`)
         })
     }
@@ -428,7 +428,7 @@ class AdminObject {
             return f
         })
 
-        let filter_fields = (names, defaults) => {
+        let filterFields = (names, defaults) => {
             if (!names) {
                 return defaults || []
             }
@@ -437,11 +437,11 @@ class AdminObject {
             }).filter(f => f)
         }
 
-        this.shows = filter_fields(meta.shows, fields)
-        this.editables = filter_fields(meta.editables, fields)
-        this.searchables = filter_fields(meta.searchables)
-        this.filterables = filter_fields(meta.filterables)
-        this.orderables = filter_fields(meta.orderables)
+        this.shows = filterFields(meta.shows, fields)
+        this.editables = filterFields(meta.editables, fields)
+        this.searchables = filterFields(meta.searchables)
+        this.filterables = filterFields(meta.filterables)
+        this.orderables = filterFields(meta.orderables)
         this.orders = meta.orders || []
 
         this.orderables.forEach(f => {
@@ -596,6 +596,13 @@ class AdminObject {
     }
 
     async doAction(action, keys) {
+        if (action.batch) {
+            let items = {
+                "keys": JSON.stringify(keys)
+            }
+            keys = [items]
+        }
+
         for (let i = 0; i < keys.length; i++) {
             Alpine.store('toasts').doing(`${i + 1}/${keys.length}`)
             let params = new URLSearchParams(keys[i]).toString()
@@ -614,9 +621,22 @@ class AdminObject {
             if (action.onDone) {
                 let result = await resp.json()
                 action.onDone(keys[i], result)
+            } else {
+                // if response is download file
+                let contentDisposition = resp.headers.get('content-disposition')
+                if (contentDisposition) {
+                    let filename = contentDisposition.split('filename=')[1]
+                    let blob = await resp.blob()
+                    let url = window.URL.createObjectURL(blob)
+                    let a = document.createElement('a')
+                    a.href = url
+                    a.download = filename
+                    a.click()
+                    window.URL.revokeObjectURL(url)
+                }
             }
+            Alpine.store('toasts').reset()
         }
-        Alpine.store('toasts').reset()
     }
 }
 

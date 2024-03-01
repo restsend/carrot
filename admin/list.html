@@ -205,8 +205,8 @@
                               </template>
                               <td
                                 class="relative whitespace-nowrap border-b border-gray-200 py-4 pl-3 pr-4 text-right text-sm font-medium sm:pl-2 lg:pl-4">
-                                <template x-if="row.view_on_site">
-                                  <a :href="row.view_on_site" class="text-indigo-600 hover:text-indigo-900"
+                                <template x-if="row.viewOnSite">
+                                  <a :href="row.viewOnSite" class="text-indigo-600 hover:text-indigo-900"
                                     target="_blank">View</a>
                                 </template>
                               </td>
@@ -232,7 +232,7 @@
                 <div class="hidden sm:block">
                   <p class="text-sm text-gray-700">
                     Showing
-                    <span class="font-medium" x-text="queryresult.pos_value"></span>
+                    <span class="font-medium" x-text="queryresult.posValue"></span>
                     to
                     <span class="font-medium" x-text="queryresult.pos + queryresult.count"></span>
                     of

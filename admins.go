@@ -36,7 +36,8 @@ type AdminQueryResult struct {
 
 // Access control
 type AdminAccessCheck func(c *gin.Context, obj *AdminObject) error
-type AdminActionHandler func(db *gorm.DB, c *gin.Context, obj any) (any, error)
+type AdminActionHandler func(db *gorm.DB, c *gin.Context, obj any) (bool, any, error)
+type AdminViewOnSite func(db *gorm.DB, c *gin.Context, obj any) string
 
 type AdminSelectOption struct {
 	Label string `json:"label"`
@@ -95,6 +96,7 @@ type AdminAction struct {
 	Icon          string             `json:"icon,omitempty"`
 	Class         string             `json:"class,omitempty"`
 	WithoutObject bool               `json:"withoutObject"`
+	Batch         bool               `json:"batch,omitempty"`
 	Handler       AdminActionHandler `json:"-"`
 }
 
@@ -123,6 +125,7 @@ type AdminObject struct {
 	Actions     []AdminAction   `json:"actions,omitempty"`
 	Icon        *AdminIcon      `json:"icon,omitempty"`
 	Invisible   bool            `json:"invisible,omitempty"`
+	ViewOnSite  AdminViewOnSite `json:"-,omitempty"`
 
 	Attributes       map[string]AdminAttribute `json:"-"` // Field's extra attributes
 	AccessCheck      AdminAccessCheck          `json:"-"` // Access control function
@@ -188,20 +191,20 @@ func GetCarrotAdminObjects() []AdminObject {
 					Path:  "toggle_enabled",
 					Name:  "Toggle enabled",
 					Label: "Toggle user enabled/disabled",
-					Handler: func(db *gorm.DB, c *gin.Context, obj any) (any, error) {
+					Handler: func(db *gorm.DB, c *gin.Context, obj any) (bool, any, error) {
 						user := obj.(*User)
 						err := UpdateUserFields(db, user, map[string]any{"Enabled": !user.Enabled})
-						return user.Enabled, err
+						return false, user.Enabled, err
 					},
 				},
 				{
 					Path:  "toggle_staff",
 					Name:  "Toggle staff",
 					Label: "Toggle user is staff or not",
-					Handler: func(db *gorm.DB, c *gin.Context, obj any) (any, error) {
+					Handler: func(db *gorm.DB, c *gin.Context, obj any) (bool, any, error) {
 						user := obj.(*User)
 						err := UpdateUserFields(db, user, map[string]any{"IsStaff": !user.IsStaff})
-						return user.IsStaff, err
+						return false, user.IsStaff, err
 					},
 				},
 			},
@@ -745,7 +748,7 @@ func (obj *AdminObject) UnmarshalFrom(elemObj reflect.Value, keys, vals map[stri
 	return elemObj.Interface(), nil
 }
 
-func (obj *AdminObject) MarshalOne(val interface{}) (map[string]any, error) {
+func (obj *AdminObject) MarshalOne(c *gin.Context, val interface{}) (map[string]any, error) {
 	var result = make(map[string]any)
 	rv := reflect.ValueOf(val)
 	if rv.Kind() == reflect.Ptr {
@@ -775,6 +778,13 @@ func (obj *AdminObject) MarshalOne(val interface{}) (map[string]any, error) {
 		}
 		result[field.Name] = fieldVal
 	}
+
+	if obj.ViewOnSite != nil {
+		result["_adminExtra"] = map[string]any{
+			"viewOnSite": obj.ViewOnSite(getDbConnection(c, obj.GetDB, false), c, val),
+		}
+	}
+
 	return result, nil
 }
 
@@ -831,7 +841,7 @@ func (obj *AdminObject) handleGetOne(c *gin.Context) {
 		}
 	}
 
-	data, err := obj.MarshalOne(modelObj)
+	data, err := obj.MarshalOne(c, modelObj)
 	if err != nil {
 		AbortWithJSONError(c, http.StatusInternalServerError, err)
 		return
@@ -940,7 +950,7 @@ func (obj *AdminObject) QueryObjects(session *gorm.DB, form *QueryForm, ctx *gin
 				modelObj = rr
 			}
 		}
-		item, err := obj.MarshalOne(modelObj)
+		item, err := obj.MarshalOne(ctx, modelObj)
 		if err != nil {
 			return r, err
 		}
@@ -1146,12 +1156,31 @@ func (obj *AdminObject) handleAction(c *gin.Context) {
 
 		db := getDbConnection(c, obj.GetDB, false)
 		if action.WithoutObject {
-			r, err := action.Handler(db, c, nil)
+			handled, r, err := action.Handler(db, c, nil)
 			if err != nil {
 				AbortWithJSONError(c, http.StatusInternalServerError, err)
 				return
 			}
-			c.JSON(http.StatusOK, r)
+			if !handled {
+				c.JSON(http.StatusOK, r)
+			}
+			return
+		}
+
+		if action.Batch {
+			var keys []map[string]any
+			if err := json.Unmarshal([]byte(c.Query("keys")), &keys); err != nil {
+				AbortWithJSONError(c, http.StatusBadRequest, err)
+				return
+			}
+			handled, r, err := action.Handler(db, c, keys)
+			if err != nil {
+				AbortWithJSONError(c, http.StatusInternalServerError, err)
+				return
+			}
+			if !handled {
+				c.JSON(http.StatusOK, r)
+			}
 			return
 		}
 
@@ -1171,12 +1200,15 @@ func (obj *AdminObject) handleAction(c *gin.Context) {
 			}
 			return
 		}
-		r, err := action.Handler(db, c, modelObj)
+		handled, r, err := action.Handler(db, c, modelObj)
 		if err != nil {
 			AbortWithJSONError(c, http.StatusInternalServerError, err)
 			return
 		}
-		c.JSON(http.StatusOK, r)
+
+		if !handled {
+			c.JSON(http.StatusOK, r)
+		}
 		return
 	}
 	c.AbortWithStatus(http.StatusBadRequest)
