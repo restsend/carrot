@@ -125,7 +125,7 @@ type AdminObject struct {
 	Actions     []AdminAction   `json:"actions,omitempty"`
 	Icon        *AdminIcon      `json:"icon,omitempty"`
 	Invisible   bool            `json:"invisible,omitempty"`
-	ViewOnSite  AdminViewOnSite `json:"-,omitempty"`
+	ViewOnSite  AdminViewOnSite `json:"-"`
 
 	Attributes       map[string]AdminAttribute `json:"-"` // Field's extra attributes
 	AccessCheck      AdminAccessCheck          `json:"-"` // Access control function
