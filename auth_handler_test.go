@@ -240,6 +240,10 @@ func TestAuthToken(t *testing.T) {
 	r := gin.Default()
 	err = InitCarrot(db, r)
 	assert.Nil(t, err)
+	r.GET("/mock", AuthRequired, func(ctx *gin.Context) {
+		ctx.JSON(http.StatusOK, CurrentUser(ctx))
+	})
+
 	client := NewTestClient(r)
 	defer func() {
 		db.Where("email", "bob@example.org").Delete(&User{})
@@ -265,6 +269,21 @@ func TestAuthToken(t *testing.T) {
 		err = client.CallPost("/auth/login", form, &user)
 		assert.Nil(t, err)
 		assert.Empty(t, user.AuthToken)
+	}
+	{
+		w := client.Get("/mock")
+		vals := checkResponse(t, w)
+		assert.Contains(t, vals, "email")
+	}
+	{
+		client = NewTestClient(r)
+		w := client.Get("/mock")
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+		req, _ := http.NewRequest("GET", "/mock", nil)
+		req.Header.Set("Authorization", "Bearer "+user.AuthToken)
+		resp := client.SendReq("/mock", req)
+		vals := checkResponse(t, resp)
+		assert.Contains(t, vals, "email")
 	}
 }
 func TestAuthActivation(t *testing.T) {

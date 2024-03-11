@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -70,6 +71,34 @@ func CurrentTimezone(c *gin.Context) *time.Location {
 		return time.UTC
 	}
 	return tz
+}
+
+func AuthRequired(c *gin.Context) {
+	if CurrentUser(c) != nil {
+		c.Next()
+		return
+	}
+
+	token := c.GetHeader("Authorization")
+	if token == "" {
+		token = c.Query("token")
+	}
+
+	if token == "" {
+		AbortWithJSONError(c, http.StatusUnauthorized, errors.New("authorization required"))
+		return
+	}
+
+	db := c.MustGet(DbField).(*gorm.DB)
+	// split bearer
+	token = strings.TrimPrefix(token, "Bearer ")
+	user, err := DecodeHashToken(db, token, false)
+	if err != nil {
+		AbortWithJSONError(c, http.StatusUnauthorized, err)
+		return
+	}
+	c.Set(UserField, user)
+	c.Next()
 }
 
 func CurrentUser(c *gin.Context) *User {
