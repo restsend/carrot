@@ -14,6 +14,10 @@ import (
 	"gorm.io/gorm"
 )
 
+type ErrorWithCode interface {
+	StatusCode() int
+}
+
 func AbortWithJSONError(c *gin.Context, code int, err error) {
 	var errWithFileNum error = err
 	if log.Flags()&(log.Lshortfile|log.Llongfile) != 0 {
@@ -30,6 +34,11 @@ func AbortWithJSONError(c *gin.Context, code int, err error) {
 		errWithFileNum = fmt.Errorf("%s:%d: %v", file, line, err)
 	}
 	c.Error(errWithFileNum)
+
+	if e, ok := err.(ErrorWithCode); ok {
+		code = e.StatusCode()
+	}
+
 	if c.IsAborted() {
 		c.JSON(code, gin.H{"error": err.Error()})
 	} else {
