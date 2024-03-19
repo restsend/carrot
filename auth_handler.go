@@ -75,14 +75,14 @@ func InitAuthHandler(prefix string, db *gorm.DB, r *gin.Engine) {
 func handleUserInfo(c *gin.Context) {
 	user := CurrentUser(c)
 	if user == nil {
-		c.AbortWithStatus(http.StatusForbidden)
+		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 	db := c.MustGet(DbField).(*gorm.DB)
 	var err error
 	user, err = GetUserByUID(db, user.ID)
 	if err != nil {
-		c.AbortWithStatus(http.StatusForbidden)
+		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 	withToken := c.Query("with_token")
