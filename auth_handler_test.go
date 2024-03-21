@@ -107,7 +107,7 @@ func TestAuthHandler(t *testing.T) {
 	}
 	{
 		w := client.Get("/auth/info")
-		assert.Equal(t, http.StatusForbidden, w.Code)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	}
 	{
 		form := LoginForm{
