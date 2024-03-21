@@ -35,12 +35,13 @@ type Config struct {
 }
 
 type Profile struct {
-	Avatar  string         `json:"avatar,omitempty"`
-	Gender  string         `json:"gender,omitempty"`
-	City    string         `json:"city,omitempty"`
-	Region  string         `json:"region,omitempty"`
-	Country string         `json:"country,omitempty"`
-	Extra   map[string]any `json:"extra,omitempty"`
+	Avatar       string         `json:"avatar,omitempty"`
+	Gender       string         `json:"gender,omitempty"`
+	City         string         `json:"city,omitempty"`
+	Region       string         `json:"region,omitempty"`
+	Country      string         `json:"country,omitempty"`
+	Extra        map[string]any `json:"extra,omitempty"`
+	PrivateExtra map[string]any `json:"privateExtra,omitempty"`
 }
 
 func (p *Profile) Scan(value interface{}) error {
