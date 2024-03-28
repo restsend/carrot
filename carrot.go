@@ -74,19 +74,14 @@ func InitCarrot(db *gorm.DB, r *gin.Engine) (err error) {
 	//
 	// Check default SITE_*
 	//
-	CheckValue(db, KEY_SITE_LOGO_URL, "/static/img/carrot.svg")
-	CheckValue(db, KEY_SITE_FAVICON_URL, "/static/img/favicon.png")
-	CheckValue(db, KEY_SITE_SIGNIN_URL, "/auth/login")
-	CheckValue(db, KEY_SITE_SIGNUP_URL, "/auth/register")
-	CheckValue(db, KEY_SITE_LOGOUT_URL, "/auth/logout")
-	CheckValue(db, KEY_SITE_RESET_PASSWORD_URL, "/auth/reset_password")
-	CheckValue(db, KEY_SITE_LOGIN_NEXT, "/")
+	CheckValue(db, KEY_SITE_LOGO_URL, "/static/img/carrot.svg", ConfigFormatText, true, true)
+	CheckValue(db, KEY_SITE_FAVICON_URL, "/static/img/favicon.png", ConfigFormatText, true, true)
+	CheckValue(db, KEY_SITE_SIGNIN_URL, "/auth/login", ConfigFormatText, true, true)
+	CheckValue(db, KEY_SITE_SIGNUP_URL, "/auth/register", ConfigFormatText, true, true)
+	CheckValue(db, KEY_SITE_LOGOUT_URL, "/auth/logout", ConfigFormatText, true, true)
+	CheckValue(db, KEY_SITE_RESET_PASSWORD_URL, "/auth/reset_password", ConfigFormatText, true, true)
+	CheckValue(db, KEY_SITE_LOGIN_NEXT, "/", ConfigFormatText, true, true)
 
-	as := NewStaticAssets()
-	as.InitStaticAssets(r)
-
-	r.HTMLRender = as
-
-	InitAuthHandler("/auth", db, r)
+	InitAuthHandler(GetEnv(ENV_AUTH_PREFIX), db, r)
 	return nil
 }

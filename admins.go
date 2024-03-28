@@ -152,10 +152,10 @@ func GetCarrotAdminObjects() []AdminObject {
 		return nil
 	}
 
-	iconUser, _ := EmbedAdminAssets.ReadFile("admin/icon_user.svg")
-	iconGroup, _ := EmbedAdminAssets.ReadFile("admin/icon_group.svg")
-	iconMembers, _ := EmbedAdminAssets.ReadFile("admin/icon_members.svg")
-	iconConfig, _ := EmbedAdminAssets.ReadFile("admin/icon_config.svg")
+	iconUser, _ := EmbedAdminAssets.ReadFile("admin/img/icon_user.svg")
+	iconGroup, _ := EmbedAdminAssets.ReadFile("admin/img/icon_group.svg")
+	iconMembers, _ := EmbedAdminAssets.ReadFile("admin/img/icon_members.svg")
+	iconConfig, _ := EmbedAdminAssets.ReadFile("admin/img/icon_config.svg")
 
 	return []AdminObject{
 		{
@@ -336,7 +336,7 @@ func RegisterAdmins(r *gin.RouterGroup, db *gorm.DB, adminAssetsRoot string, obj
 	r.GET("/*filepath", func(ctx *gin.Context) {
 		name := ctx.Param("filepath")
 		if name == "/" {
-			indexData, err := adminAssets.Open("index.html")
+			indexData, err := adminAssets.Open("app.html")
 			if err != nil {
 				ctx.AbortWithStatus(http.StatusNotFound)
 				return

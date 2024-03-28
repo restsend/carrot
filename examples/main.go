@@ -100,7 +100,7 @@ func main() {
 	}
 
 	// Check Default Value
-	carrot.CheckValue(db, carrot.KEY_SITE_NAME, "Carrot")
+	carrot.CheckValue(db, carrot.KEY_SITE_NAME, "Carrot", carrot.ConfigFormatText, true, true)
 
 	// Connect user event, eg. Login, Create
 	carrot.Sig().Connect(carrot.SigUserCreate, func(sender any, params ...any) {

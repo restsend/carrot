@@ -12,10 +12,11 @@ import (
 )
 
 const (
-	UserField  = "_carrot_uid"
-	GroupField = "_carrot_gid"
-	DbField    = "_carrot_db"
-	TzField    = "_carrot_tz"
+	UserField         = "_carrot_uid"
+	GroupField        = "_carrot_gid"
+	DbField           = "_carrot_db"
+	TzField           = "_carrot_tz"
+	DefaultAuthPrefix = "/auth"
 )
 
 type RegisterUserForm struct {
@@ -53,7 +54,7 @@ type ResetPasswordDoneForm struct {
 
 func InitAuthHandler(prefix string, db *gorm.DB, r *gin.Engine) {
 	if prefix == "" {
-		prefix = GetEnv(ENV_AUTH_PREFIX)
+		prefix = DefaultAuthPrefix
 	}
 
 	r.GET(filepath.Join(prefix, "register"), handleUserSignupPage)

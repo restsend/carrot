@@ -1,25 +1,15 @@
 package carrot
 
 import (
-	"bytes"
 	"embed"
-	"io"
 	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
 
-	"github.com/flosch/pongo2/v6"
 	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/render"
 	"gorm.io/gorm"
 )
-
-//go:embed static
-var EmbedAssets embed.FS
-
-//go:embed templates
-var EmbedTemplates embed.FS
 
 //go:embed admin
 var EmbedAdminAssets embed.FS
@@ -90,6 +80,7 @@ func (ef EmbedFile) Stat() (fs.FileInfo, error) {
 
 func GetRenderPageContext(c *gin.Context) map[string]any {
 	db := c.MustGet(DbField).(*gorm.DB)
+	LoadAutoloads(db)
 	return map[string]any{
 		"siteurl":            GetValue(db, KEY_SITE_URL),
 		"sitename":           GetValue(db, KEY_SITE_NAME),
@@ -122,65 +113,4 @@ func HintAssetsRoot(dirName string) string {
 		}
 	}
 	return ""
-}
-
-type StaticAssets struct {
-	TemplateDir string
-	pongosets   *pongo2.TemplateSet
-}
-
-func NewStaticAssets() *StaticAssets {
-	r := &StaticAssets{
-		TemplateDir: HintAssetsRoot("templates"),
-	}
-	r.pongosets = pongo2.NewSet("carrot", r)
-	return r
-}
-
-func (as *StaticAssets) InitStaticAssets(r *gin.Engine) {
-	staticPrefix := GetEnv(ENV_STATIC_ROOT)
-	if staticPrefix == "" {
-		staticPrefix = "/static"
-	}
-
-	staticDir := HintAssetsRoot("static")
-
-	Warning("static serving at", staticPrefix, "->", staticDir)
-	r.StaticFS(staticPrefix, NewCombineEmbedFS(staticDir,
-		EmbedFS{"static", EmbedAssets},
-		EmbedFS{"admin", EmbedAdminAssets}))
-}
-
-// pongo2.TemplateLoader
-func (as *StaticAssets) Abs(base, name string) string {
-	testFileName := filepath.Join(as.TemplateDir, filepath.Base(name))
-	_, err := os.Stat(testFileName)
-	if err == nil {
-		return testFileName
-	}
-	return name
-}
-
-// pongo2.TemplateLoader Get returns an io.Reader where the template's content can be read from.
-func (as *StaticAssets) Get(path string) (io.Reader, error) {
-	buf, err := os.ReadFile(path)
-	if err != nil {
-		ef, err := EmbedTemplates.Open(filepath.Join("templates", path))
-		if err != nil {
-			return nil, err
-		}
-		return ef, err
-	}
-	return bytes.NewReader(buf), nil
-}
-
-// gin.HTML Render
-func (as *StaticAssets) Instance(name string, ctx any) render.Render {
-	vals := ctx.(map[string]any)
-	r := &PongoRender{
-		sets:     as.pongosets,
-		fileName: name,
-		ctx:      vals,
-	}
-	return r
 }

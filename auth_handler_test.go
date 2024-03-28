@@ -132,7 +132,7 @@ func TestAuthHandler(t *testing.T) {
 			Email:    "bob@example.org",
 			Password: "hello12345",
 		}
-		SetValue(db, KEY_USER_ACTIVATED, "true")
+		SetValue(db, KEY_USER_ACTIVATED, "true", ConfigFormatText, false, false)
 		var user User
 		err = client.CallPost("/auth/login", form, &user)
 		assert.Contains(t, err.Error(), "waiting for activation")
@@ -165,7 +165,7 @@ func TestAuthPassword(t *testing.T) {
 	defer func() {
 		db.Where("email", "bob@example.org").Delete(&User{})
 	}()
-	SetValue(db, KEY_USER_ACTIVATED, "no")
+	SetValue(db, KEY_USER_ACTIVATED, "false", ConfigFormatBool, false, false)
 	CreateUser(db, "bob@example.org", "123456")
 
 	form := LoginForm{
@@ -248,7 +248,7 @@ func TestAuthToken(t *testing.T) {
 	defer func() {
 		db.Where("email", "bob@example.org").Delete(&User{})
 	}()
-	SetValue(db, KEY_USER_ACTIVATED, "no")
+	SetValue(db, KEY_USER_ACTIVATED, "false", ConfigFormatBool, false, false)
 	CreateUser(db, "bob@example.org", "123456")
 
 	form := LoginForm{
@@ -298,7 +298,7 @@ func TestAuthActivation(t *testing.T) {
 		db.Where("email", "bob@example.org").Delete(&User{})
 	}()
 	CreateUser(db, "bob@example.org", "123456")
-	SetValue(db, KEY_USER_ACTIVATED, "yes")
+	SetValue(db, KEY_USER_ACTIVATED, "true", ConfigFormatBool, false, false)
 
 	{
 		form := LoginForm{

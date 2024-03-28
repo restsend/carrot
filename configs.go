@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var configValueCache *ExpiredLRUCache[string, string]
@@ -34,8 +35,8 @@ func GetEnv(key string) string {
 }
 
 func GetBoolEnv(key string) bool {
-	v := strings.ToLower(GetEnv(key))
-	return v == "1" || v == "yes" || v == "true" || v == "on"
+	v, _ := strconv.ParseBool(strings.ToLower(GetEnv(key)))
+	return v
 }
 
 func LookupEnv(key string) (string, bool) {
@@ -100,28 +101,33 @@ func LoadEnvs(objPtr any) {
 		case reflect.Bool:
 			if v, ok := LookupEnv(keyName); ok {
 				v := strings.ToLower(v)
-				yes := v == "1" || v == "yes" || v == "true" || v == "on"
-				f.SetBool(yes)
+				if yes, err := strconv.ParseBool(v); err == nil {
+					f.SetBool(yes)
+				}
 			}
 		}
 	}
 }
 
-func SetValue(db *gorm.DB, key, value string) {
+func SetValue(db *gorm.DB, key, value, format string, autoload, public bool) {
 	key = strings.ToUpper(key)
 	configValueCache.Remove(key)
 
-	var v Config
-	result := db.Where("key", key).Take(&v)
-	if result.Error != nil {
-		newV := &Config{
-			Key:   key,
-			Value: value,
-		}
-		db.Create(&newV)
-		return
+	newV := &Config{
+		Key:      key,
+		Value:    value,
+		Format:   format,
+		Autoload: autoload,
+		Public:   public,
 	}
-	db.Model(&Config{}).Where("key", key).UpdateColumn("value", value)
+	result := db.Model(&Config{}).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "key"}},
+		DoUpdates: clause.AssignmentColumns([]string{"value", "format", "autoload", "public"}),
+	}).Create(newV)
+
+	if result.Error != nil {
+		Warning("SetValue fail", "key", key, "value", value, "format", format, "err", result.Error.Error())
+	}
 }
 
 func GetValue(db *gorm.DB, key string) string {
@@ -158,15 +164,38 @@ func GetBoolValue(db *gorm.DB, key string) bool {
 	if v == "" {
 		return false
 	}
-	v = strings.ToLower(v)
-	if v == "1" || v == "yes" || v == "true" || v == "on" {
-		return true
-	}
-	return false
+
+	r, _ := strconv.ParseBool(strings.ToLower(v))
+	return r
 }
 
-func CheckValue(db *gorm.DB, key, defaultValue string) {
-	if GetValue(db, key) == "" {
-		SetValue(db, key, defaultValue)
+func CheckValue(db *gorm.DB, key, defaultValue, format string, autoload, public bool) {
+	newV := &Config{
+		Key:      strings.ToUpper(key),
+		Value:    defaultValue,
+		Format:   format,
+		Autoload: autoload,
+		Public:   public,
 	}
+	db.Model(&Config{}).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "key"}},
+		DoNothing: true,
+	}).Create(newV)
+}
+
+func LoadAutoloads(db *gorm.DB) {
+	var configs []Config
+	db.Where("autoload", true).Find(&configs)
+	for _, v := range configs {
+		configValueCache.Add(v.Key, v.Value)
+	}
+}
+
+func LoadPublicConfigs(db *gorm.DB) []Config {
+	var configs []Config
+	db.Where("public", true).Find(&configs)
+	for _, v := range configs {
+		configValueCache.Add(v.Key, v.Value)
+	}
+	return configs
 }
