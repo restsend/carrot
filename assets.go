@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/render"
@@ -206,7 +207,15 @@ func formatSources(source string) []any {
 	return sources
 }
 func (c *CombineTemplates) RenderDebug(name, source string, data any, err error) render.Render {
-	lineAt := 4
+	lineAt := int64(0)
+	if err != nil {
+		re := regexp.MustCompile(`:(\d+):`)
+		matches := re.FindStringSubmatch(err.Error())
+		if len(matches) > 1 {
+			lineAt, _ = strconv.ParseInt(matches[1], 10, 64)
+		}
+	}
+
 	ctx := map[string]any{
 		"Name":    name,
 		"Error":   err,
@@ -265,7 +274,6 @@ func (c *CombineTemplates) RenderDebug(name, source string, data any, err error)
 		
 		{{if .Context}}
 		<h2>Context</h2>
-		<!--for each context-->
 		<div>
 		{{range $key, $value := .Context}}
 		<p><strong>{{$key}}</strong>: <span>{{$value}}</span></p>

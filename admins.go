@@ -253,8 +253,9 @@ func GetCarrotAdminObjects() []AdminObject {
 			Group:       "Settings",
 			Name:        "Config",
 			Desc:        "System config with database backend, You can change it in admin page, and it will take effect immediately without restarting the server", //
-			Shows:       []string{"Key", "Value", "Desc"},
-			Editables:   []string{"Key", "Value", "Desc"},
+			Shows:       []string{"Key", "Value", "Autoload", "Public", "Format", "Desc"},
+			Editables:   []string{"Key", "Value", "Autoload", "Public", "Format", "Desc"},
+			Filterables: []string{"Autoload", "Public"},
 			Orderables:  []string{"Key"},
 			Searchables: []string{"Key", "Value", "Desc"},
 			Requireds:   []string{"Key", "Value"},
@@ -355,48 +356,8 @@ func RegisterAdmins(r *gin.RouterGroup, db *gorm.DB, objs []AdminObject) {
 				"Scripts":   jsFiles,
 				"Styles":    cssFiles,
 				"Dashboard": GetValue(db, KEY_ADMIN_DASHBOARD),
-				//"Objects":   handledObjects,
+				"Objects":   handledObjects,
 			})
-
-			// }
-			// if strings.HasSuffix(dir.Name(), ".css") {
-			// 	files += fmt.Sprintf(`<link rel="stylesheet" href="./%s" type="text/css">`, dir.Name())
-			// }
-			// if strings.HasSuffix(dir.Name(), ".js") {
-			// 	files += fmt.Sprintf(`<script src="./%s"></script>`, dir.Name())
-			// }
-			// indexData, err := templateAssets.CombineFS.Open("admin/app.html")
-			// if err != nil {
-			// 	ctx.AbortWithStatus(http.StatusNotFound)
-			// 	return
-			// }
-			// defer indexData.Close()
-			// pageData, err := io.ReadAll(indexData)
-			// if err != nil {
-			// 	ctx.AbortWithStatus(http.StatusInternalServerError)
-			// 	return
-			// }
-			// // walk all *.js and *.css files put them into index.html
-			// var files string
-			// dirs, err := staticAssets.ReadDir("admin")
-			// if err == nil {
-			// 	for _, dir := range dirs {
-			// 		if dir.IsDir() {
-			// 			continue
-			// 		}
-			// 		if strings.HasSuffix(dir.Name(), ".css") {
-			// 			files += fmt.Sprintf(`<link rel="stylesheet" href="./%s" type="text/css">`, dir.Name())
-			// 		}
-			// 		if strings.HasSuffix(dir.Name(), ".js") {
-			// 			files += fmt.Sprintf(`<script src="./%s"></script>`, dir.Name())
-			// 		}
-			// 	}
-			// }
-			// var pageDataString = string(pageData)
-			// if files != "" {
-			// 	pageDataString = strings.Replace(pageDataString, "<!--REPLACE_JS_LOAD-->", files, 1)
-			// }
-			// ctx.Data(http.StatusOK, "text/html; charset=utf-8", []byte(pageDataString))
 			return
 		}
 		ctx.FileFromFS(filepath.Join("admin", name), http.FS(staticAssets))
