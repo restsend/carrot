@@ -8,7 +8,7 @@ import (
 )
 
 // Gin session field name
-const SessionField = "carrot"
+const ENV_SESSION_FIELD = "SESSION_FIELD"
 
 // Default Value: 1024
 const ENV_CONFIG_CACHE_SIZE = "CONFIG_CACHE_SIZE"
@@ -24,7 +24,9 @@ const ENV_SESSION_SECRET = "SESSION_SECRET"
 // User Password salt
 const ENV_SALT = "PASSWORD_SALT"
 const ENV_AUTH_PREFIX = "AUTH_PREFIX"
+const ENV_STATIC_PREFIX = "STATIC_PREFIX"
 const ENV_STATIC_ROOT = "STATIC_ROOT"
+const ENV_TEMPLATE_ROOT = "TEMPLATE_ROOT"
 
 const KEY_USER_ACTIVATED = "USER_ACTIVATED"
 const KEY_AUTH_TOKEN_EXPIRED = "AUTH_TOKEN_EXPIRED"
@@ -32,7 +34,6 @@ const KEY_RESET_PASSWD_EXPIRED = "RESET_PASSWD_EXPIRED"
 const KEY_VERIFY_EMAIL_EXPIRED = "VERIFY_EMAIL_EXPIRED"
 
 const KEY_SITE_NAME = "SITE_NAME"
-const KEY_SITE_SLOGAN = "SITE_SLOGAN"
 const KEY_SITE_ADMIN = "SITE_ADMIN"
 const KEY_SITE_URL = "SITE_URL"
 const KEY_SITE_KEYWORDS = "SITE_KEYWORDS"
@@ -63,6 +64,8 @@ func InitCarrot(db *gorm.DB, r *gin.Engine) (err error) {
 	}
 
 	r.Use(WithGormDB(db), CORSEnabled())
+	r.Use(WithStaticAssets(r, GetEnv(ENV_STATIC_PREFIX), GetEnv(ENV_STATIC_ROOT)))
+	r.Use(WithTemplates(r, GetEnv(ENV_TEMPLATE_ROOT)))
 
 	secret := GetEnv(ENV_SESSION_SECRET)
 	if secret != "" {
@@ -81,7 +84,16 @@ func InitCarrot(db *gorm.DB, r *gin.Engine) (err error) {
 	CheckValue(db, KEY_SITE_LOGOUT_URL, "/auth/logout", ConfigFormatText, true, true)
 	CheckValue(db, KEY_SITE_RESET_PASSWORD_URL, "/auth/reset_password", ConfigFormatText, true, true)
 	CheckValue(db, KEY_SITE_LOGIN_NEXT, "/", ConfigFormatText, true, true)
+	CheckValue(db, KEY_SITE_USER_ID_TYPE, "email", ConfigFormatText, true, true)
 
 	InitAuthHandler(GetEnv(ENV_AUTH_PREFIX), db, r)
 	return nil
+}
+
+func GetCarrotSessionField() string {
+	v := GetEnv(ENV_SESSION_FIELD)
+	if v == "" {
+		return "carrot"
+	}
+	return v
 }

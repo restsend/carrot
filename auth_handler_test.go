@@ -47,7 +47,7 @@ func TestSession(t *testing.T) {
 	client := NewTestClient(r)
 	w := client.Get("/mock")
 	assert.Contains(t, w.Header(), "Set-Cookie")
-	assert.Contains(t, w.Header().Get("Set-Cookie"), SessionField+"=")
+	assert.Contains(t, w.Header().Get("Set-Cookie"), GetCarrotSessionField()+"=")
 }
 
 func TestAuthHandler(t *testing.T) {

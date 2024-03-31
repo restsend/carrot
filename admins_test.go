@@ -98,7 +98,7 @@ func createAdminTest() (*gin.Engine, *gorm.DB, *TestClient) {
 	InitCarrot(db, r)
 
 	objs := GetCarrotAdminObjects()
-	RegisterAdmins(r.Group("/admin"), db, "./admin", objs)
+	RegisterAdmins(r.Group("/admin"), db, objs)
 	client := NewTestClient(r)
 	authClient(db, client, "bob@restsend.com", "--", true)
 	return r, db, client
@@ -111,7 +111,7 @@ func TestAdminIndex(t *testing.T) {
 	InitCarrot(db, r)
 
 	objs := GetCarrotAdminObjects()
-	RegisterAdmins(r.Group("/admin"), db, HintAssetsRoot("admin"), objs)
+	RegisterAdmins(r.Group("/admin"), db, objs)
 
 	client := NewTestClient(r)
 

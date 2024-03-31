@@ -165,7 +165,7 @@ func main() {
 		},
 	}
 	adminobjs = append(adminobjs, productAdmins...)
-	carrot.RegisterAdmins(r.Group("/admin"), db, carrot.HintAssetsRoot("admin"), adminobjs)
+	carrot.RegisterAdmins(r.Group("/admin"), db, adminobjs)
 	r.Run(":8080")
 }
 

@@ -16,6 +16,8 @@ const (
 	GroupField        = "_carrot_gid"
 	DbField           = "_carrot_db"
 	TzField           = "_carrot_tz"
+	AssetsField       = "_carrot_assets"
+	TemplatesField    = "_carrot_templates"
 	DefaultAuthPrefix = "/auth"
 )
 
@@ -101,24 +103,17 @@ func handleUserInfo(c *gin.Context) {
 
 func handleUserSignupPage(c *gin.Context) {
 	ctx := GetRenderPageContext(c)
-	loginNext := c.Query("next")
-	if loginNext != "" {
-		ctx["login_next"] = loginNext
-	}
-	c.HTML(http.StatusOK, "signup.html", ctx)
+	ctx["SignupText"] = "Sign Up Now"
+	c.HTML(http.StatusOK, "auth/signup.html", ctx)
 }
 
 func handleUserSigninPage(c *gin.Context) {
 	ctx := GetRenderPageContext(c)
-	loginNext := c.Query("next")
-	if loginNext != "" {
-		ctx["login_next"] = loginNext
-	}
-	c.HTML(http.StatusOK, "signin.html", ctx)
+	c.HTML(http.StatusOK, "auth/signin.html", ctx)
 }
 
 func handleUserResetPasswordPage(c *gin.Context) {
-	c.HTML(http.StatusOK, "reset_password.html", GetRenderPageContext(c))
+	c.HTML(http.StatusOK, "auth/reset_password.html", GetRenderPageContext(c))
 }
 
 func handleUserResetPasswordDonePage(c *gin.Context) {
@@ -137,7 +132,7 @@ func handleUserResetPasswordDonePage(c *gin.Context) {
 	}
 	ctx["email"] = user.Email
 	ctx["token"] = token
-	c.HTML(http.StatusOK, "reset_password_done.html", ctx)
+	c.HTML(http.StatusOK, "auth/reset_password_done.html", ctx)
 }
 
 func sendHashMail(db *gorm.DB, user *User, signame, expireKey, defaultExpired, clientIp, useragent string) {

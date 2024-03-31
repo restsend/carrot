@@ -5,10 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
-	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -152,10 +151,10 @@ func GetCarrotAdminObjects() []AdminObject {
 		return nil
 	}
 
-	iconUser, _ := EmbedAdminAssets.ReadFile("admin/img/icon_user.svg")
-	iconGroup, _ := EmbedAdminAssets.ReadFile("admin/img/icon_group.svg")
-	iconMembers, _ := EmbedAdminAssets.ReadFile("admin/img/icon_members.svg")
-	iconConfig, _ := EmbedAdminAssets.ReadFile("admin/img/icon_config.svg")
+	iconUser, _ := EmbedStaticAssets.ReadFile("static/img/icon_user.svg")
+	iconGroup, _ := EmbedStaticAssets.ReadFile("static/img/icon_group.svg")
+	iconMembers, _ := EmbedStaticAssets.ReadFile("static/img/icon_members.svg")
+	iconConfig, _ := EmbedStaticAssets.ReadFile("static/img/icon_config.svg")
 
 	return []AdminObject{
 		{
@@ -321,7 +320,7 @@ func BuildAdminObjects(r *gin.RouterGroup, db *gorm.DB, objs []AdminObject) []*A
 }
 
 // RegisterAdmins registers admin routes
-func RegisterAdmins(r *gin.RouterGroup, db *gorm.DB, adminAssetsRoot string, objs []AdminObject) {
+func RegisterAdmins(r *gin.RouterGroup, db *gorm.DB, objs []AdminObject) {
 	r.Use(WithAdminAuth())
 
 	handledObjects := BuildAdminObjects(r, db, objs)
@@ -331,46 +330,76 @@ func RegisterAdmins(r *gin.RouterGroup, db *gorm.DB, adminAssetsRoot string, obj
 			return m
 		})
 	})
-
-	adminAssets := NewCombineEmbedFS(adminAssetsRoot, EmbedFS{"admin", EmbedAdminAssets})
 	r.GET("/*filepath", func(ctx *gin.Context) {
+		staticAssets := ctx.MustGet(AssetsField).(*CombineEmbedFS)
 		name := ctx.Param("filepath")
 		if name == "/" {
-			indexData, err := adminAssets.Open("app.html")
-			if err != nil {
-				ctx.AbortWithStatus(http.StatusNotFound)
-				return
-			}
-			defer indexData.Close()
-			pageData, err := io.ReadAll(indexData)
-			if err != nil {
-				ctx.AbortWithStatus(http.StatusInternalServerError)
-				return
-			}
-			// walk all *.js and *.css files put them into index.html
-			var files string
-			dirs, err := os.ReadDir(adminAssetsRoot)
+			var jsFiles []string
+			var cssFiles []string
+			dirs, err := staticAssets.ReadDir("admin")
 			if err == nil {
 				for _, dir := range dirs {
 					if dir.IsDir() {
 						continue
 					}
 					if strings.HasSuffix(dir.Name(), ".css") {
-						files += fmt.Sprintf(`<link rel="stylesheet" href="./%s" type="text/css">`, dir.Name())
+						cssFiles = append(cssFiles, dir.Name())
 					}
 					if strings.HasSuffix(dir.Name(), ".js") {
-						files += fmt.Sprintf(`<script src="./%s"></script>`, dir.Name())
+						jsFiles = append(jsFiles, dir.Name())
 					}
 				}
 			}
-			var pageDataString = string(pageData)
-			if files != "" {
-				pageDataString = strings.Replace(string(pageDataString), "<!--REPLACE_JS_LOAD-->", files, 1)
-			}
-			ctx.Data(http.StatusOK, "text/html; charset=utf-8", []byte(pageDataString))
+
+			ctx.HTML(http.StatusOK, "admin/app.html", gin.H{
+				"Scripts":   jsFiles,
+				"Styles":    cssFiles,
+				"Dashboard": GetValue(db, KEY_ADMIN_DASHBOARD),
+				//"Objects":   handledObjects,
+			})
+
+			// }
+			// if strings.HasSuffix(dir.Name(), ".css") {
+			// 	files += fmt.Sprintf(`<link rel="stylesheet" href="./%s" type="text/css">`, dir.Name())
+			// }
+			// if strings.HasSuffix(dir.Name(), ".js") {
+			// 	files += fmt.Sprintf(`<script src="./%s"></script>`, dir.Name())
+			// }
+			// indexData, err := templateAssets.CombineFS.Open("admin/app.html")
+			// if err != nil {
+			// 	ctx.AbortWithStatus(http.StatusNotFound)
+			// 	return
+			// }
+			// defer indexData.Close()
+			// pageData, err := io.ReadAll(indexData)
+			// if err != nil {
+			// 	ctx.AbortWithStatus(http.StatusInternalServerError)
+			// 	return
+			// }
+			// // walk all *.js and *.css files put them into index.html
+			// var files string
+			// dirs, err := staticAssets.ReadDir("admin")
+			// if err == nil {
+			// 	for _, dir := range dirs {
+			// 		if dir.IsDir() {
+			// 			continue
+			// 		}
+			// 		if strings.HasSuffix(dir.Name(), ".css") {
+			// 			files += fmt.Sprintf(`<link rel="stylesheet" href="./%s" type="text/css">`, dir.Name())
+			// 		}
+			// 		if strings.HasSuffix(dir.Name(), ".js") {
+			// 			files += fmt.Sprintf(`<script src="./%s"></script>`, dir.Name())
+			// 		}
+			// 	}
+			// }
+			// var pageDataString = string(pageData)
+			// if files != "" {
+			// 	pageDataString = strings.Replace(pageDataString, "<!--REPLACE_JS_LOAD-->", files, 1)
+			// }
+			// ctx.Data(http.StatusOK, "text/html; charset=utf-8", []byte(pageDataString))
 			return
 		}
-		ctx.FileFromFS(name, adminAssets)
+		ctx.FileFromFS(filepath.Join("admin", name), http.FS(staticAssets))
 	})
 }
 

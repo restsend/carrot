@@ -27,12 +27,15 @@ const (
 	GroupTypeApp   = "app"
 )
 const (
-	ConfigFormatJSON  = "json"
-	ConfigFormatYAML  = "yaml"
-	ConfigFormatInt   = "int"
-	ConfigFormatFloat = "float"
-	ConfigFormatBool  = "bool"
-	ConfigFormatText  = "text"
+	ConfigFormatJSON     = "json"
+	ConfigFormatYAML     = "yaml"
+	ConfigFormatInt      = "int"
+	ConfigFormatFloat    = "float"
+	ConfigFormatBool     = "bool"
+	ConfigFormatText     = "text"
+	ConfigFormatSecurity = "security"
+	ConfigFormatDate     = "date"
+	ConfigFormatDatetime = "datetime"
 )
 
 type Config struct {
