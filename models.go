@@ -36,6 +36,7 @@ const (
 	ConfigFormatSecurity = "security"
 	ConfigFormatDate     = "date"
 	ConfigFormatDatetime = "datetime"
+	ConfigFormatDuration = "duration"
 )
 
 type Config struct {

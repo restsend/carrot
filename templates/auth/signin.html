@@ -142,7 +142,7 @@
       }
       toggleLoading();
 
-      fetch('{{.Site.SigninUrl}}', {
+      fetch('{{.Site.SigninApi}}', {
         method: 'POST',
         body: JSON.stringify({
           'email': document.querySelector('#email').value,

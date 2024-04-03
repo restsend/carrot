@@ -48,6 +48,9 @@ const KEY_SITE_SIGNIN_URL = "SITE_SIGNIN_URL"
 const KEY_SITE_SIGNUP_URL = "SITE_SIGNUP_URL"
 const KEY_SITE_LOGOUT_URL = "SITE_LOGOUT_URL"
 const KEY_SITE_RESET_PASSWORD_URL = "SITE_RESET_PASSWORD_URL"
+const KEY_SITE_SIGNIN_API = "SITE_SIGNIN_API"
+const KEY_SITE_SIGNUP_API = "SITE_SIGNIN_API"
+const KEY_SITE_RESET_PASSWORD_DONE_API = "SITE_RESET_PASSWORD_DONE_API"
 const KEY_SITE_LOGIN_NEXT = "SITE_LOGIN_NEXT"
 const KEY_SITE_USER_ID_TYPE = "SITE_USER_ID_TYPE"
 
@@ -83,6 +86,9 @@ func InitCarrot(db *gorm.DB, r *gin.Engine) (err error) {
 	CheckValue(db, KEY_SITE_SIGNUP_URL, "/auth/register", ConfigFormatText, true, true)
 	CheckValue(db, KEY_SITE_LOGOUT_URL, "/auth/logout", ConfigFormatText, true, true)
 	CheckValue(db, KEY_SITE_RESET_PASSWORD_URL, "/auth/reset_password", ConfigFormatText, true, true)
+	CheckValue(db, KEY_SITE_SIGNIN_API, "/auth/login", ConfigFormatText, true, true)
+	CheckValue(db, KEY_SITE_SIGNUP_API, "/auth/register", ConfigFormatText, true, true)
+	CheckValue(db, KEY_SITE_RESET_PASSWORD_DONE_API, "/auth/reset_password_done", ConfigFormatText, true, true)
 	CheckValue(db, KEY_SITE_LOGIN_NEXT, "/", ConfigFormatText, true, true)
 	CheckValue(db, KEY_SITE_USER_ID_TYPE, "email", ConfigFormatText, true, true)
 

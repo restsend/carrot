@@ -111,21 +111,24 @@ func GetRenderPageContext(c *gin.Context) map[string]any {
 	return map[string]any{
 		"LoginNext": loginNext,
 		"Site": map[string]any{
-			"Url":              GetValue(db, KEY_SITE_URL),
-			"Name":             GetValue(db, KEY_SITE_NAME),
-			"Admin":            GetValue(db, KEY_SITE_ADMIN),
-			"Keywords":         GetValue(db, KEY_SITE_KEYWORDS),
-			"Description":      GetValue(db, KEY_SITE_DESCRIPTION),
-			"GA":               GetValue(db, KEY_SITE_GA),
-			"LogoUrl":          GetValue(db, KEY_SITE_LOGO_URL),
-			"FaviconUrl":       GetValue(db, KEY_SITE_FAVICON_URL),
-			"TermsUrl":         GetValue(db, KEY_SITE_TERMS_URL),
-			"PrivacyUrl":       GetValue(db, KEY_SITE_PRIVACY_URL),
-			"SigninUrl":        GetValue(db, KEY_SITE_SIGNIN_URL),
-			"SignupUrl":        GetValue(db, KEY_SITE_SIGNUP_URL),
-			"LogoutUrl":        GetValue(db, KEY_SITE_LOGOUT_URL),
-			"ResetPasswordUrl": GetValue(db, KEY_SITE_RESET_PASSWORD_URL),
-			"UserIdType":       GetValue(db, KEY_SITE_USER_ID_TYPE),
+			"Url":                  GetValue(db, KEY_SITE_URL),
+			"Name":                 GetValue(db, KEY_SITE_NAME),
+			"Admin":                GetValue(db, KEY_SITE_ADMIN),
+			"Keywords":             GetValue(db, KEY_SITE_KEYWORDS),
+			"Description":          GetValue(db, KEY_SITE_DESCRIPTION),
+			"GA":                   GetValue(db, KEY_SITE_GA),
+			"LogoUrl":              GetValue(db, KEY_SITE_LOGO_URL),
+			"FaviconUrl":           GetValue(db, KEY_SITE_FAVICON_URL),
+			"TermsUrl":             GetValue(db, KEY_SITE_TERMS_URL),
+			"PrivacyUrl":           GetValue(db, KEY_SITE_PRIVACY_URL),
+			"SigninUrl":            GetValue(db, KEY_SITE_SIGNIN_URL),
+			"SignupUrl":            GetValue(db, KEY_SITE_SIGNUP_URL),
+			"LogoutUrl":            GetValue(db, KEY_SITE_LOGOUT_URL),
+			"ResetPasswordUrl":     GetValue(db, KEY_SITE_RESET_PASSWORD_URL),
+			"SigninApi":            GetValue(db, KEY_SITE_SIGNIN_API),
+			"SignupApi":            GetValue(db, KEY_SITE_SIGNUP_API),
+			"ResetPasswordDoneApi": GetValue(db, KEY_SITE_RESET_PASSWORD_DONE_API),
+			"UserIdType":           GetValue(db, KEY_SITE_USER_ID_TYPE),
 		},
 	}
 }
@@ -175,7 +178,7 @@ func SanitizeSensitiveValues(prefix string, data any) map[string]any {
 		return nil
 	}
 	outVals := make(map[string]any)
-	lowKeyRe := regexp.MustCompile(`(?i)(password|salt|secret)$`)
+	lowKeyRe := regexp.MustCompile(`(?i)(password|salt|secret|key)$`)
 	for k, v := range vals {
 		if len(prefix) > 0 {
 			k = prefix + "." + k

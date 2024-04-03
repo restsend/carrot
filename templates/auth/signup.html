@@ -163,7 +163,7 @@
 
             toggleLoading();
 
-            fetch('{{.Site.SignupUrl}}', {
+            fetch('{{.Site.SignupApi}}', {
                 method: 'POST',
                 body: JSON.stringify({
                     'email': document.querySelector('#email').value,
