@@ -1,6 +1,7 @@
 package carrot
 
 import (
+	"bytes"
 	"embed"
 	"errors"
 	"html/template"
@@ -206,7 +207,15 @@ func formatSources(source string) []any {
 	}
 	return sources
 }
-func (c *CombineTemplates) RenderDebug(name, source string, data any, err error) render.Render {
+
+func (c *CombineTemplates) RenderError(name, source string, data any, err error) render.Render {
+	return render.Data{
+		ContentType: "text/html; charset=utf-8",
+		Data:        c.renderTemplateError(name, source, data, err),
+	}
+}
+
+func (c *CombineTemplates) renderTemplateError(name, source string, data any, err error) []byte {
 	lineAt := int64(0)
 	if err != nil {
 		re := regexp.MustCompile(`:(\d+):`)
@@ -224,67 +233,19 @@ func (c *CombineTemplates) RenderDebug(name, source string, data any, err error)
 		"Sources": formatSources(source),
 		"LineAt":  lineAt,
 	}
-
-	tmpl := `<html>
-	<head>
-		<title>Error</title>
-	</head>
-	<body>
-		<style>
-			body {
-				font-family: Arial, sans-serif;
-				padding: 20px;
-			}
-			h1 {
-				color: #f00;
-			}
-			h2 {
-				color: #f00;
-			}
-			.code {
-				background-color: #f8f8f8;
-				border: 1px solid #ddd;
-				padding: 10px;
-				overflow: auto;
-				word-wrap: break-word;
-			}
-			.line {
-				color: #f00;
-			}
-		</style>
-		<h1>Error</h1>
-		<p>An error occurred while rendering: {{.Name}}</p>
-		{{if .Message}}
-		<p>Error: {{.Message}}</p>
-		{{end}}
-		{{if .Sources}}
-		<h2>Sources</h2>
-		<div class="code">
-{{range $line := .Sources}}
-<p>
-{{if eq $line.Num $.LineAt}}
-<h5><span class="line">{{$line.Num}}</span> {{$line.Text}}</h5>
-{{else}}
-<span class="line">{{$line.Num}}</span> {{$line.Text}}
-{{end}}
-{{end}}
-<p>
-</div>
-{{end}}
-		
-		{{if .Context}}
-		<h2>Context</h2>
-		<div>
-		{{range $key, $value := .Context}}
-		<p><strong>{{$key}}</strong>: <span>{{$value}}</span></p>
-		{{end}}
-		</div>
-		{{end}}
-	</body>
-	</html>`
+	tmpl := `<!DOCTYPE html> 
+<html>
+<head>
+	<title>Error</title>
+</head>
+<body>
+	<h1>Error</h1>
+	<p>{{ .Message }}</p>
+</body>
+</html>`
 
 	if gin.Mode() == gin.DebugMode {
-		debugTmplFile, err := c.CombineFS.Open(".debug.html")
+		debugTmplFile, err := c.CombineFS.Open(".error.html")
 		if err == nil {
 			if tmplData, err := io.ReadAll(debugTmplFile); err == nil {
 				tmpl = string(tmplData)
@@ -292,41 +253,79 @@ func (c *CombineTemplates) RenderDebug(name, source string, data any, err error)
 		}
 	}
 
-	r := &render.HTML{
-		Template: template.Must(template.New(name).Funcs(c.FuncMap).Delims(c.Delims.Left, c.Delims.Right).Parse(tmpl)),
-		Name:     name,
-		Data:     ctx,
+	t := template.Must(template.New(name).Funcs(c.FuncMap).Delims(c.Delims.Left, c.Delims.Right).Parse(tmpl))
+	var wr = bytes.NewBuffer(make([]byte, 0, 1024))
+	err = t.Execute(wr, ctx)
+	if err != nil {
+		return []byte(`<html><head><title>Error</title></head><body><h1>Error</h1><p>` + err.Error() + `</p></body></html>`)
 	}
-	return r
+	return wr.Bytes()
 }
 
 // gin.render.Render
 func (c *CombineTemplates) Instance(name string, ctx any) render.Render {
 	tmplFile, err := c.CombineFS.Open(name)
 	if err != nil {
-		return c.RenderDebug(name, "", ctx, err)
+		return c.RenderError(name, "", ctx, err)
 	}
 
 	tmplData, err := io.ReadAll(tmplFile)
 	if err != nil {
-		return c.RenderDebug(name, "", ctx, err)
+		return c.RenderError(name, "", ctx, err)
 	}
 	tmpl := string(tmplData)
 	t, err := template.New(name).Funcs(c.FuncMap).Delims(c.Delims.Left, c.Delims.Right).Parse(tmpl)
 	if err != nil {
-		return c.RenderDebug(name, tmpl, ctx, err)
+		return c.RenderError(name, tmpl, ctx, err)
 	}
 
 	if c.FuncMap == nil {
 		c.FuncMap = NewTemplateFuncs()
 	}
 
-	r := &render.HTML{
+	r := &DebugTempalte{
+		c:        c,
 		Template: t,
 		Name:     name,
 		Data:     ctx,
 	}
 	return r
+}
+
+// HTML contains template reference and its name with given interface object.
+type DebugTempalte struct {
+	c        *CombineTemplates
+	Template *template.Template
+	Name     string
+	Data     any
+}
+
+// Render (HTML) executes template and writes its result with custom ContentType for response.
+func (r DebugTempalte) Render(w http.ResponseWriter) error {
+	var wr = bytes.NewBuffer(make([]byte, 0, 1024))
+	var err error
+	if r.Name == "" {
+		err = r.Template.Execute(wr, r.Data)
+	} else {
+		err = r.Template.ExecuteTemplate(wr, r.Name, r.Data)
+	}
+
+	r.WriteContentType(w)
+
+	if err != nil {
+		r.c.renderTemplateError(r.Name, "", r.Data, err)
+		return err
+	}
+	_, err = w.Write(wr.Bytes())
+	return err
+}
+
+// WriteContentType (HTML) writes HTML ContentType.
+func (r DebugTempalte) WriteContentType(w http.ResponseWriter) {
+	header := w.Header()
+	if val := header["Content-Type"]; len(val) == 0 {
+		header["Content-Type"] = []string{"text/html; charset=utf-8"}
+	}
 }
 
 func WithStaticAssets(r *gin.Engine, staticPrefix, staticRootDir string) gin.HandlerFunc {

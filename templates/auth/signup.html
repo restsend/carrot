@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 
@@ -9,7 +8,7 @@
     <title>{{.Site.Name}}</title>
     <meta name="description" content="{{.Site.Description}}">
     <meta name="keywords" content="{{.Site.Keywords}}">
-    <script src="//cdn.tailwindcss.com"></script>
+    <script src="//cdn.tailwindcss.com?plugins=forms"></script>
     <link href="//cdn.jsdelivr.net/npm/inter-ui@4.0.2/inter.min.css" rel="stylesheet" />
 </head>
 <style>
@@ -23,166 +22,170 @@
         }
     }
 </style>
+
 <body>
-<div class="flex min-h-full flex-col justify-center py-12 sm:px-6 lg:px-8">
-    <div class="sm:mx-auto sm:w-full sm:max-w-md">
-        <a href="/">
-            <img class="mx-auto h-12 w-auto" src="{{.Site.LogoUrl}}" alt="{{.Site.Name}}">
-        </a>
-        <h2 class="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">Free Sign Up</h2>
-        <p class="mt-2 text-center text-sm text-gray-600">Create your account, it takes less than a minute
-        </p>
-    </div>
+    <div class="flex min-h-full flex-col justify-center py-12 sm:px-6 lg:px-8">
+        <div class="sm:mx-auto sm:w-full sm:max-w-md">
+            <a href="/">
+                <img class="mx-auto h-12 w-auto" src="{{.Site.LogoUrl}}" alt="{{.Site.Name}}">
+            </a>
+            <h2 class="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">Free Sign Up</h2>
+            <p class="mt-2 text-center text-sm text-gray-600">Create your account, it takes less than a minute
+            </p>
+        </div>
 
-    <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div class="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-            <form class="space-y-6" action="#" method="POST">
-                <div>
-                    <label for="firstname" class="block text-sm font-medium text-gray-700">First Name</label>
-                    <div class="mt-1">
-                        <input id="firstname" name="firstname"
-                            class="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
-                    </div>
-                </div>
-                <div>
-                    <label for="lastname" class="block text-sm font-medium text-gray-700">Last Name</label>
-                    <div class="mt-1">
-                        <input id="lastname" name="lastname"
-                            class="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
-                    </div>
-                </div>
-                <div>
-                    <label for="email" class="block text-sm font-medium text-gray-700">Email address</label>
-                    <div class="relative mt-1 rounded-md shadow-sm">
-                        <input id="email" name="email" type="email" autocomplete="email" required
-                            class="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
-                        <div class="hidden pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"
-                            id="email-error">
-                            <!-- Heroicon name: mini/exclamation-circle -->
-                            <svg class="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
-                                fill="currentColor" aria-hidden="true">
-                                <path fill-rule="evenodd"
-                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z"
-                                    clip-rule="evenodd" />
-                            </svg>
+        <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+            <div class="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+                <form class="space-y-6" action="#" method="POST">
+                    <div>
+                        <label for="firstname" class="block text-sm font-medium text-gray-700">First Name</label>
+                        <div class="mt-1">
+                            <input id="firstname" name="firstname"
+                                class="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
                         </div>
                     </div>
-                    <p class="hidden mt-2 text-sm text-red-600" id="email-reason"></p>
-                </div>
-
-                <div>
-                    <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
-                    <div class="relative mt-1 rounded-md shadow-sm">
-                        <input id="password" name="password" type="password" autocomplete="current-password" required
-                            class="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
-                        <div class="hidden pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"
-                            id="password-error">
-                            <!-- Heroicon name: mini/exclamation-circle -->
-                            <svg class="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
-                                fill="currentColor" aria-hidden="true">
-                                <path fill-rule="evenodd"
-                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z"
-                                    clip-rule="evenodd" />
-                            </svg>
+                    <div>
+                        <label for="lastname" class="block text-sm font-medium text-gray-700">Last Name</label>
+                        <div class="mt-1">
+                            <input id="lastname" name="lastname"
+                                class="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
                         </div>
                     </div>
-                    <p class="hidden mt-2 text-sm text-red-600" id="password-reason">Your password must be more than 5
-                        characters.
-                    </p>
-                </div>
-
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center">
-                        <input id="remember-me" name="remember-me" type="checkbox" required
-                            class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
-                        <label for="remember-me" class="ml-2 block text-sm text-gray-900">I accept <a
-                                href="{{.Site.TermsUrl}}" class="underline">Terms and Conditions</a></label>
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700">Email address</label>
+                        <div class="relative mt-1 rounded-md shadow-sm">
+                            <input id="email" name="email" type="email" autocomplete="email" required
+                                class="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
+                            <div class="hidden pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"
+                                id="email-error">
+                                <!-- Heroicon name: mini/exclamation-circle -->
+                                <svg class="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
+                                    fill="currentColor" aria-hidden="true">
+                                    <path fill-rule="evenodd"
+                                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                        </div>
+                        <p class="hidden mt-2 text-sm text-red-600" id="email-reason"></p>
                     </div>
-                </div>
 
-                <div>
-                    <button type="submit"
-                        class="flex w-full justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-                        Sign up
-                    </button>
-                    <div id="loading" class="grid place-content-center hidden">
-                        <div class="flex items-center gap-2 text-gray-500">
-                            <span class="h-6 w-6 block rounded-full border-4 border-t-blue-300 animate-spin"></span>
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+                        <div class="relative mt-1 rounded-md shadow-sm">
+                            <input id="password" name="password" type="password" autocomplete="current-password"
+                                required
+                                class="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
+                            <div class="hidden pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"
+                                id="password-error">
+                                <!-- Heroicon name: mini/exclamation-circle -->
+                                <svg class="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
+                                    fill="currentColor" aria-hidden="true">
+                                    <path fill-rule="evenodd"
+                                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                        </div>
+                        <p class="hidden mt-2 text-sm text-red-600" id="password-reason">Your password must be more than
+                            5
+                            characters.
+                        </p>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <input id="remember-me" name="remember-me" type="checkbox" required
+                                class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                            <label for="remember-me" class="ml-2 block text-sm text-gray-900">I accept <a
+                                    href="{{.Site.TermsUrl}}" class="underline">Terms and Conditions</a></label>
                         </div>
                     </div>
-                </div>
-            </form>
+
+                    <div>
+                        <button type="submit"
+                            class="flex w-full justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                            Sign up
+                        </button>
+                        <div id="loading" class="grid place-content-center hidden">
+                            <div class="flex items-center gap-2 text-gray-500">
+                                <span class="h-6 w-6 block rounded-full border-4 border-t-blue-300 animate-spin"></span>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
-</div>
 
-<div class="mt-6">
-    <div class="relative">
-        <div class="relative flex justify-center text-sm">
-            <span class="bg-white px-2 text-gray-500">Already have account?
-                <a href="{{.Site.SigninUrl}}" class="underline">Sign In</a></span>
+    <div class="mt-6">
+        <div class="relative">
+            <div class="relative flex justify-center text-sm">
+                <span class="bg-white px-2 text-gray-500">Already have account?
+                    <a href="{{.Site.SigninUrl}}" class="underline">Sign In</a></span>
+            </div>
         </div>
     </div>
-</div>
-<script>
+    <script>
 
-    var form = document.querySelector('form');
-    var toggleLoading = () => {
-        document.querySelector('button').classList.toggle('hidden')
-        document.querySelector('#loading').classList.toggle('hidden')
-    }
-
-    var showError = (sel, reason) => {
-        document.querySelector(`#${sel}`).classList.remove('border-gray-300')
-        document.querySelector(`#${sel}`).classList.add('border-red-300')
-        document.querySelector(`#${sel}-error`).classList.remove('hidden')
-        document.querySelector(`#${sel}-reason`).classList.remove('hidden')
-        if (reason) {
-            document.querySelector(`#${sel}-reason`).textContent = reason
-        }
-    }
-    var hideError = (sel) => {
-        document.querySelector(`#${sel}`).classList.add('border-gray-300')
-        document.querySelector(`#${sel}`).classList.remove('border-red-300')
-        document.querySelector(`#${sel}-error`).classList.add('hidden')
-        document.querySelector(`#${sel}-reason`).classList.add('hidden')
-    }
-
-    form.addEventListener("submit", (e) => {
-        hideError('password')
-        hideError('email')
-
-        e.preventDefault();
-        var password = document.querySelector('#password').value
-        if (password.length <= 5) {
-            showError('password')
-            return
+        var form = document.querySelector('form');
+        var toggleLoading = () => {
+            document.querySelector('button').classList.toggle('hidden')
+            document.querySelector('#loading').classList.toggle('hidden')
         }
 
-        toggleLoading();
-
-        fetch('{{.Site.SignupUrl}}', {
-            method: 'POST',
-            body: JSON.stringify({
-                'email': document.querySelector('#email').value,
-                'password': document.querySelector('#password').value,
-                'firstName': document.querySelector('#firstname').value,
-                'lastName': document.querySelector('#lastname').value,
-                'locale': navigator.language,
-                'timezone': Intl.DateTimeFormat().resolvedOptions().timeZone,
-            })
-        }).then((resp) => {
-            toggleLoading();
-            if (resp.status == 200) {
-                window.location = '{{.LoginNext}}';
-            } else {
-                resp.json().then((data) => {
-                    showError('email', data.error)
-                })
+        var showError = (sel, reason) => {
+            document.querySelector(`#${sel}`).classList.remove('border-gray-300')
+            document.querySelector(`#${sel}`).classList.add('border-red-300')
+            document.querySelector(`#${sel}-error`).classList.remove('hidden')
+            document.querySelector(`#${sel}-reason`).classList.remove('hidden')
+            if (reason) {
+                document.querySelector(`#${sel}-reason`).textContent = reason
             }
-        })
-    });
-</script>
+        }
+        var hideError = (sel) => {
+            document.querySelector(`#${sel}`).classList.add('border-gray-300')
+            document.querySelector(`#${sel}`).classList.remove('border-red-300')
+            document.querySelector(`#${sel}-error`).classList.add('hidden')
+            document.querySelector(`#${sel}-reason`).classList.add('hidden')
+        }
+
+        form.addEventListener("submit", (e) => {
+            hideError('password')
+            hideError('email')
+
+            e.preventDefault();
+            var password = document.querySelector('#password').value
+            if (password.length <= 5) {
+                showError('password')
+                return
+            }
+
+            toggleLoading();
+
+            fetch('{{.Site.SignupUrl}}', {
+                method: 'POST',
+                body: JSON.stringify({
+                    'email': document.querySelector('#email').value,
+                    'password': document.querySelector('#password').value,
+                    'firstName': document.querySelector('#firstname').value,
+                    'lastName': document.querySelector('#lastname').value,
+                    'locale': navigator.language,
+                    'timezone': Intl.DateTimeFormat().resolvedOptions().timeZone,
+                })
+            }).then((resp) => {
+                toggleLoading();
+                if (resp.status == 200) {
+                    window.location = '{{.LoginNext}}';
+                } else {
+                    resp.json().then((data) => {
+                        showError('email', data.error)
+                    })
+                }
+            })
+        });
+    </script>
 
 </body>
+
 </html>
