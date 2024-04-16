@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -81,5 +83,19 @@ func WithGormDB(db *gorm.DB) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		ctx.Set(DbField, db)
 		ctx.Next()
+	}
+}
+
+func WithHandleStatic(staticPrefix, staticDir string) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		if !strings.HasPrefix(ctx.Request.URL.Path, staticPrefix) {
+			return
+		}
+		p := strings.TrimPrefix(ctx.Request.URL.Path, staticPrefix)
+		p = filepath.Join(staticDir, filepath.Clean(p))
+		if _, err := os.Stat(p); err == nil {
+			ctx.File(p)
+			ctx.Abort()
+		}
 	}
 }
