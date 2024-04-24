@@ -60,6 +60,9 @@ const CORS_ALLOW_CREDENTIALS = "true"
 const CORS_ALLOW_HEADERS = "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, X-Auth-Token"
 const CORS_ALLOW_METHODS = "POST, OPTIONS, GET, PUT, PATCH, DELETE"
 
+var DefaultAuthPrefix = "/auth"
+var DefaultMemorySessionKeyLength = 32
+
 func InitCarrot(db *gorm.DB, r *gin.Engine) (err error) {
 	err = InitMigrate(db)
 	if err != nil {
@@ -74,7 +77,7 @@ func InitCarrot(db *gorm.DB, r *gin.Engine) (err error) {
 	if secret != "" {
 		r.Use(WithCookieSession(secret))
 	} else {
-		r.Use(WithMemSession(RandText(24)))
+		r.Use(WithMemSession(RandText(DefaultMemorySessionKeyLength)))
 	}
 
 	//
@@ -92,7 +95,12 @@ func InitCarrot(db *gorm.DB, r *gin.Engine) (err error) {
 	CheckValue(db, KEY_SITE_LOGIN_NEXT, "/", ConfigFormatText, true, true)
 	CheckValue(db, KEY_SITE_USER_ID_TYPE, "email", ConfigFormatText, true, true)
 
-	InitAuthHandler(GetEnv(ENV_AUTH_PREFIX), db, r)
+	authPrefix := GetEnv(ENV_AUTH_PREFIX)
+	if authPrefix == "" {
+		authPrefix = DefaultAuthPrefix
+	}
+
+	InitAuthHandler(r.Group(authPrefix))
 	return nil
 }
 

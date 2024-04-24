@@ -3,7 +3,6 @@ package carrot
 import (
 	"errors"
 	"net/http"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -12,13 +11,12 @@ import (
 )
 
 const (
-	UserField         = "_carrot_uid"
-	GroupField        = "_carrot_gid"
-	DbField           = "_carrot_db"
-	TzField           = "_carrot_tz"
-	AssetsField       = "_carrot_assets"
-	TemplatesField    = "_carrot_templates"
-	DefaultAuthPrefix = "/auth"
+	UserField      = "_carrot_uid"
+	GroupField     = "_carrot_gid"
+	DbField        = "_carrot_db"
+	TzField        = "_carrot_tz"
+	AssetsField    = "_carrot_assets"
+	TemplatesField = "_carrot_templates"
 )
 
 type RegisterUserForm struct {
@@ -54,25 +52,21 @@ type ResetPasswordDoneForm struct {
 	Token    string `json:"token" binding:"required"`
 }
 
-func InitAuthHandler(prefix string, db *gorm.DB, r *gin.Engine) {
-	if prefix == "" {
-		prefix = DefaultAuthPrefix
-	}
+func InitAuthHandler(authRoutes gin.IRoutes) {
+	authRoutes.GET("register", handleUserSignupPage)
+	authRoutes.GET("login", handleUserSigninPage)
+	authRoutes.GET("reset_password", handleUserResetPasswordPage)
+	authRoutes.GET("reset_password_done", handleUserResetPasswordDonePage)
 
-	r.GET(filepath.Join(prefix, "register"), handleUserSignupPage)
-	r.GET(filepath.Join(prefix, "login"), handleUserSigninPage)
-	r.GET(filepath.Join(prefix, "reset_password"), handleUserResetPasswordPage)
-	r.GET(filepath.Join(prefix, "reset_password_done"), handleUserResetPasswordDonePage)
-
-	r.GET(filepath.Join(prefix, "info"), handleUserInfo)
-	r.POST(filepath.Join(prefix, "register"), handleUserSignup)
-	r.POST(filepath.Join(prefix, "login"), handleUserSignin)
-	r.GET(filepath.Join(prefix, "logout"), handleUserLogout)
-	r.POST(filepath.Join(prefix, "resend"), handleUserResendActivation)
-	r.GET(filepath.Join(prefix, "activation"), handleUserActivation)
-	r.POST(filepath.Join(prefix, "change_password"), handleUserChangePassword)
-	r.POST(filepath.Join(prefix, "reset_password"), handleUserResetPassword)
-	r.POST(filepath.Join(prefix, "reset_password_done"), handleUserResetPasswordDone)
+	authRoutes.GET("info", handleUserInfo)
+	authRoutes.POST("register", handleUserSignup)
+	authRoutes.POST("login", handleUserSignin)
+	authRoutes.GET("logout", handleUserLogout)
+	authRoutes.POST("resend", handleUserResendActivation)
+	authRoutes.GET("activation", handleUserActivation)
+	authRoutes.POST("change_password", handleUserChangePassword)
+	authRoutes.POST("reset_password", handleUserResetPassword)
+	authRoutes.POST("reset_password_done", handleUserResetPasswordDone)
 }
 
 func handleUserInfo(c *gin.Context) {
