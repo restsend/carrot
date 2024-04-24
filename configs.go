@@ -12,6 +12,7 @@ import (
 )
 
 var configValueCache *ExpiredLRUCache[string, string]
+var envCache *ExpiredLRUCache[string, string]
 
 func init() {
 	size := 1024 // fixed size
@@ -27,9 +28,15 @@ func init() {
 	}
 
 	configValueCache = NewExpiredLRUCache[string, string](size, configCacheExpired)
+	envCache = NewExpiredLRUCache[string, string](size, configCacheExpired)
 }
 
 func GetEnv(key string) string {
+	if envCache != nil {
+		if v, ok := envCache.Get(key); ok {
+			return v
+		}
+	}
 	v, _ := LookupEnv(key)
 	return v
 }

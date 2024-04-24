@@ -189,7 +189,7 @@ func HashPassword(password string) string {
 	}
 	salt := GetEnv(ENV_SALT)
 	hashVal := sha256.Sum256([]byte(salt + password))
-	return fmt.Sprintf("sha256$%s%x", salt, hashVal)
+	return fmt.Sprintf("sha256$%x", hashVal)
 }
 
 func GetUserByUID(db *gorm.DB, userID uint) (*User, error) {
