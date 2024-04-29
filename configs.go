@@ -32,21 +32,26 @@ func init() {
 }
 
 func GetEnv(key string) string {
-	if envCache != nil {
-		if v, ok := envCache.Get(key); ok {
-			return v
-		}
-	}
 	v, _ := LookupEnv(key)
 	return v
 }
 
 func GetBoolEnv(key string) bool {
-	v, _ := strconv.ParseBool(strings.ToLower(GetEnv(key)))
+	v, _ := strconv.ParseBool(GetEnv(key))
+	return v
+}
+
+func GetIntEnv(key string) int64 {
+	v, _ := strconv.ParseInt(GetEnv(key), 10, 64)
 	return v
 }
 
 func LookupEnv(key string) (string, bool) {
+	if envCache != nil {
+		if v, ok := envCache.Get(key); ok {
+			return v, ok
+		}
+	}
 	// Check .env file
 	//
 	data, err := os.ReadFile(".env")
