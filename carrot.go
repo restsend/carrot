@@ -75,7 +75,7 @@ func InitCarrot(db *gorm.DB, r *gin.Engine) (err error) {
 
 	secret := GetEnv(ENV_SESSION_SECRET)
 	if secret != "" {
-		r.Use(WithCookieSession(secret))
+		r.Use(WithCookieSession(secret, 7*24*3600))
 	} else {
 		r.Use(WithMemSession(RandText(DefaultMemorySessionKeyLength)))
 	}

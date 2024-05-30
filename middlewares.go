@@ -67,9 +67,9 @@ func WithCORS(origin, credentials, headers, methods string) gin.HandlerFunc {
 	}
 }
 
-func WithCookieSession(secret string) gin.HandlerFunc {
+func WithCookieSession(secret string, maxAge int) gin.HandlerFunc {
 	store := cookie.NewStore([]byte(secret))
-	store.Options(sessions.Options{Path: "/", MaxAge: 0})
+	store.Options(sessions.Options{Path: "/", MaxAge: maxAge})
 	return sessions.Sessions(GetCarrotSessionField(), store)
 }
 

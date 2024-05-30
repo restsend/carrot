@@ -38,7 +38,7 @@ func TestCarrotInit(t *testing.T) {
 
 func TestSession(t *testing.T) {
 	r := gin.Default()
-	r.Use(WithCookieSession("hello"))
+	r.Use(WithCookieSession("hello", 0))
 	r.GET("/mock", func(ctx *gin.Context) {
 		s := sessions.Default(ctx)
 		s.Set(UserField, "test")
