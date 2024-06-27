@@ -64,7 +64,7 @@ type UriDoc struct {
 	Response     *DocField `json:"response"`
 }
 
-func RegisterHandler(router gin.RouterGroup, uriDocs []UriDoc, objDocs []WebObjectDoc) {
+func RegisterHandler(router *gin.RouterGroup, uriDocs []UriDoc, objDocs []WebObjectDoc) {
 	router.POST("/", func(ctx *gin.Context) {
 		docs := map[string]any{
 			"uris": uriDocs,
