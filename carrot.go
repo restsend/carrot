@@ -19,7 +19,10 @@ const ENV_CONFIG_CACHE_EXPIRED = "CONFIG_CACHE_EXPIRED"
 // DB
 const ENV_DB_DRIVER = "DB_DRIVER"
 const ENV_DSN = "DSN"
+
+// Session
 const ENV_SESSION_SECRET = "SESSION_SECRET"
+const ENV_SESSION_EXPIRE_DAYS = "SESSION_EXPIRE_DAYS"
 
 // User Password salt
 const ENV_SALT = "PASSWORD_SALT"
@@ -75,7 +78,11 @@ func InitCarrot(db *gorm.DB, r *gin.Engine) (err error) {
 
 	secret := GetEnv(ENV_SESSION_SECRET)
 	if secret != "" {
-		r.Use(WithCookieSession(secret, 7*24*3600))
+		expireDays := GetIntEnv(ENV_SESSION_EXPIRE_DAYS)
+		if expireDays <= 0 {
+			expireDays = 7
+		}
+		r.Use(WithCookieSession(secret, int(expireDays)*24*3600))
 	} else {
 		r.Use(WithMemSession(RandText(DefaultMemorySessionKeyLength)))
 	}
