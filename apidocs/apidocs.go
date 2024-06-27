@@ -64,9 +64,8 @@ type UriDoc struct {
 	Response     *DocField `json:"response"`
 }
 
-func RegisterHandler(prefix string, r *gin.Engine, uriDocs []UriDoc, objDocs []WebObjectDoc) {
-	prefix = strings.TrimSuffix(prefix, "/")
-	r.GET(prefix+".json", func(ctx *gin.Context) {
+func RegisterHandler(router gin.RouterGroup, uriDocs []UriDoc, objDocs []WebObjectDoc) {
+	router.POST("/", func(ctx *gin.Context) {
 		docs := map[string]any{
 			"uris": uriDocs,
 			"objs": objDocs,
@@ -75,7 +74,7 @@ func RegisterHandler(prefix string, r *gin.Engine, uriDocs []UriDoc, objDocs []W
 		ctx.JSON(http.StatusOK, docs)
 	})
 
-	r.GET(prefix, func(ctx *gin.Context) {
+	router.GET("/", func(ctx *gin.Context) {
 		ctx.Data(http.StatusOK, "text/html; charset=utf-8", []byte(apiDocHTML))
 	})
 }

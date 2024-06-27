@@ -77,7 +77,9 @@
             site: {},
             groups: [],
             async init() {
-                let resp = await fetch(`${location.pathname}.json`)
+                let resp = await fetch(`${location.pathname}`, {
+                    method: 'POST',
+                })
                 let data = await resp.json()
                 this.site = data.site
 
