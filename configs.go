@@ -47,6 +47,7 @@ func GetIntEnv(key string) int64 {
 }
 
 func LookupEnv(key string) (value string, found bool) {
+	key = strings.ToUpper(key)
 	if envCache != nil {
 		if value, found = envCache.Get(key); found {
 			return
@@ -54,7 +55,7 @@ func LookupEnv(key string) (value string, found bool) {
 	}
 
 	defer func() {
-		if found {
+		if found && envCache != nil {
 			envCache.Add(key, value)
 		}
 	}()
@@ -75,8 +76,13 @@ func LookupEnv(key string) (value string, found bool) {
 				continue
 			}
 			vs := strings.SplitN(v, "=", 2)
-			if strings.EqualFold(strings.TrimSpace(vs[0]), key) {
-				value = strings.TrimSpace(vs[1])
+			k, v := strings.TrimSpace(vs[0]), strings.TrimSpace(vs[1])
+			k = strings.ToUpper(k)
+			if envCache != nil {
+				envCache.Add(k, v)
+			}
+			if strings.EqualFold(k, key) {
+				value = v
 				found = true
 				break
 			}
