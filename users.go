@@ -26,6 +26,8 @@ const (
 	SigUserVerifyEmail = "user.verifyemail"
 	//SigUserResetPassword: user *User, hash, clientIp, userAgent string
 	SigUserResetPassword = "user.resetpassword"
+	//SigUserResetPassword: user *User, hash, clientIp, userAgent, newEmail string
+	SigUserChangeEmail = "user.changeemail"
 )
 
 func InTimezone(c *gin.Context, timezone string) {
@@ -305,6 +307,24 @@ func CheckUserAllowLogin(db *gorm.DB, user *User) error {
 		return errors.New("waiting for activation")
 	}
 	return nil
+}
+
+func ChangeUserEmail(db *gorm.DB, user *User, newEmail string) error {
+	err := CheckUserAllowLogin(db, user)
+	if err != nil {
+		return err
+	}
+
+	if IsExistsByEmail(db, newEmail) {
+		return errors.New("email exists")
+	}
+	user.Email = newEmail
+
+	err = db.Model(&User{}).Where("id", user.ID).Updates(map[string]any{
+		"Email": newEmail,
+	}).Error
+	Warning("ChangeUserEmail", user.ID, user.Email, newEmail, err)
+	return err
 }
 
 // Build a token for user.

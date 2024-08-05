@@ -67,6 +67,8 @@ func InitAuthHandler(authRoutes gin.IRoutes) {
 	authRoutes.POST("change_password", handleUserChangePassword)
 	authRoutes.POST("reset_password", handleUserResetPassword)
 	authRoutes.POST("reset_password_done", handleUserResetPasswordDone)
+	authRoutes.POST("change_email", handleUserChangeEmail)
+	authRoutes.GET("change_email_done", handleUserChangeEmailDone)
 }
 
 func handleUserInfo(c *gin.Context) {
@@ -129,7 +131,7 @@ func handleUserResetPasswordDonePage(c *gin.Context) {
 	c.HTML(http.StatusOK, "auth/reset_password_done.html", ctx)
 }
 
-func sendHashMail(db *gorm.DB, user *User, signame, expireKey, defaultExpired, clientIp, useragent string) {
+func sendHashMail(db *gorm.DB, user *User, signame, expireKey, defaultExpired, clientIp, useragent, newemail string) string {
 	d, err := time.ParseDuration(GetValue(db, expireKey))
 	if err != nil {
 		d, _ = time.ParseDuration(defaultExpired)
@@ -138,7 +140,12 @@ func sendHashMail(db *gorm.DB, user *User, signame, expireKey, defaultExpired, c
 	hash := EncodeHashToken(user, n.Unix(), true)
 	// Send Mail
 	//
-	Sig().Emit(signame, user, hash, clientIp, useragent)
+	if newemail != "" {
+		Sig().Emit(signame, user, hash, clientIp, useragent, newemail)
+	} else {
+		Sig().Emit(signame, user, hash, clientIp, useragent)
+	}
+	return d.String()
 }
 
 func handleUserSignup(c *gin.Context) {
@@ -194,8 +201,7 @@ func handleUserSignup(c *gin.Context) {
 		"activation": user.Activated,
 	}
 	if !user.Activated && GetBoolValue(db, KEY_USER_ACTIVATED) {
-		sendHashMail(db, user, SigUserVerifyEmail, KEY_VERIFY_EMAIL_EXPIRED, "180d", c.ClientIP(), c.Request.UserAgent())
-		r["expired"] = "180d"
+		r["expired"] = sendHashMail(db, user, SigUserVerifyEmail, KEY_VERIFY_EMAIL_EXPIRED, "180d", c.ClientIP(), c.Request.UserAgent(), "")
 	} else {
 		Login(c, user) //Login now
 	}
@@ -290,11 +296,11 @@ func handleUserResendActivation(c *gin.Context) {
 		c.AbortWithStatus(http.StatusNotFound)
 		return
 	}
-
+	expired := "180d"
 	if GetBoolValue(db, KEY_USER_ACTIVATED) && !user.Activated {
-		sendHashMail(db, user, SigUserVerifyEmail, KEY_VERIFY_EMAIL_EXPIRED, "180d", c.ClientIP(), c.Request.UserAgent())
+		expired = sendHashMail(db, user, SigUserVerifyEmail, KEY_VERIFY_EMAIL_EXPIRED, "180d", c.ClientIP(), c.Request.UserAgent(), "")
 	}
-	c.JSON(http.StatusOK, gin.H{"expired": "180d"})
+	c.JSON(http.StatusOK, gin.H{"expired": expired})
 }
 
 func handleUserActivation(c *gin.Context) {
@@ -321,6 +327,72 @@ func handleUserActivation(c *gin.Context) {
 	})
 
 	InTimezone(c, user.Timezone)
+	Login(c, user)
+	c.Redirect(http.StatusFound, next)
+}
+
+func handleUserChangeEmail(c *gin.Context) {
+	var form ResetPasswordForm
+	if err := c.BindJSON(&form); err != nil {
+		AbortWithJSONError(c, http.StatusBadRequest, err)
+		return
+	}
+	user := CurrentUser(c)
+	if user == nil {
+		AbortWithJSONError(c, http.StatusForbidden, errors.New("forbidden, please login"))
+		return
+	}
+
+	if strings.EqualFold(user.Email, form.Email) {
+		AbortWithJSONError(c, http.StatusBadRequest, errors.New("same email"))
+		return
+	}
+	db := c.MustGet(DbField).(*gorm.DB)
+
+	_, err := GetUserByEmail(db, form.Email)
+	if err == nil {
+		AbortWithJSONError(c, http.StatusBadRequest, errors.New("email has exists, please use another email"))
+		return
+	}
+
+	if GetBoolValue(db, KEY_USER_ACTIVATED) && !user.Activated {
+		AbortWithJSONError(c, http.StatusUnauthorized, errors.New("waiting for activation"))
+		return
+	}
+
+	expired := sendHashMail(db, user, SigUserChangeEmail, KEY_VERIFY_EMAIL_EXPIRED, "30m", c.ClientIP(), c.Request.UserAgent(), form.Email)
+	c.JSON(http.StatusOK, gin.H{"expired": expired})
+}
+
+func handleUserChangeEmailDone(c *gin.Context) {
+	db := c.MustGet(DbField).(*gorm.DB)
+	token := c.Query("token")
+	if token == "" {
+		c.AbortWithStatus(http.StatusForbidden)
+		return
+	}
+
+	email := c.Query("email")
+	if email == "" {
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+	user, err := DecodeHashToken(db, token, true)
+	if err != nil {
+		AbortWithJSONError(c, http.StatusForbidden, err)
+		return
+	}
+
+	err = ChangeUserEmail(db, user, email)
+	if err != nil {
+		AbortWithJSONError(c, http.StatusForbidden, err)
+		return
+	}
+
+	next := c.Query("next")
+	if next == "" {
+		next = "/"
+	}
 	Login(c, user)
 	c.Redirect(http.StatusFound, next)
 }
@@ -372,8 +444,8 @@ func handleUserResetPassword(c *gin.Context) {
 		return
 	}
 
-	sendHashMail(db, user, SigUserResetPassword, KEY_RESET_PASSWD_EXPIRED, "30m", c.ClientIP(), c.Request.UserAgent())
-	c.JSON(http.StatusOK, gin.H{"expired": "30m"})
+	expired := sendHashMail(db, user, SigUserResetPassword, KEY_RESET_PASSWD_EXPIRED, "30m", c.ClientIP(), c.Request.UserAgent(), "")
+	c.JSON(http.StatusOK, gin.H{"expired": expired})
 }
 
 func handleUserResetPasswordDone(c *gin.Context) {
