@@ -46,37 +46,52 @@ func GetIntEnv(key string) int64 {
 	return v
 }
 
-func LookupEnv(key string) (string, bool) {
+func LookupEnv(key string) (value string, found bool) {
+	key = strings.ToUpper(key)
 	if envCache != nil {
-		if v, ok := envCache.Get(key); ok {
-			return v, ok
+		if value, found = envCache.Get(key); found {
+			return
 		}
 	}
+
+	defer func() {
+		if found && envCache != nil {
+			envCache.Add(key, value)
+		}
+	}()
 	// Check .env file
 	//
 	data, err := os.ReadFile(".env")
-	if err != nil {
-		return os.LookupEnv(key)
-
+	if err == nil {
+		lines := strings.Split(string(data), "\n")
+		for i := 0; i < len(lines); i++ {
+			v := strings.TrimSpace(lines[i])
+			if v == "" {
+				continue
+			}
+			if v[0] == '#' {
+				continue
+			}
+			if !strings.Contains(v, "=") {
+				continue
+			}
+			vs := strings.SplitN(v, "=", 2)
+			k, v := strings.TrimSpace(vs[0]), strings.TrimSpace(vs[1])
+			k = strings.ToUpper(k)
+			if envCache != nil {
+				envCache.Add(k, v)
+			}
+			if strings.EqualFold(k, key) {
+				value = v
+				found = true
+				break
+			}
+		}
 	}
-	lines := strings.Split(string(data), "\n")
-	for i := 0; i < len(lines); i++ {
-		v := strings.TrimSpace(lines[i])
-		if v == "" {
-			continue
-		}
-		if v[0] == '#' {
-			continue
-		}
-		if !strings.Contains(v, "=") {
-			continue
-		}
-		vs := strings.SplitN(v, "=", 2)
-		if strings.EqualFold(strings.TrimSpace(vs[0]), key) {
-			return strings.TrimSpace(vs[1]), true
-		}
+	if !found {
+		value, found = os.LookupEnv(key)
 	}
-	return "", false
+	return
 }
 
 // load envs to struct

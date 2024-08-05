@@ -162,11 +162,11 @@ func GetCarrotAdminObjects() []AdminObject {
 			Group:       "Settings",
 			Name:        "User",
 			Desc:        "Builtin user management system",
-			Shows:       []string{"ID", "Email", "Username", "FirstName", "ListName", "IsStaff", "IsSuperUser", "Enabled", "Activated", "UpdatedAt", "LastLogin", "LastLoginIP", "Source", "Locale", "Timezone"},
-			Editables:   []string{"Email", "Password", "Username", "FirstName", "ListName", "IsStaff", "IsSuperUser", "Enabled", "Activated", "Profile", "Source", "Locale", "Timezone"},
+			Shows:       []string{"ID", "Email", "Username", "DisplayName", "IsStaff", "IsSuperUser", "Enabled", "Activated", "UpdatedAt", "LastLogin", "LastLoginIP", "Source", "Locale", "Timezone"},
+			Editables:   []string{"Email", "Password", "Username", "DisplayName", "FirstName", "LastName", "IsStaff", "IsSuperUser", "Enabled", "Activated", "Profile", "Source", "Locale", "Timezone"},
 			Filterables: []string{"CreatedAt", "UpdatedAt", "Username", "IsStaff", "IsSuperUser", "Enabled", "Activated "},
 			Orderables:  []string{"CreatedAt", "UpdatedAt", "Enabled", "Activated"},
-			Searchables: []string{"Username", "Email", "FirstName", "ListName"},
+			Searchables: []string{"Username", "Email", "DisplayName"},
 			Orders:      []Order{{"UpdatedAt", OrderOpDesc}},
 			Icon:        &AdminIcon{SVG: string(iconUser)},
 			AccessCheck: superAccessCheck,
@@ -571,6 +571,10 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 			if _, ok := rt.FieldByName(hintForeignKey); ok {
 				foreignKey = hintForeignKey
 			}
+		}
+		// has many
+		if field.IsArray && f.Type.Elem().Kind() == reflect.Struct {
+			field.NotColumn = true
 		}
 		if strings.Contains(gormTag, "foreignkey") {
 			//extract foreign key from gorm tag with regex

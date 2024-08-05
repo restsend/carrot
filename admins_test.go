@@ -39,9 +39,10 @@ type ProductItem struct {
 }
 
 type Product struct {
-	UUID          string      `json:"id" gorm:"primarykey;size:20"`
-	ItemID        uint        `json:"-"`
-	Item          ProductItem `json:"product_item"`
+	UUID          string        `json:"id" gorm:"primarykey;size:20"`
+	ItemID        uint          `json:"-"`
+	Item          ProductItem   `json:"product_item"`
+	Items         []ProductItem `json:"product_items"`
 	invalid_field AdminActionHandler
 	Func_field    AdminActionHandler
 }
@@ -364,7 +365,7 @@ func TestAdminForeign(t *testing.T) {
 
 	err := productObj.Build(db)
 	assert.Nil(t, err)
-	assert.Equal(t, 2, len(productObj.Fields))
+	assert.Equal(t, 3, len(productObj.Fields))
 	assert.Equal(t, "item", productObj.Fields[1].Name)
 	assert.Equal(t, "item_id", productObj.Fields[1].Foreign.Field)
 	assert.Equal(t, "productitem", productObj.Fields[1].Foreign.Path)
