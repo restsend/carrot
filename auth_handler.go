@@ -1,6 +1,7 @@
 package carrot
 
 import (
+	"encoding/base64"
 	"errors"
 	"net/http"
 	"strings"
@@ -381,6 +382,10 @@ func handleUserChangeEmailDone(c *gin.Context) {
 	if err != nil {
 		AbortWithJSONError(c, http.StatusForbidden, err)
 		return
+	}
+
+	if !strings.Contains(email, "@") {
+		email = base64.StdEncoding.EncodeToString([]byte(email))
 	}
 
 	err = ChangeUserEmail(db, user, email)
