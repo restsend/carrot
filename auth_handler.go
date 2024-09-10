@@ -448,11 +448,13 @@ func handleUserChangeEmailDone(c *gin.Context) {
 
 	Warning("change user email success user:", user.ID, form.Email)
 	next := c.Query("next")
-	if next == "" {
-		next = "/"
-	}
 	Login(c, user)
-	c.Redirect(http.StatusFound, next)
+
+	if next != "" {
+		c.Redirect(http.StatusFound, next)
+	} else {
+		c.JSON(http.StatusOK, true)
+	}
 }
 
 func handleUserChangePassword(c *gin.Context) {
