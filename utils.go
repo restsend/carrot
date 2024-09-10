@@ -4,12 +4,7 @@ import (
 	"errors"
 	"math/rand"
 	"reflect"
-	"time"
 )
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
 
 var letterRunes = []rune("0123456789abcdefghijklmnopqrstuvwxyz")
 var numberRunes = []rune("0123456789")

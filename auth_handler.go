@@ -48,9 +48,15 @@ type ResetPasswordForm struct {
 }
 
 type ResetPasswordDoneForm struct {
-	Password string `json:"password" binding:"required"`
-	Email    string `json:"email" binding:"required"`
-	Token    string `json:"token" binding:"required"`
+	Password string `json:"password" form:"password" binding:"required"`
+	Email    string `json:"email" form:"email" binding:"required"`
+	Token    string `json:"token" form:"token" binding:"required"`
+}
+
+type ChangeEmailDoneForm struct {
+	Password string `json:"password" form:"password"`
+	Email    string `json:"email" form:"email" binding:"required"`
+	Token    string `json:"token" form:"token" binding:"required"`
 }
 
 func InitAuthHandler(authRoutes gin.IRoutes) {
@@ -69,7 +75,8 @@ func InitAuthHandler(authRoutes gin.IRoutes) {
 	authRoutes.POST("reset_password", handleUserResetPassword)
 	authRoutes.POST("reset_password_done", handleUserResetPasswordDone)
 	authRoutes.POST("change_email", handleUserChangeEmail)
-	authRoutes.GET("change_email_done", handleUserChangeEmailDone)
+	authRoutes.GET("change_email_done", handleUserChangeEmailDonePage)
+	authRoutes.POST("change_email_done", handleUserChangeEmailDone)
 }
 
 func handleUserInfo(c *gin.Context) {
@@ -365,7 +372,7 @@ func handleUserChangeEmail(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"expired": expired})
 }
 
-func handleUserChangeEmailDone(c *gin.Context) {
+func handleUserChangeEmailDonePage(c *gin.Context) {
 	db := c.MustGet(DbField).(*gorm.DB)
 	token := c.Query("token")
 	if token == "" {
@@ -373,25 +380,54 @@ func handleUserChangeEmailDone(c *gin.Context) {
 		return
 	}
 
-	email := c.Query("email")
-	if email == "" {
-		c.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
+	ctx := GetRenderPageContext(c)
 	user, err := DecodeHashToken(db, token, true)
 	if err != nil {
-		AbortWithJSONError(c, http.StatusForbidden, err)
+		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
+	ctx["Email"] = user.Email
+	ctx["Token"] = token
+	ctx["EmptyPassword"] = user.Password == ""
+	c.HTML(http.StatusOK, "auth/change_email_done.html", ctx)
+}
 
-	if !strings.Contains(email, "@") {
-		email = base64.StdEncoding.EncodeToString([]byte(email))
+func handleUserChangeEmailDone(c *gin.Context) {
+	var form ChangeEmailDoneForm
+	if err := c.BindJSON(&form); err != nil {
+		AbortWithJSONError(c, http.StatusBadRequest, err)
+		return
 	}
-
-	err = ChangeUserEmail(db, user, email)
+	db := c.MustGet(DbField).(*gorm.DB)
+	user, err := DecodeHashToken(db, form.Token, true)
 	if err != nil {
 		AbortWithJSONError(c, http.StatusForbidden, err)
 		return
+	}
+
+	if user.Password == "" && form.Password == "" {
+		AbortWithJSONError(c, http.StatusBadRequest, errors.New("empty password"))
+		return
+	}
+
+	if !strings.Contains(form.Email, "@") {
+		form.Email = base64.StdEncoding.EncodeToString([]byte(form.Email))
+	}
+
+	err = ChangeUserEmail(db, user, form.Email)
+	if err != nil {
+		Warning("change user email fail user:", user.ID, err.Error())
+		AbortWithJSONError(c, http.StatusForbidden, err)
+		return
+	}
+
+	if user.Password == "" {
+		err = SetPassword(db, user, form.Password)
+		if err != nil {
+			Warning("changed user password fail user:", user.ID, err.Error())
+			AbortWithJSONError(c, http.StatusInternalServerError, err)
+			return
+		}
 	}
 
 	next := c.Query("next")
