@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -376,20 +377,35 @@ func handleUserChangeEmailDonePage(c *gin.Context) {
 	db := c.MustGet(DbField).(*gorm.DB)
 	token := c.Query("token")
 	if token == "" {
-		c.AbortWithStatus(http.StatusForbidden)
+		AbortWithJSONError(c, http.StatusForbidden, errors.New("token is required"))
 		return
 	}
 
 	ctx := GetRenderPageContext(c)
 	user, err := DecodeHashToken(db, token, true)
 	if err != nil {
-		c.AbortWithStatus(http.StatusForbidden)
+		AbortWithJSONError(c, http.StatusForbidden, err)
 		return
 	}
-	ctx["Email"] = user.Email
+	newemail, _ := url.QueryUnescape(c.Query("email"))
+	if newemail == "" {
+		AbortWithJSONError(c, http.StatusBadRequest, errors.New("email is required"))
+		return
+	}
+	if user.Password != "" {
+		err = ChangeUserEmail(db, user, newemail)
+		if err != nil {
+			Warning("change user email fail user:", user.ID, err.Error())
+			AbortWithJSONError(c, http.StatusForbidden, err)
+			return
+		}
+		Warning("change user email success user:", user.ID, newemail)
+	}
+	ctx["Email"] = newemail
 	ctx["Token"] = token
 	ctx["EmptyPassword"] = user.Password == ""
 	c.HTML(http.StatusOK, "auth/change_email_done.html", ctx)
+
 }
 
 func handleUserChangeEmailDone(c *gin.Context) {
@@ -430,6 +446,7 @@ func handleUserChangeEmailDone(c *gin.Context) {
 		}
 	}
 
+	Warning("change user email success user:", user.ID, form.Email)
 	next := c.Query("next")
 	if next == "" {
 		next = "/"

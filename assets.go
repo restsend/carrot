@@ -128,6 +128,7 @@ func GetRenderPageContext(c *gin.Context) map[string]any {
 			"SigninApi":            GetValue(db, KEY_SITE_SIGNIN_API),
 			"SignupApi":            GetValue(db, KEY_SITE_SIGNUP_API),
 			"ResetPasswordDoneApi": GetValue(db, KEY_SITE_RESET_PASSWORD_DONE_API),
+			"ChangeEmailDoneApi":   GetValue(db, KEY_SITE_CHANGE_EMAIL_DONE_API),
 			"UserIdType":           GetValue(db, KEY_SITE_USER_ID_TYPE),
 		},
 	}

@@ -30,10 +30,10 @@
             <a href="/">
                 <img class="mx-auto h-12 w-auto" src="{{.Site.LogoUrl}}" alt="{{.Site.Name}}">
             </a>
-            <h2 class="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">Change Email</h2>
+            <h2 class="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">Change Email done</h2>
         </div>
     </div>
-    {{if not .EmptyPassword}}
+    {{if .EmptyPassword}}
     <div id="reset" class="flex min-h-full flex-col justify-center py-12 sm:px-6 lg:px-8">
         <div class="sm:mx-auto sm:w-full sm:max-w-md">
             <img class="mx-auto h-12 w-auto" src="{{.Site.LogoUrl}}" alt="{{.Site.Name}}">
@@ -107,6 +107,10 @@
             <img class="mx-auto h-12 w-auto" src="{{.Site.LogoUrl}}" alt="{{.Site.Name}}">
             <h2 class="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">Your email is changed</h2>
             <p class="mt-2 text-center text-sm text-gray-600">
+                New email: <b>{{.Email}}</b>
+                </a>
+            </p>
+            <p class="mt-2 text-center text-sm text-gray-600">
                 Please sign in with your new email and password.
                 </a>
             </p>
@@ -125,6 +129,9 @@
 
     <script>
         var form = document.querySelector('form');
+        if (!form) {
+            return
+        }
         var toggleLoading = () => {
             document.querySelector('button').classList.toggle('hidden')
             document.querySelector('#loading').classList.toggle('hidden')
@@ -155,7 +162,7 @@
                 return
             }
 
-            fetch('{{.Site.ResetPasswordDoneApi}}', {
+            fetch('{{.Site.ChangeEmailDoneApi}}', {
                 method: 'POST',
                 body: JSON.stringify({
                     'token': '{{.Token}}',
@@ -165,8 +172,10 @@
             }).then((resp) => {
                 toggleLoading();
                 if (resp.status == 200) {
-                    document.querySelector('#reset').classList.add('hidden')
-                    document.querySelector('#reset_done').classList.remove('hidden')
+                    const relm = document.querySelector('#reset')
+                    if (relm) relm.classList.add('hidden')
+                    const relmDone = document.querySelector('#reset_done')
+                    if (relmDone) relmDone.classList.remove('hidden')
                 } else {
                     resp.json().then((data) => {
                         showError('password', data.error)
