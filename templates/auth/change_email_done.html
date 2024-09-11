@@ -122,7 +122,12 @@
         <div class="relative">
             <div class="relative flex justify-center text-sm">
                 <span class="bg-white px-2 text-gray-500">Back to
-                    <a href="{{.Site.SigninUrl}}" class="underline">Sign In</a></span>
+                    {{if .Next}}
+                    <a href="{{.Next}}" class="underline">Home</a>
+                    {{else}}
+                    <a href="{{.Site.SigninUrl}}" class="underline">Sign In</a>
+                    {{end}}
+                </span>
             </div>
         </div>
     </div>

@@ -401,6 +401,7 @@ func handleUserChangeEmailDonePage(c *gin.Context) {
 		}
 		Warning("change user email success user:", user.ID, newemail)
 	}
+	ctx["Next"] = c.Query("next")
 	ctx["Email"] = newemail
 	ctx["Token"] = token
 	ctx["EmptyPassword"] = user.Password == ""
