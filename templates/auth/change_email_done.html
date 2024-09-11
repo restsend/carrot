@@ -87,7 +87,7 @@
                     </div>
 
                     <div>
-                        <button type="submit"
+                        <button type="button" onclick="onSubmit()"
                             class="flex w-full justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
                             Reset password
                         </button>
@@ -128,10 +128,7 @@
     </div>
 
     <script>
-        var form = document.querySelector('form');
-        if (!form) {
-            return
-        }
+
         var toggleLoading = () => {
             document.querySelector('button').classList.toggle('hidden')
             document.querySelector('#loading').classList.toggle('hidden')
@@ -152,16 +149,13 @@
             document.querySelector(`#${sel}-reason`).classList.add('hidden')
         }
 
-        form.addEventListener("submit", (e) => {
+        function onSubmit() {
             hideError('password')
-
-            e.preventDefault();
             var password = document.querySelector('#password').value
             if (password.length <= 5) {
                 showError('password')
                 return
             }
-
             fetch('{{.Site.ChangeEmailDoneApi}}', {
                 method: 'POST',
                 body: JSON.stringify({
@@ -182,7 +176,7 @@
                     })
                 }
             });
-        });
+        }
     </script>
 </body>
 
