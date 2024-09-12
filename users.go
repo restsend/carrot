@@ -3,7 +3,6 @@ package carrot
 import (
 	"crypto/sha256"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
@@ -87,7 +87,7 @@ func AuthRequired(c *gin.Context) {
 	}
 
 	if token == "" {
-		AbortWithJSONError(c, http.StatusUnauthorized, errors.New("authorization required"))
+		AbortWithJSONError(c, http.StatusUnauthorized, ErrUnauthorized)
 		return
 	}
 
@@ -230,7 +230,10 @@ func CreateUser(db *gorm.DB, email, password string) (*User, error) {
 }
 
 func DeactiveUser(db *gorm.DB, user *User) error {
-	Warning("DeactiveUser", user.ID, user.Email)
+	logrus.WithFields(logrus.Fields{
+		"uid":   user.ID,
+		"email": user.Email,
+	}).Warn("user: deactive")
 	return db.Delete(user).Error
 }
 
@@ -266,45 +269,46 @@ func EncodeHashToken(user *User, timestamp int64, useLastlogin bool) (hash strin
 func DecodeHashToken(db *gorm.DB, hash string, useLastLogin bool) (user *User, err error) {
 	vals := strings.Split(hash, "-")
 	if len(vals) != 2 {
-		return nil, errors.New("bad token")
+		return nil, ErrBadToken
 	}
 	data, err := base64.RawStdEncoding.DecodeString(vals[0])
 	if err != nil {
-		return nil, errors.New("bad token")
+		return nil, ErrBadToken
 	}
 
 	vals = strings.Split(string(data), "$")
 	if len(vals) != 2 {
-		return nil, errors.New("bad token")
+		return nil, ErrBadToken
 	}
 
 	ts, err := strconv.ParseInt(vals[1], 10, 64)
 	if err != nil {
-		return nil, errors.New("bad token")
+		return nil, ErrBadToken
 	}
 
 	if time.Now().Unix() > ts {
-		return nil, errors.New("token expired")
+		return nil, ErrTokenExpired
 	}
 
 	user, err = GetUserByEmail(db, vals[0])
 	if err != nil {
-		return nil, errors.New("bad token")
+		return nil, ErrUserNotExists
 	}
+
 	token := EncodeHashToken(user, ts, useLastLogin)
 	if token != hash {
-		return nil, errors.New("bad token")
+		return nil, ErrInvalidToken
 	}
 	return user, nil
 }
 
 func CheckUserAllowLogin(db *gorm.DB, user *User) error {
 	if !user.Enabled {
-		return errors.New("user not allow login")
+		return ErrUserNotAllowLogin
 	}
 
 	if GetBoolValue(db, KEY_USER_ACTIVATED) && !user.Activated {
-		return errors.New("waiting for activation")
+		return ErrNotActivated
 	}
 	return nil
 }
@@ -316,14 +320,18 @@ func ChangeUserEmail(db *gorm.DB, user *User, newEmail string) error {
 	}
 
 	if IsExistsByEmail(db, newEmail) {
-		return errors.New("email exists")
+		return ErrEmailExists
 	}
 	user.Email = newEmail
 
 	err = db.Model(&User{}).Where("id", user.ID).Updates(map[string]any{
 		"Email": newEmail,
 	}).Error
-	Warning("ChangeUserEmail", user.ID, user.Email, newEmail, err)
+	logrus.WithFields(logrus.Fields{
+		"uid":   user.ID,
+		"email": user.Email,
+		"new":   newEmail,
+	}).WithError(err).Warn("user: change email")
 	return err
 }
 

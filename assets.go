@@ -3,7 +3,6 @@ package carrot
 import (
 	"bytes"
 	"embed"
-	"errors"
 	"html/template"
 	"io"
 	"io/fs"
@@ -68,7 +67,7 @@ func (c *CombineEmbedFS) ReadDir(name string) ([]fs.DirEntry, error) {
 			return f, nil
 		}
 	}
-	return nil, errors.New("not found")
+	return nil, ErrNotFound
 }
 
 type EmbedFile struct {

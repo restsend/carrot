@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/restsend/carrot"
+	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
@@ -78,7 +79,7 @@ func main() {
 		u, err := carrot.GetUserByEmail(db, superUserEmail)
 		if err == nil && u != nil {
 			carrot.SetPassword(db, u, superUserPassword)
-			carrot.Warning("Update super with new password")
+			logrus.Warn("Update super with new password")
 		} else {
 			u, err = carrot.CreateUser(db, superUserEmail, superUserPassword)
 			if err != nil {
@@ -90,7 +91,7 @@ func main() {
 		u.Enabled = true
 		u.IsSuperUser = true
 		db.Save(u)
-		carrot.Warning("Create super user:", superUserEmail)
+		logrus.Warn("Create super user:", superUserEmail)
 		return
 	}
 
@@ -105,11 +106,11 @@ func main() {
 	// Connect user event, eg. Login, Create
 	carrot.Sig().Connect(carrot.SigUserCreate, func(sender any, params ...any) {
 		user := sender.(*carrot.User)
-		carrot.Info("create user: ", user.GetVisibleName())
+		logrus.Info("create user: ", user.GetVisibleName())
 	})
 	carrot.Sig().Connect(carrot.SigUserLogin, func(sender any, params ...any) {
 		user := sender.(*carrot.User)
-		carrot.Info("user logined: ", user.GetVisibleName())
+		logrus.Info("user logined: ", user.GetVisibleName())
 	})
 
 	carrot.MakeMigrates(db, []any{

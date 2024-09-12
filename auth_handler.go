@@ -2,13 +2,13 @@ package carrot
 
 import (
 	"encoding/base64"
-	"errors"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
@@ -166,24 +166,38 @@ func handleUserSignup(c *gin.Context) {
 
 	db := c.MustGet(DbField).(*gorm.DB)
 	if IsExistsByEmail(db, form.Email) {
-		AbortWithJSONError(c, http.StatusBadRequest, errors.New("email has exists"))
+		AbortWithJSONError(c, http.StatusBadRequest, ErrEmailExists)
 		return
 	}
 
 	user, err := CreateUser(db, form.Email, form.Password)
 	if err != nil {
-		Warning("create user failed", form, err)
+		logrus.WithFields(logrus.Fields{
+			"form": form,
+		}).WithError(err).Warn("user: create user failed")
 		AbortWithJSONError(c, http.StatusBadRequest, err)
 		return
 	}
 
-	vals := StructAsMap(form, []string{
-		"DisplayName",
-		"FirstName",
-		"LastName",
-		"Locale",
-		"Timezone",
-		"Source"})
+	vals := make(map[string]any)
+	if form.DisplayName != "" {
+		vals["DisplayName"] = form.DisplayName
+	}
+	if form.FirstName != "" {
+		vals["FirstName"] = form.FirstName
+	}
+	if form.LastName != "" {
+		vals["LastName"] = form.LastName
+	}
+	if form.Locale != "" {
+		vals["Locale"] = form.Locale
+	}
+	if form.Timezone != "" {
+		vals["Timezone"] = form.Timezone
+	}
+	if form.Source != "" {
+		vals["Source"] = form.Source
+	}
 
 	n := time.Now().Truncate(1 * time.Second)
 	vals["LastLogin"] = &n
@@ -200,7 +214,10 @@ func handleUserSignup(c *gin.Context) {
 
 	err = UpdateUserFields(db, user, vals)
 	if err != nil {
-		Warning("update user fields fail id:", user.ID, vals, err)
+		logrus.WithFields(logrus.Fields{
+			"vals":   vals,
+			"userId": user.ID,
+		}).WithError(err).Warn("user: update user fields failed")
 	}
 
 	Sig().Emit(SigUserCreate, user, c)
@@ -225,12 +242,12 @@ func handleUserSignin(c *gin.Context) {
 	}
 
 	if form.AuthToken == "" && form.Email == "" {
-		AbortWithJSONError(c, http.StatusBadRequest, errors.New("email is required"))
+		AbortWithJSONError(c, http.StatusBadRequest, ErrEmptyEmail)
 		return
 	}
 
 	if form.Password == "" && form.AuthToken == "" {
-		AbortWithJSONError(c, http.StatusBadRequest, errors.New("empty password"))
+		AbortWithJSONError(c, http.StatusBadRequest, ErrEmptyPassword)
 		return
 	}
 
@@ -240,11 +257,11 @@ func handleUserSignin(c *gin.Context) {
 	if form.Password != "" {
 		user, err = GetUserByEmail(db, form.Email)
 		if err != nil {
-			AbortWithJSONError(c, http.StatusBadRequest, errors.New("user not exists"))
+			AbortWithJSONError(c, http.StatusBadRequest, ErrUserNotExists)
 			return
 		}
 		if !CheckPassword(user, form.Password) {
-			AbortWithJSONError(c, http.StatusUnauthorized, errors.New("unauthorized"))
+			AbortWithJSONError(c, http.StatusUnauthorized, ErrUnauthorized)
 			return
 		}
 	} else {
@@ -348,24 +365,24 @@ func handleUserChangeEmail(c *gin.Context) {
 	}
 	user := CurrentUser(c)
 	if user == nil {
-		AbortWithJSONError(c, http.StatusForbidden, errors.New("forbidden, please login"))
+		AbortWithJSONError(c, http.StatusForbidden, ErrForbidden)
 		return
 	}
 
 	if strings.EqualFold(user.Email, form.Email) {
-		AbortWithJSONError(c, http.StatusBadRequest, errors.New("same email"))
+		AbortWithJSONError(c, http.StatusBadRequest, ErrSameEmail)
 		return
 	}
 	db := c.MustGet(DbField).(*gorm.DB)
 
 	_, err := GetUserByEmail(db, form.Email)
 	if err == nil {
-		AbortWithJSONError(c, http.StatusBadRequest, errors.New("email has exists, please use another email"))
+		AbortWithJSONError(c, http.StatusBadRequest, ErrEmailExists)
 		return
 	}
 
 	if GetBoolValue(db, KEY_USER_ACTIVATED) && !user.Activated {
-		AbortWithJSONError(c, http.StatusUnauthorized, errors.New("waiting for activation"))
+		AbortWithJSONError(c, http.StatusUnauthorized, ErrNotActivated)
 		return
 	}
 
@@ -377,7 +394,7 @@ func handleUserChangeEmailDonePage(c *gin.Context) {
 	db := c.MustGet(DbField).(*gorm.DB)
 	token := c.Query("token")
 	if token == "" {
-		AbortWithJSONError(c, http.StatusForbidden, errors.New("token is required"))
+		AbortWithJSONError(c, http.StatusForbidden, ErrTokenRequired)
 		return
 	}
 
@@ -389,17 +406,23 @@ func handleUserChangeEmailDonePage(c *gin.Context) {
 	}
 	newemail, _ := url.QueryUnescape(c.Query("email"))
 	if newemail == "" {
-		AbortWithJSONError(c, http.StatusBadRequest, errors.New("email is required"))
+		AbortWithJSONError(c, http.StatusBadRequest, ErrEmailRequired)
 		return
 	}
 	if user.Password != "" {
 		err = ChangeUserEmail(db, user, newemail)
 		if err != nil {
-			Warning("change user email fail user:", user.ID, err.Error())
+			logrus.WithFields(logrus.Fields{
+				"userId": user.ID,
+				"email":  newemail,
+			}).WithError(err).Warn("user: change email failed")
 			AbortWithJSONError(c, http.StatusForbidden, err)
 			return
 		}
-		Warning("change user email success user:", user.ID, newemail)
+		logrus.WithFields(logrus.Fields{
+			"userId": user.ID,
+			"email":  newemail,
+		}).Info("user: change email success")
 	}
 	ctx["Next"] = c.Query("next")
 	ctx["Email"] = newemail
@@ -423,7 +446,7 @@ func handleUserChangeEmailDone(c *gin.Context) {
 	}
 
 	if user.Password == "" && form.Password == "" {
-		AbortWithJSONError(c, http.StatusBadRequest, errors.New("empty password"))
+		AbortWithJSONError(c, http.StatusBadRequest, ErrEmptyPassword)
 		return
 	}
 
@@ -433,7 +456,11 @@ func handleUserChangeEmailDone(c *gin.Context) {
 
 	err = ChangeUserEmail(db, user, form.Email)
 	if err != nil {
-		Warning("change user email fail user:", user.ID, err.Error())
+		logrus.WithFields(logrus.Fields{
+			"userId":   user.ID,
+			"email":    form.Email,
+			"clientIp": c.ClientIP(),
+		}).WithError(err).Warn("user: change email failed")
 		AbortWithJSONError(c, http.StatusForbidden, err)
 		return
 	}
@@ -441,13 +468,21 @@ func handleUserChangeEmailDone(c *gin.Context) {
 	if user.Password == "" {
 		err = SetPassword(db, user, form.Password)
 		if err != nil {
-			Warning("changed user password fail user:", user.ID, err.Error())
+			logrus.WithFields(logrus.Fields{
+				"userId":   user.ID,
+				"clientIp": c.ClientIP(),
+			}).WithError(err).Warn("user: change password failed")
 			AbortWithJSONError(c, http.StatusInternalServerError, err)
 			return
 		}
 	}
 
-	Warning("change user email success user:", user.ID, form.Email)
+	logrus.WithFields(logrus.Fields{
+		"userId":   user.ID,
+		"email":    form.Email,
+		"clientIp": c.ClientIP(),
+	}).Info("user: change email success")
+
 	next := c.Query("next")
 	Login(c, user)
 
@@ -479,8 +514,11 @@ func handleUserChangePassword(c *gin.Context) {
 	}
 	err = SetPassword(db, user, form.Password)
 	if err != nil {
-		Warning("changed user password fail user:", user.ID, err.Error())
-		AbortWithJSONError(c, http.StatusInternalServerError, errors.New("changed failed"))
+		logrus.WithFields(logrus.Fields{
+			"userId":   user.ID,
+			"clientIp": c.ClientIP(),
+		}).WithError(err).Warn("user: change password failed")
+		AbortWithJSONError(c, http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, true)
@@ -501,7 +539,7 @@ func handleUserResetPassword(c *gin.Context) {
 	}
 
 	if GetBoolValue(db, KEY_USER_ACTIVATED) && !user.Activated {
-		AbortWithJSONError(c, http.StatusUnauthorized, errors.New("waiting for activation"))
+		AbortWithJSONError(c, http.StatusUnauthorized, ErrNotActivated)
 		return
 	}
 
@@ -529,14 +567,17 @@ func handleUserResetPasswordDone(c *gin.Context) {
 	}
 
 	if GetBoolValue(db, KEY_USER_ACTIVATED) && !user.Activated {
-		AbortWithJSONError(c, http.StatusUnauthorized, errors.New("waiting for activation"))
+		AbortWithJSONError(c, http.StatusUnauthorized, ErrNotActivated)
 		return
 	}
 
 	err = SetPassword(db, user, form.Password)
 	if err != nil {
-		Warning("reset user password fail user:", user.ID, err.Error())
-		AbortWithJSONError(c, http.StatusInternalServerError, errors.New("reset failed"))
+		logrus.WithFields(logrus.Fields{
+			"userId":   user.ID,
+			"clientIp": c.ClientIP(),
+		}).WithError(err).Warn("user: reset password failed")
+		AbortWithJSONError(c, http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, true)

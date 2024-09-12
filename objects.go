@@ -226,7 +226,7 @@ func (obj *WebObject) RegisterObject(r *gin.RouterGroup) error {
 	for i := 0; i < len(obj.Views); i++ {
 		v := &obj.Views[i]
 		if v.Path == "" {
-			return errors.New("with invalid view")
+			return ErrInvalidView
 		}
 		if v.Method == "" {
 			v.Method = http.MethodPost
@@ -425,7 +425,7 @@ func handleGetObject(c *gin.Context, obj *WebObject) {
 	result := obj.buildPrimaryCondition(db, keys).Take(&val)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			AbortWithJSONError(c, http.StatusNotFound, errors.New("not found"))
+			AbortWithJSONError(c, http.StatusNotFound, ErrNotFound)
 		} else {
 			AbortWithJSONError(c, http.StatusInternalServerError, result.Error)
 		}
@@ -533,7 +533,7 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 	}
 
 	if len(vals) == 0 {
-		AbortWithJSONError(c, http.StatusBadRequest, errors.New("not changed"))
+		AbortWithJSONError(c, http.StatusBadRequest, ErrNotChanged)
 		return
 	}
 	db = obj.buildPrimaryCondition(db.Model(obj.Model), keys)
@@ -542,7 +542,7 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 		val := reflect.New(obj.modelElem).Interface()
 		tx := db.Session(&gorm.Session{})
 		if err := tx.First(val).Error; err != nil {
-			AbortWithJSONError(c, http.StatusNotFound, errors.New("not found"))
+			AbortWithJSONError(c, http.StatusNotFound, ErrNotFound)
 			return
 		}
 		if err := obj.BeforeUpdate(db, c, val, inputVals); err != nil {
@@ -575,7 +575,7 @@ func handleDeleteObject(c *gin.Context, obj *WebObject) {
 	// for gorm delete hook, need to load model first.
 	if r.Error != nil {
 		if errors.Is(r.Error, gorm.ErrRecordNotFound) {
-			AbortWithJSONError(c, http.StatusNotFound, errors.New("not found"))
+			AbortWithJSONError(c, http.StatusNotFound, ErrNotFound)
 		} else {
 			AbortWithJSONError(c, http.StatusInternalServerError, r.Error)
 		}

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 type AvgUsage struct {
@@ -88,8 +90,14 @@ func (w *Worker[T]) Start(ctx context.Context) {
 				if w.DumpStats != nil {
 					w.DumpStats(len(w.queue), w.usage.GetCount(), w.usage.Get())
 				} else {
-					Info(fmt.Sprintf("worker stats: %s num:%d queue size: %d/%d avg usage:%v count/m:%d",
-						w.Name, w.Num, len(w.queue), w.QueueSize, w.usage.Get(), w.usage.GetCount()))
+					logrus.WithFields(logrus.Fields{
+						"worker": w.Name,
+						"num":    w.Num,
+						"queue":  len(w.queue),
+						"size":   w.QueueSize,
+						"avg":    w.usage.Get(),
+						"count":  w.usage.GetCount(),
+					}).Info("worker: stats")
 				}
 			}
 		}
@@ -112,7 +120,12 @@ func (w *Worker[T]) Start(ctx context.Context) {
 	}
 	wg.Wait()
 
-	Info("worker started name:", w.Name, "num:", w.Num, "queue size:", w.QueueSize)
+	//Info("worker started name:", w.Name, "num:", w.Num, "queue size:", w.QueueSize)
+	logrus.WithFields(logrus.Fields{
+		"worker": w.Name,
+		"num":    w.Num,
+		"queue":  w.QueueSize,
+	}).Info("worker: started")
 }
 
 func (w *Worker[T]) Push(req T) error {
@@ -132,7 +145,10 @@ func (w *Worker[T]) Push(req T) error {
 		return nil
 	default:
 		data, _ := json.Marshal(req)
-		Error("queue is full, worker:", w.Name, string(data))
+		logrus.WithFields(logrus.Fields{
+			"worker": w.Name,
+			"data":   string(data),
+		}).Error("worker: queue is full")
 		return fmt.Errorf("worker: %s queue is full", w.Name)
 	}
 }

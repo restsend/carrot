@@ -16,6 +16,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/inflection"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"gorm.io/gorm"
@@ -146,7 +147,7 @@ func GetCarrotAdminObjects() []AdminObject {
 
 	superAccessCheck := func(c *gin.Context, obj *AdminObject) error {
 		if !CurrentUser(c).IsSuperUser {
-			return errors.New("only superuser can access")
+			return ErrOnlySuperUser
 		}
 		return nil
 	}
@@ -272,7 +273,7 @@ func WithAdminAuth() gin.HandlerFunc {
 			db := ctx.MustGet(DbField).(*gorm.DB)
 			signUrl := GetValue(db, KEY_SITE_SIGNIN_URL)
 			if signUrl == "" {
-				AbortWithJSONError(ctx, http.StatusUnauthorized, errors.New("login required"))
+				AbortWithJSONError(ctx, http.StatusUnauthorized, ErrUnauthorized)
 			} else {
 				ctx.Redirect(http.StatusFound, signUrl+"?next="+ctx.Request.URL.String())
 				ctx.Abort()
@@ -281,7 +282,7 @@ func WithAdminAuth() gin.HandlerFunc {
 		}
 
 		if !user.IsStaff && !user.IsSuperUser {
-			AbortWithJSONError(ctx, http.StatusForbidden, errors.New("forbidden"))
+			AbortWithJSONError(ctx, http.StatusForbidden, ErrForbidden)
 			return
 		}
 		ctx.Next()
@@ -295,12 +296,18 @@ func BuildAdminObjects(r *gin.RouterGroup, db *gorm.DB, objs []AdminObject) []*A
 		obj := &objs[idx]
 		err := obj.Build(db)
 		if err != nil {
-			Warning("Build admin object fail, ignore", obj.Group, obj.Name, "err:", err)
+			logrus.WithFields(logrus.Fields{
+				"group": obj.Group,
+				"name":  obj.Name,
+			}).WithError(err).Warn("admin: build admin object fail, ignore")
 			continue
 		}
 
 		if _, ok := exists[obj.Path]; ok {
-			Warning("Ignore exist admin object", obj.Group, obj.Name)
+			logrus.WithFields(logrus.Fields{
+				"group": obj.Group,
+				"name":  obj.Name,
+			}).Warn("admin: ignore exist admin object")
 			continue
 		}
 
@@ -862,7 +869,7 @@ func (obj *AdminObject) handleGetOne(c *gin.Context) {
 	modelObj := reflect.New(obj.modelElem).Interface()
 	keys := obj.getPrimaryValues(c)
 	if len(keys) <= 0 {
-		AbortWithJSONError(c, http.StatusBadRequest, errors.New("invalid primary key"))
+		AbortWithJSONError(c, http.StatusBadRequest, ErrInvalidPrimaryKey)
 		return
 	}
 
@@ -1096,7 +1103,7 @@ func (obj *AdminObject) handleCreate(c *gin.Context) {
 func (obj *AdminObject) handleUpdate(c *gin.Context) {
 	keys := obj.getPrimaryValues(c)
 	if len(keys) <= 0 {
-		AbortWithJSONError(c, http.StatusBadRequest, errors.New("invalid primary key"))
+		AbortWithJSONError(c, http.StatusBadRequest, ErrInvalidPrimaryKey)
 		return
 	}
 
@@ -1110,7 +1117,7 @@ func (obj *AdminObject) handleUpdate(c *gin.Context) {
 	elmObj := reflect.New(obj.modelElem)
 	err := db.Where(keys).First(elmObj.Interface()).Error
 	if err != nil {
-		AbortWithJSONError(c, http.StatusNotFound, errors.New("not found"))
+		AbortWithJSONError(c, http.StatusNotFound, ErrNotFound)
 		return
 	}
 
@@ -1160,7 +1167,7 @@ func (obj *AdminObject) handleUpdate(c *gin.Context) {
 func (obj *AdminObject) handleDelete(c *gin.Context) {
 	keys := obj.getPrimaryValues(c)
 	if len(keys) <= 0 {
-		AbortWithJSONError(c, http.StatusBadRequest, errors.New("invalid primary key"))
+		AbortWithJSONError(c, http.StatusBadRequest, ErrInvalidPrimaryKey)
 		return
 	}
 	db := getDbConnection(c, obj.GetDB, false)
@@ -1170,7 +1177,7 @@ func (obj *AdminObject) handleDelete(c *gin.Context) {
 	// for gorm delete hook, need to load model first.
 	if r.Error != nil {
 		if errors.Is(r.Error, gorm.ErrRecordNotFound) {
-			AbortWithJSONError(c, http.StatusNotFound, errors.New("not found"))
+			AbortWithJSONError(c, http.StatusNotFound, ErrNotFound)
 		} else {
 			AbortWithJSONError(c, http.StatusInternalServerError, r.Error)
 		}
@@ -1230,7 +1237,7 @@ func (obj *AdminObject) handleAction(c *gin.Context) {
 
 		keys := obj.getPrimaryValues(c)
 		if len(keys) <= 0 {
-			AbortWithJSONError(c, http.StatusBadRequest, errors.New("invalid primary key"))
+			AbortWithJSONError(c, http.StatusBadRequest, ErrInvalidPrimaryKey)
 			return
 		}
 		modelObj := reflect.New(obj.modelElem).Interface()
@@ -1238,7 +1245,7 @@ func (obj *AdminObject) handleAction(c *gin.Context) {
 
 		if result.Error != nil {
 			if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-				AbortWithJSONError(c, http.StatusNotFound, errors.New("not found"))
+				AbortWithJSONError(c, http.StatusNotFound, ErrNotFound)
 			} else {
 				AbortWithJSONError(c, http.StatusInternalServerError, result.Error)
 			}

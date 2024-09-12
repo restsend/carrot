@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -153,7 +154,11 @@ func SetValue(db *gorm.DB, key, value, format string, autoload, public bool) {
 	}).Create(newV)
 
 	if result.Error != nil {
-		Warning("SetValue fail", "key", key, "value", value, "format", format, "err", result.Error.Error())
+		logrus.WithFields(logrus.Fields{
+			"key":    key,
+			"value":  value,
+			"format": format,
+		}).WithError(result.Error).Warn("config: setValue fail")
 	}
 }
 
