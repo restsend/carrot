@@ -113,16 +113,16 @@ type Group struct {
 }
 
 type GroupMember struct {
-	ID        uint         `json:"-" gorm:"primaryKey"`
-	CreatedAt time.Time    `json:"-" gorm:"autoCreateTime"`
-	JoinedAt  *time.Time   `json:"joinedAt,omitempty"`
-	UserID    uint         `json:"-"`
-	User      User         `json:"user"`
-	GroupID   uint         `json:"-"`
-	Group     Group        `json:"group"`
-	Role      string       `json:"role" gorm:"size:100"`
-	Remark    string       `json:"name" gorm:"size:200"`
-	Extra     []GroupExtra `gorm:"polymorphic:Object;polymorphicValue:member"`
+	ID          uint         `json:"-" gorm:"primaryKey"`
+	CreatedAt   time.Time    `json:"-" gorm:"autoCreateTime"`
+	JoinedAt    *time.Time   `json:"joinedAt,omitempty"`
+	UserID      uint         `json:"-"`
+	User        User         `json:"user"`
+	GroupID     uint         `json:"-"`
+	Group       Group        `json:"group"`
+	Role        string       `json:"role" gorm:"size:100"`
+	Description string       `json:"description"`
+	Extra       []GroupExtra `gorm:"polymorphic:Object;polymorphicValue:member"`
 }
 type GroupExtra struct {
 	ID         uint   `json:"-" gorm:"primaryKey"`
