@@ -107,19 +107,29 @@ type Group struct {
 	CreatedAt  time.Time       `json:"-" gorm:"autoCreateTime"`
 	UpdatedAt  time.Time       `json:"-"`
 	Name       string          `json:"name" gorm:"size:200"`
-	Type       string          `json:"type" gorm:"size:24;index"`
-	Extra      string          `json:"extra"`
+	Type       string          `json:"type" gorm:"size:64;index"`
+	Extra      []GroupExtra    `gorm:"polymorphic:Object;polymorphicValue:group"`
 	Permission GroupPermission `json:"-"`
 }
 
 type GroupMember struct {
-	ID        uint      `json:"-" gorm:"primaryKey"`
-	CreatedAt time.Time `json:"-" gorm:"autoCreateTime"`
-	UserID    uint      `json:"-"`
-	User      User      `json:"user"`
-	GroupID   uint      `json:"-"`
-	Group     Group     `json:"group"`
-	Role      string    `json:"role" gorm:"size:60"`
+	ID        uint         `json:"-" gorm:"primaryKey"`
+	CreatedAt time.Time    `json:"-" gorm:"autoCreateTime"`
+	JoinedAt  *time.Time   `json:"joinedAt,omitempty"`
+	UserID    uint         `json:"-"`
+	User      User         `json:"user"`
+	GroupID   uint         `json:"-"`
+	Group     Group        `json:"group"`
+	Role      string       `json:"role" gorm:"size:100"`
+	Remark    string       `json:"name" gorm:"size:200"`
+	Extra     []GroupExtra `gorm:"polymorphic:Object;polymorphicValue:member"`
+}
+type GroupExtra struct {
+	ID         uint   `json:"-" gorm:"primaryKey"`
+	ObjectType string `json:"type"  gorm:"size:128;uniqueIndex:idx_group_extra_object_id_key"`
+	ObjectID   uint   `json:"-" gorm:"uniqueIndex:idx_group_extra_object_id_key"`
+	Key        string `json:"key" gorm:"size:128;uniqueIndex:idx_group_extra_object_id_key"`
+	Value      string `json:"value"`
 }
 
 func (u User) String() string {
@@ -168,6 +178,7 @@ func InitMigrate(db *gorm.DB) error {
 		&User{},
 		&Group{},
 		&GroupMember{},
+		&GroupExtra{},
 	})
 }
 
