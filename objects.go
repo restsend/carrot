@@ -422,7 +422,7 @@ func handleGetObject(c *gin.Context, obj *WebObject) {
 	db := getDbConnection(c, obj.GetDB, false)
 	// the real name of the primaryKey column
 	val := reflect.New(obj.modelElem).Interface()
-	result := obj.buildPrimaryCondition(db, keys).Take(&val)
+	result := obj.buildPrimaryCondition(db, keys).Take(val)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			AbortWithJSONError(c, http.StatusNotFound, ErrNotFound)

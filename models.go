@@ -121,7 +121,7 @@ type GroupMember struct {
 	GroupID     uint         `json:"-"`
 	Group       Group        `json:"group"`
 	Role        string       `json:"role" gorm:"size:100"`
-	Description string       `json:"description"`
+	Description string       `json:"description,omitempty"`
 	Extra       []GroupExtra `gorm:"polymorphic:Object;polymorphicValue:member"`
 }
 type GroupExtra struct {
