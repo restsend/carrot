@@ -59,6 +59,7 @@ type AdminForeign struct {
 	Field      string `json:"field"`
 	fieldName  string `json:"-"`
 	foreignKey string `json:"-"`
+	hasMany    bool   `json:"-"`
 }
 type AdminValue struct {
 	Value any    `json:"value"`
@@ -513,7 +514,8 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 			continue
 		}
 
-		gormTag := strings.ToLower(f.Tag.Get("gorm"))
+		gormTag := f.Tag.Get("gorm")
+		gormTagLower := strings.ToLower(gormTag)
 		field := AdminField{
 			Name:      db.NamingStrategy.ColumnName(obj.tableName, f.Name),
 			Tag:       gormTag,
@@ -552,7 +554,7 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 			}
 		}
 
-		if strings.Contains(gormTag, "primarykey") || strings.Contains(gormTag, "unique") {
+		if strings.Contains(gormTagLower, "primarykey") || strings.Contains(gormTagLower, "unique") {
 			// hint foreignField
 			keyName := field.Name
 			if strings.HasSuffix(f.Name, "ID") {
@@ -564,7 +566,7 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 				}
 				obj.primaryKeyMaping[keyName] = field.Name
 			}
-			if strings.Contains(gormTag, "primarykey") {
+			if strings.Contains(gormTagLower, "primarykey") {
 				obj.PrimaryKeys = append(obj.PrimaryKeys, keyName)
 			} else {
 				obj.UniqueKeys = append(obj.UniqueKeys, keyName)
@@ -585,10 +587,9 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 				field.NotColumn = true
 			}
 		}
-		if strings.Contains(gormTag, "foreignkey") {
+		if strings.Contains(gormTagLower, "foreignkey") {
 			//extract foreign key from gorm tag with regex
-			//example: foreignkey:UserRefer
-			var re = regexp.MustCompile(`foreignkey:([a-zA-Z0-9]+)`)
+			var re = regexp.MustCompile(`foreignkey:([a-zA-Z0-9]+)|foreignKey:([a-zA-Z0-9]+)`)
 			matches := re.FindStringSubmatch(gormTag)
 			if len(matches) > 1 {
 				foreignKey = strings.TrimSpace(matches[1])
@@ -610,6 +611,7 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 				Path:       strings.ToLower(f.Type.Name()),
 				foreignKey: foreignKey,
 				fieldName:  f.Name,
+				hasMany:    field.IsArray,
 			}
 		}
 
@@ -809,7 +811,7 @@ func (obj *AdminObject) MarshalOne(c *gin.Context, val interface{}) (map[string]
 	}
 	for _, field := range obj.Fields {
 		var fieldVal any
-		if field.Foreign != nil {
+		if field.Foreign != nil && !field.Foreign.hasMany {
 			v := AdminValue{
 				Value: rv.FieldByName(field.Foreign.foreignKey).Interface(),
 			}
