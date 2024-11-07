@@ -581,7 +581,9 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 		}
 		// has many
 		if field.IsArray && f.Type.Elem().Kind() == reflect.Struct {
-			field.NotColumn = true
+			if !db.Migrator().HasColumn(obj.Model, field.Name) {
+				field.NotColumn = true
+			}
 		}
 		if strings.Contains(gormTag, "foreignkey") {
 			//extract foreign key from gorm tag with regex
