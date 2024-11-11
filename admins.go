@@ -546,9 +546,8 @@ func (obj *AdminObject) parseFields(db *gorm.DB, rt reflect.Type) error {
 			field.Type = f.Type.Name()
 		}
 
-		if strings.Contains(gormTag, "primarykey") {
+		if strings.Contains(gormTagLower, "primarykey") {
 			field.Primary = true
-			//obj.primaryKeys = append(obj.primaryKeys, field.Name)
 			if strings.Contains(field.Type, "int") {
 				field.IsAutoID = true
 			}
