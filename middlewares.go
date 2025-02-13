@@ -41,11 +41,10 @@ func AbortWithJSONError(c *gin.Context, code int, err error) {
 		code = e.StatusCode()
 	}
 
-	if c.IsAborted() {
-		RenderJSON(c, code, gin.H{"error": err.Error()})
-	} else {
-		c.AbortWithStatusJSON(code, gin.H{"error": err.Error()})
+	if !c.IsAborted() {
+		c.Abort()
 	}
+	RenderJSON(c, code, gin.H{"error": err.Error()})
 }
 
 func CORSEnabled() gin.HandlerFunc {
