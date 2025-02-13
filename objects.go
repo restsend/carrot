@@ -449,7 +449,7 @@ func handleGetObject(c *gin.Context, obj *WebObject) {
 		}
 	}
 
-	c.JSON(http.StatusOK, val)
+	RenderJSON(c, http.StatusOK, val)
 }
 
 func handleCreateObject(c *gin.Context, obj *WebObject) {
@@ -478,7 +478,7 @@ func handleCreateObject(c *gin.Context, obj *WebObject) {
 		return
 	}
 
-	c.JSON(http.StatusOK, val)
+	RenderJSON(c, http.StatusOK, val)
 }
 
 func handleEditObject(c *gin.Context, obj *WebObject) {
@@ -557,7 +557,7 @@ func handleEditObject(c *gin.Context, obj *WebObject) {
 		return
 	}
 
-	c.JSON(http.StatusOK, true)
+	RenderJSON(c, http.StatusOK, true)
 }
 
 func handleDeleteObject(c *gin.Context, obj *WebObject) {
@@ -595,7 +595,7 @@ func handleDeleteObject(c *gin.Context, obj *WebObject) {
 		return
 	}
 
-	c.JSON(http.StatusOK, true)
+	RenderJSON(c, http.StatusOK, true)
 }
 
 func handleQueryObject(c *gin.Context, obj *WebObject, prepareQuery PrepareQuery) {
@@ -701,11 +701,11 @@ func handleQueryObject(c *gin.Context, obj *WebObject, prepareQuery PrepareQuery
 		}
 
 		if obj != nil {
-			c.JSON(http.StatusOK, obj)
+			RenderJSON(c, http.StatusOK, obj)
 			return
 		}
 	}
-	c.JSON(http.StatusOK, r)
+	RenderJSON(c, http.StatusOK, r)
 }
 
 func castTime(value any) any {

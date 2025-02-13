@@ -71,7 +71,7 @@ func RegisterHandler(router *gin.RouterGroup, uriDocs []UriDoc, objDocs []WebObj
 			"objs": objDocs,
 			"site": carrot.GetRenderPageContext(ctx),
 		}
-		ctx.JSON(http.StatusOK, docs)
+		carrot.RenderJSON(ctx, http.StatusOK, docs)
 	})
 
 	router.GET("/", func(ctx *gin.Context) {

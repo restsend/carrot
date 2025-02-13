@@ -42,7 +42,7 @@ func AbortWithJSONError(c *gin.Context, code int, err error) {
 	}
 
 	if c.IsAborted() {
-		c.JSON(code, gin.H{"error": err.Error()})
+		RenderJSON(c, code, gin.H{"error": err.Error()})
 	} else {
 		c.AbortWithStatusJSON(code, gin.H{"error": err.Error()})
 	}

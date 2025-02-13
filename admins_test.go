@@ -157,7 +157,7 @@ func TestAdminCRUD(t *testing.T) {
 			"id": 1024,
 		}, nil)
 		assert.NotNil(t, err)
-		assert.Contains(t, err.Error(), "only superuser can access")
+		assert.Contains(t, err.Error(), "only super user can do this")
 	}
 
 	{
@@ -410,7 +410,7 @@ func TestParseField(t *testing.T) {
 
 	err := productObj.Build(db)
 	assert.Nil(t, err)
-	assert.Equal(t, len(productObj.Fields), 2)
+	assert.Equal(t, len(productObj.Fields), 3)
 }
 
 func TestAdminUpdatePrimaryKeys(t *testing.T) {

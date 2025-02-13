@@ -392,7 +392,7 @@ func HandleAdminJson(c *gin.Context, objects []*AdminObject, buildContext AdminB
 		siteCtx = buildContext(c, siteCtx)
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	RenderJSON(c, http.StatusOK, gin.H{
 		"objects": viewObjects,
 		"user":    CurrentUser(c),
 		"site":    siteCtx,
@@ -901,7 +901,7 @@ func (obj *AdminObject) handleGetOne(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, data)
+	RenderJSON(c, http.StatusOK, data)
 }
 
 func (obj *AdminObject) QueryObjects(session *gorm.DB, form *QueryForm, ctx *gin.Context) (r AdminQueryResult, err error) {
@@ -1060,7 +1060,7 @@ func (obj *AdminObject) handleQueryOrGetOne(c *gin.Context) {
 		}
 		r.Items = items
 	}
-	c.JSON(http.StatusOK, r)
+	RenderJSON(c, http.StatusOK, r)
 }
 
 func (obj *AdminObject) handleCreate(c *gin.Context) {
@@ -1100,7 +1100,7 @@ func (obj *AdminObject) handleCreate(c *gin.Context) {
 			elm = rr
 		}
 	}
-	c.JSON(http.StatusOK, elm)
+	RenderJSON(c, http.StatusOK, elm)
 }
 
 func (obj *AdminObject) handleUpdate(c *gin.Context) {
@@ -1164,7 +1164,7 @@ func (obj *AdminObject) handleUpdate(c *gin.Context) {
 		AbortWithJSONError(c, http.StatusInternalServerError, result.Error)
 		return
 	}
-	c.JSON(http.StatusOK, true)
+	RenderJSON(c, http.StatusOK, true)
 }
 
 func (obj *AdminObject) handleDelete(c *gin.Context) {
@@ -1199,7 +1199,7 @@ func (obj *AdminObject) handleDelete(c *gin.Context) {
 		AbortWithJSONError(c, http.StatusInternalServerError, r.Error)
 		return
 	}
-	c.JSON(http.StatusOK, true)
+	RenderJSON(c, http.StatusOK, true)
 }
 
 func (obj *AdminObject) handleAction(c *gin.Context) {
@@ -1216,7 +1216,7 @@ func (obj *AdminObject) handleAction(c *gin.Context) {
 				return
 			}
 			if !handled {
-				c.JSON(http.StatusOK, r)
+				RenderJSON(c, http.StatusOK, r)
 			}
 			return
 		}
@@ -1233,7 +1233,7 @@ func (obj *AdminObject) handleAction(c *gin.Context) {
 				return
 			}
 			if !handled {
-				c.JSON(http.StatusOK, r)
+				RenderJSON(c, http.StatusOK, r)
 			}
 			return
 		}
@@ -1261,7 +1261,7 @@ func (obj *AdminObject) handleAction(c *gin.Context) {
 		}
 
 		if !handled {
-			c.JSON(http.StatusOK, r)
+			RenderJSON(c, http.StatusOK, r)
 		}
 		return
 	}

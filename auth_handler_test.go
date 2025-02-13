@@ -29,7 +29,7 @@ func TestCarrotInit(t *testing.T) {
 	err = InitCarrot(db, r)
 	assert.Nil(t, err)
 
-	r.GET("/mock_test", func(ctx *gin.Context) { ctx.JSON(http.StatusOK, gin.H{}) })
+	r.GET("/mock_test", func(ctx *gin.Context) { RenderJSON(ctx, http.StatusOK, gin.H{}) })
 	client := NewTestClient(r)
 	w := client.Get("/mock_test")
 	checkResponse(t, w)
@@ -67,7 +67,7 @@ func TestAuthHandler(t *testing.T) {
 	{
 		form := LoginForm{}
 		err = client.CallPost("/auth/login", form, nil)
-		assert.Contains(t, err.Error(), "email is required")
+		assert.Contains(t, err.Error(), "empty email")
 	}
 	{
 		form := RegisterUserForm{
@@ -81,7 +81,7 @@ func TestAuthHandler(t *testing.T) {
 
 		err = client.CallPost("/auth/register", form, &user)
 		assert.NotNil(t, err)
-		assert.Contains(t, err.Error(), "email has exists")
+		assert.Contains(t, err.Error(), "email exists, please use another email")
 	}
 	{
 		form := LoginForm{
@@ -135,7 +135,7 @@ func TestAuthHandler(t *testing.T) {
 		SetValue(db, KEY_USER_ACTIVATED, "true", ConfigFormatText, false, false)
 		var user User
 		err = client.CallPost("/auth/login", form, &user)
-		assert.Contains(t, err.Error(), "waiting for activation")
+		assert.Contains(t, err.Error(), "user not activated")
 	}
 	{
 		u, _ := GetUserByEmail(db, "bob@example.org")
@@ -241,7 +241,7 @@ func TestAuthToken(t *testing.T) {
 	err = InitCarrot(db, r)
 	assert.Nil(t, err)
 	r.GET("/mock", AuthRequired, func(ctx *gin.Context) {
-		ctx.JSON(http.StatusOK, CurrentUser(ctx))
+		RenderJSON(ctx, http.StatusOK, CurrentUser(ctx))
 	})
 
 	client := NewTestClient(r)
@@ -307,7 +307,7 @@ func TestAuthActivation(t *testing.T) {
 		}
 		var user User
 		err = client.CallPost("/auth/login", form, &user)
-		assert.Contains(t, err.Error(), "waiting for activation")
+		assert.Contains(t, err.Error(), "user not activated")
 	}
 
 	{

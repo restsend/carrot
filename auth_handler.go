@@ -103,7 +103,7 @@ func handleUserInfo(c *gin.Context) {
 			user.AuthToken = BuildAuthToken(db, user, expired, false)
 		}
 	}
-	c.JSON(http.StatusOK, user)
+	RenderJSON(c, http.StatusOK, user)
 }
 
 func handleUserSignupPage(c *gin.Context) {
@@ -231,7 +231,7 @@ func handleUserSignup(c *gin.Context) {
 	} else {
 		Login(c, user) //Login now
 	}
-	c.JSON(http.StatusOK, r)
+	RenderJSON(c, http.StatusOK, r)
 }
 
 func handleUserSignin(c *gin.Context) {
@@ -293,7 +293,7 @@ func handleUserSignin(c *gin.Context) {
 		}
 		user.AuthToken = BuildAuthToken(db, user, expired, false)
 	}
-	c.JSON(http.StatusOK, user)
+	RenderJSON(c, http.StatusOK, user)
 }
 
 func handleUserLogout(c *gin.Context) {
@@ -306,7 +306,7 @@ func handleUserLogout(c *gin.Context) {
 		c.Redirect(http.StatusFound, next)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{})
+	RenderJSON(c, http.StatusOK, gin.H{})
 }
 
 func handleUserResendActivation(c *gin.Context) {
@@ -326,7 +326,7 @@ func handleUserResendActivation(c *gin.Context) {
 	if GetBoolValue(db, KEY_USER_ACTIVATED) && !user.Activated {
 		expired = sendHashMail(db, user, SigUserVerifyEmail, KEY_VERIFY_EMAIL_EXPIRED, "180d", c.ClientIP(), c.Request.UserAgent(), "")
 	}
-	c.JSON(http.StatusOK, gin.H{"expired": expired})
+	RenderJSON(c, http.StatusOK, gin.H{"expired": expired})
 }
 
 func handleUserActivation(c *gin.Context) {
@@ -387,7 +387,7 @@ func handleUserChangeEmail(c *gin.Context) {
 	}
 
 	expired := sendHashMail(db, user, SigUserChangeEmail, KEY_VERIFY_EMAIL_EXPIRED, "30m", c.ClientIP(), c.Request.UserAgent(), form.Email)
-	c.JSON(http.StatusOK, gin.H{"expired": expired})
+	RenderJSON(c, http.StatusOK, gin.H{"expired": expired})
 }
 
 func handleUserChangeEmailDonePage(c *gin.Context) {
@@ -489,7 +489,7 @@ func handleUserChangeEmailDone(c *gin.Context) {
 	if next != "" {
 		c.Redirect(http.StatusFound, next)
 	} else {
-		c.JSON(http.StatusOK, true)
+		RenderJSON(c, http.StatusOK, true)
 	}
 }
 
@@ -521,7 +521,7 @@ func handleUserChangePassword(c *gin.Context) {
 		AbortWithJSONError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, true)
+	RenderJSON(c, http.StatusOK, true)
 }
 
 func handleUserResetPassword(c *gin.Context) {
@@ -534,7 +534,7 @@ func handleUserResetPassword(c *gin.Context) {
 	db := c.MustGet(DbField).(*gorm.DB)
 	user, err := GetUserByEmail(db, form.Email)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"expired": "30m"})
+		RenderJSON(c, http.StatusOK, gin.H{"expired": "30m"})
 		return
 	}
 
@@ -544,7 +544,7 @@ func handleUserResetPassword(c *gin.Context) {
 	}
 
 	expired := sendHashMail(db, user, SigUserResetPassword, KEY_RESET_PASSWD_EXPIRED, "30m", c.ClientIP(), c.Request.UserAgent(), "")
-	c.JSON(http.StatusOK, gin.H{"expired": expired})
+	RenderJSON(c, http.StatusOK, gin.H{"expired": expired})
 }
 
 func handleUserResetPasswordDone(c *gin.Context) {
@@ -580,5 +580,5 @@ func handleUserResetPasswordDone(c *gin.Context) {
 		AbortWithJSONError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, true)
+	RenderJSON(c, http.StatusOK, true)
 }
