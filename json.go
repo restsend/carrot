@@ -23,12 +23,20 @@ var EnableDecoderUseNumber = false
 // keys which do not match any non-ignored, exported fields in the destination.
 var EnableDecoderDisallowUnknownFields = false
 
+type Decoder interface {
+	Decode(v any) error
+}
+
+type Encoder interface {
+	Encode(v any) error
+}
+
 var (
-	Marshal       = json.Marshal
-	Unmarshal     = json.Unmarshal
-	MarshalIndent = json.MarshalIndent
-	NewDecoder    = json.NewDecoder
-	NewEncoder    = json.NewEncoder
+	Marshal                                 = json.Marshal
+	Unmarshal                               = json.Unmarshal
+	MarshalIndent                           = json.MarshalIndent
+	NewDecoder    func(r io.Reader) Decoder = useJsonNewDecoder
+	NewEncoder    func(w io.Writer) Encoder = useJsonNewEncoder
 )
 
 func init() {
@@ -93,14 +101,7 @@ func (CarrotJsonBinding) BindBody(body []byte, obj any) error {
 }
 
 func decodeJSON(r io.Reader, obj any) error {
-	decoder := NewDecoder(r)
-	if EnableDecoderUseNumber {
-		decoder.UseNumber()
-	}
-	if EnableDecoderDisallowUnknownFields {
-		decoder.DisallowUnknownFields()
-	}
-	if err := decoder.Decode(obj); err != nil {
+	if err := NewDecoder(r).Decode(obj); err != nil {
 		return err
 	}
 	return validate(obj)
@@ -111,4 +112,19 @@ func validate(obj any) error {
 		return nil
 	}
 	return binding.Validator.ValidateStruct(obj)
+}
+
+func useJsonNewDecoder(r io.Reader) Decoder {
+	decoder := json.NewDecoder(r)
+	if EnableDecoderUseNumber {
+		decoder.UseNumber()
+	}
+	if EnableDecoderDisallowUnknownFields {
+		decoder.DisallowUnknownFields()
+	}
+	return decoder
+}
+
+func useJsonNewEncoder(w io.Writer) Encoder {
+	return json.NewEncoder(w)
 }
