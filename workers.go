@@ -2,7 +2,6 @@ package carrot
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -144,11 +143,6 @@ func (w *Worker[T]) Push(req T) error {
 	case w.queue <- req:
 		return nil
 	default:
-		data, _ := json.Marshal(req)
-		logrus.WithFields(logrus.Fields{
-			"worker": w.Name,
-			"data":   string(data),
-		}).Error("worker: queue is full")
 		return fmt.Errorf("worker: %s queue is full", w.Name)
 	}
 }

@@ -2,7 +2,6 @@ package carrot
 
 import (
 	"database/sql/driver"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -63,11 +62,11 @@ func (p *Profile) Scan(value interface{}) error {
 	if value == nil {
 		return nil
 	}
-	return json.Unmarshal(value.([]byte), p)
+	return Unmarshal(value.([]byte), p)
 }
 
 func (p Profile) Value() (driver.Value, error) {
-	return json.Marshal(p)
+	return Marshal(p)
 }
 
 type User struct {
@@ -165,11 +164,11 @@ func (p *GroupPermission) Scan(value interface{}) error {
 	if value == nil {
 		return nil
 	}
-	return json.Unmarshal(value.([]byte), p)
+	return Unmarshal(value.([]byte), p)
 }
 
 func (p GroupPermission) Value() (driver.Value, error) {
-	return json.Marshal(p)
+	return Marshal(p)
 }
 
 func InitMigrate(db *gorm.DB) error {

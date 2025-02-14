@@ -2,7 +2,6 @@ package carrot
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -44,7 +43,7 @@ func TestObjectCRUD(t *testing.T) {
 
 	// Create
 	{
-		b, _ := json.Marshal(User{Name: "add"})
+		b, _ := Marshal(User{Name: "add"})
 		req := httptest.NewRequest(http.MethodPut, "/user", bytes.NewReader(b))
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
@@ -61,7 +60,7 @@ func TestObjectCRUD(t *testing.T) {
 	}
 	// Update
 	{
-		b, _ := json.Marshal(User{Name: "update", Age: 11})
+		b, _ := Marshal(User{Name: "update", Age: 11})
 		req := httptest.NewRequest(http.MethodPatch, "/user/1", bytes.NewReader(b))
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
@@ -82,14 +81,14 @@ func TestObjectCRUD(t *testing.T) {
 				},
 			},
 		}
-		b, _ := json.Marshal(data)
+		b, _ := Marshal(data)
 		req := httptest.NewRequest(http.MethodPost, "/user", bytes.NewReader(b))
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusOK, w.Result().StatusCode)
 
 		var res QueryResult
-		err := json.Unmarshal(w.Body.Bytes(), &res)
+		err := Unmarshal(w.Body.Bytes(), &res)
 		assert.Nil(t, err)
 		assert.Equal(t, 1, res.TotalCount)
 		assert.Equal(t, "update", res.Items[0].(map[string]any)["Name"])
@@ -108,7 +107,7 @@ func TestObjectCRUD(t *testing.T) {
 		r.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusNotFound, w.Result().StatusCode)
 
-		b, _ := json.Marshal(map[string]any{"pos": 0, "limit": 5})
+		b, _ := Marshal(map[string]any{"pos": 0, "limit": 5})
 		req = httptest.NewRequest(http.MethodPost, "/user", bytes.NewReader(b))
 		w = httptest.NewRecorder()
 		r.ServeHTTP(w, req)
@@ -116,7 +115,7 @@ func TestObjectCRUD(t *testing.T) {
 		log.Println(w.Body.String())
 
 		var res QueryResult
-		err := json.Unmarshal(w.Body.Bytes(), &res)
+		err := Unmarshal(w.Body.Bytes(), &res)
 		assert.Nil(t, err)
 		assert.Equal(t, 1, res.TotalCount)
 	}
@@ -309,14 +308,14 @@ func TestObjectQuery(t *testing.T) {
 					"filters": tt.params.Filters,
 				}
 
-				b, _ := json.Marshal(data)
+				b, _ := Marshal(data)
 				req := httptest.NewRequest(http.MethodPost, "/user", bytes.NewReader(b))
 				w := httptest.NewRecorder()
 				r.ServeHTTP(w, req)
 				assert.Equal(t, http.StatusOK, w.Result().StatusCode)
 
 				var res QueryResult
-				err := json.Unmarshal(w.Body.Bytes(), &res)
+				err := Unmarshal(w.Body.Bytes(), &res)
 				assert.Nil(t, err)
 				assert.Equal(t, tt.expect.Num, res.TotalCount)
 			})
@@ -416,14 +415,14 @@ func TestObjectOrder(t *testing.T) {
 					"orders": tt.params.Orders,
 				}
 
-				b, _ := json.Marshal(data)
+				b, _ := Marshal(data)
 				req := httptest.NewRequest(http.MethodPost, "/user", bytes.NewReader(b))
 				w := httptest.NewRecorder()
 				r.ServeHTTP(w, req)
 				assert.Equal(t, http.StatusOK, w.Result().StatusCode)
 
 				var res QueryResult
-				err := json.Unmarshal(w.Body.Bytes(), &res)
+				err := Unmarshal(w.Body.Bytes(), &res)
 				assert.Nil(t, err)
 				assert.Equal(t, tt.expect.ID, res.Items[0].(map[string]any)["uid"])
 			})
@@ -557,7 +556,7 @@ func TestObjectEdit(t *testing.T) {
 					db.Create(&User{UUID: "aaa", Name: "alice", Age: 9})
 				}
 
-				b, _ := json.Marshal(tt.params.Data)
+				b, _ := Marshal(tt.params.Data)
 				req := httptest.NewRequest(http.MethodPatch, fmt.Sprintf("/user/%d", tt.params.ID), bytes.NewReader(b))
 				w := httptest.NewRecorder()
 				r.ServeHTTP(w, req)
@@ -596,7 +595,7 @@ func TestObjectNoFieldEdit(t *testing.T) {
 		"enabled": true,
 		"birthay": "2022-02-02 11:11:11",
 	}
-	b, _ := json.Marshal(data)
+	b, _ := Marshal(data)
 	req := httptest.NewRequest(http.MethodPatch, fmt.Sprintf("/user/%d", 1), bytes.NewReader(b))
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -684,14 +683,14 @@ func TestObjectRegister(t *testing.T) {
 					"filters": tt.params.Filters,
 				}
 
-				b, _ := json.Marshal(data)
+				b, _ := Marshal(data)
 				req := httptest.NewRequest(http.MethodPost, "/user", bytes.NewReader(b))
 				w := httptest.NewRecorder()
 				r.ServeHTTP(w, req)
 				assert.Equal(t, http.StatusOK, w.Result().StatusCode)
 
 				var res QueryResult
-				json.Unmarshal(w.Body.Bytes(), &res)
+				Unmarshal(w.Body.Bytes(), &res)
 				assert.Equal(t, tt.expect.Total, res.TotalCount)
 			})
 		}

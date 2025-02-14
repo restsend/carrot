@@ -22,11 +22,11 @@ type ProductModel struct {
 }
 
 func (s ProductModel) Value() (driver.Value, error) {
-	return json.Marshal(s)
+	return Marshal(s)
 }
 
 func (s *ProductModel) Scan(input interface{}) error {
-	return json.Unmarshal(input.([]byte), s)
+	return Unmarshal(input.([]byte), s)
 }
 
 type ProductItem struct {

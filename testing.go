@@ -65,7 +65,7 @@ func (c *TestClient) Post(method, path string, body []byte) *httptest.ResponseRe
 func (c *TestClient) Call(method, path string, form any, result any) (err error) {
 	body := []byte("")
 	if form != nil {
-		body, err = json.Marshal(form)
+		body, err = Marshal(form)
 		if err != nil {
 			return err
 		}

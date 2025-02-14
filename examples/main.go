@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql/driver"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -30,11 +29,11 @@ type ProductModel struct {
 }
 
 func (m *ProductModel) Scan(value interface{}) error {
-	return json.Unmarshal(value.([]byte), m)
+	return carrot.Unmarshal(value.([]byte), m)
 }
 
 func (m *ProductModel) Value() (driver.Value, error) {
-	return json.Marshal(m)
+	return carrot.Marshal(m)
 }
 
 type Product struct {
