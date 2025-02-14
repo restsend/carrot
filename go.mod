@@ -1,6 +1,6 @@
 module github.com/restsend/carrot
 
-go 1.19
+go 1.20
 
 require (
 	github.com/gin-contrib/sessions v1.0.1
