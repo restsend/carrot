@@ -26,8 +26,10 @@ const (
 	SigUserVerifyEmail = "user.verifyemail"
 	//SigUserResetPassword: user *User, hash, clientIp, userAgent string
 	SigUserResetPassword = "user.resetpassword"
-	//SigUserResetPassword: user *User, hash, clientIp, userAgent, newEmail string
+	//SigUserChangeEmail: user *User, hash, clientIp, userAgent, newEmail string
 	SigUserChangeEmail = "user.changeemail"
+	//SigUserChangeEmailDone: user *User, oldEmail, newEmail string
+	SigUserChangeEmailDone = "user.changeemaildone"
 )
 
 func InTimezone(c *gin.Context, timezone string) {
@@ -322,7 +324,10 @@ func ChangeUserEmail(db *gorm.DB, user *User, newEmail string) error {
 	if IsExistsByEmail(db, newEmail) {
 		return ErrEmailExists
 	}
+	oldEmail := user.Email
 	user.Email = newEmail
+
+	Sig().Emit(SigUserChangeEmailDone, user, oldEmail, newEmail)
 
 	err = db.Model(&User{}).Where("id", user.ID).Updates(map[string]any{
 		"Email": newEmail,
