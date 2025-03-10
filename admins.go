@@ -201,6 +201,16 @@ func GetCarrotAdminObjects() []AdminObject {
 					},
 				},
 				{
+					Path:  "toggle_activated",
+					Name:  "Toggle activated",
+					Label: "Toggle user activated",
+					Handler: func(db *gorm.DB, c *gin.Context, obj any) (bool, any, error) {
+						user := obj.(*User)
+						err := UpdateUserFields(db, user, map[string]any{"Activated": !user.Activated})
+						return false, user.Activated, err
+					},
+				},
+				{
 					Path:  "toggle_staff",
 					Name:  "Toggle staff",
 					Label: "Toggle user is staff or not",

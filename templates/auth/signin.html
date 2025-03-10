@@ -30,12 +30,14 @@
         <img class="mx-auto h-12 w-auto" src="{{.Site.LogoUrl}}" alt="{{.Site.Name}}">
       </a>
       <h2 class="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">Sign in to your account</h2>
+      {{if .Site.SignupUrl}}
       <p class="mt-2 text-center text-sm text-gray-600">
         Or
         <a href="{{.Site.SignupUrl}}?next={{.LoginNext}}" class="font-medium text-indigo-600 hover:text-indigo-500">
           {{.SignupText}}
         </a>
       </p>
+      {{end}}
     </div>
 
     <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">

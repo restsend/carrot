@@ -158,13 +158,19 @@ func sendHashMail(db *gorm.DB, user *User, signame, expireKey, defaultExpired, c
 }
 
 func handleUserSignup(c *gin.Context) {
+	db := c.MustGet(DbField).(*gorm.DB)
+
+	if GetValue(db, KEY_SITE_SIGNUP_URL) == "" {
+		AbortWithJSONError(c, http.StatusNotImplemented, ErrUserNotAllowSignup)
+		return
+	}
+
 	var form RegisterUserForm
 	if err := c.BindJSON(&form); err != nil {
 		AbortWithJSONError(c, http.StatusBadRequest, err)
 		return
 	}
 
-	db := c.MustGet(DbField).(*gorm.DB)
 	if IsExistsByEmail(db, form.Email) {
 		AbortWithJSONError(c, http.StatusBadRequest, ErrEmailExists)
 		return
