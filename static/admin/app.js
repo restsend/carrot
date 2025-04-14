@@ -611,10 +611,11 @@ class AdminObject {
             })
             if (resp.status != 200) {
                 let reason = await parseResponseError(resp)
-                Alpine.store('toasts').error(`${action.name} fail : ${reason}`)
                 if (action.onFail) {
                     let result = await resp.text()
                     action.onFail(keys[i], result)
+                } else {
+                    throw new Error(reason)
                 }
                 break
             }

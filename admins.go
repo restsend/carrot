@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -369,7 +370,9 @@ func RegisterAdmins(r *gin.RouterGroup, db *gorm.DB, objs []AdminObject) {
 					}
 				}
 			}
-
+			// sort by name
+			sort.Strings(jsFiles)
+			sort.Strings(cssFiles)
 			ctx.HTML(http.StatusOK, "admin/app.html", gin.H{
 				"Scripts":   jsFiles,
 				"Styles":    cssFiles,
