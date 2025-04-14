@@ -828,7 +828,7 @@ func (obj *AdminObject) MarshalOne(c *gin.Context, val interface{}) (map[string]
 				Value: rv.FieldByName(field.Foreign.foreignKey).Interface(),
 			}
 			fv := rv.FieldByName(field.Foreign.fieldName)
-			if fv.IsValid() && !fv.IsNil() {
+			if fv.IsValid() && !fv.IsZero() {
 				if sv, ok := fv.Interface().(fmt.Stringer); ok {
 					v.Label = sv.String()
 				}
