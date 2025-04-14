@@ -828,7 +828,7 @@ func (obj *AdminObject) MarshalOne(c *gin.Context, val interface{}) (map[string]
 				Value: rv.FieldByName(field.Foreign.foreignKey).Interface(),
 			}
 			fv := rv.FieldByName(field.Foreign.fieldName)
-			if fv.IsValid() {
+			if fv.IsValid() && !fv.IsNil() {
 				if sv, ok := fv.Interface().(fmt.Stringer); ok {
 					v.Label = sv.String()
 				}
@@ -1064,7 +1064,7 @@ func (obj *AdminObject) handleQueryOrGetOne(c *gin.Context) {
 			}
 			item["value"] = valueVal
 			iv := r.objects[i]
-			if sv, ok := iv.(fmt.Stringer); ok {
+			if sv, ok := iv.(fmt.Stringer); ok && sv != nil {
 				item["label"] = sv.String()
 			} else {
 				item["label"] = fmt.Sprintf("%v", valueVal)
