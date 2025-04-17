@@ -25,6 +25,7 @@ import (
 )
 
 const KEY_ADMIN_DASHBOARD = "ADMIN_DASHBOARD"
+const KeyAdminQueryForm = "_carrot_admin_query_form"
 
 type AdminBuildContext func(*gin.Context, map[string]any) map[string]any
 
@@ -1042,7 +1043,7 @@ func (obj *AdminObject) handleQueryOrGetOne(c *gin.Context) {
 	if form.ForeignMode {
 		form.Limit = 0 // TODO: support foreign mode limit
 	}
-
+	c.Set(KeyAdminQueryForm, form)
 	r, err := obj.QueryObjects(db, form, c)
 
 	if err != nil {
@@ -1102,6 +1103,7 @@ func (obj *AdminObject) handleCreate(c *gin.Context) {
 		AbortWithJSONError(c, http.StatusInternalServerError, result.Error)
 		return
 	}
+
 	if obj.BeforeRender != nil {
 		rr, err := obj.BeforeRender(db, c, elm)
 		if err != nil {
