@@ -25,6 +25,7 @@ import (
 )
 
 const KEY_ADMIN_DASHBOARD = "ADMIN_DASHBOARD"
+const KEY_ADMIN_WITHOUT_BUILTIN_SCRIPTS = "ADMIN_WITHOUT_BUILTIN_SCRIPTS"
 const KeyAdminQueryForm = "_carrot_admin_query_form"
 
 type AdminBuildContext func(*gin.Context, map[string]any) map[string]any
@@ -375,10 +376,11 @@ func RegisterAdmins(r *gin.RouterGroup, db *gorm.DB, objs []AdminObject) {
 			sort.Strings(jsFiles)
 			sort.Strings(cssFiles)
 			ctx.HTML(http.StatusOK, "admin/app.html", gin.H{
-				"Scripts":   jsFiles,
-				"Styles":    cssFiles,
-				"Dashboard": GetValue(db, KEY_ADMIN_DASHBOARD),
-				"Objects":   handledObjects,
+				"Scripts":               jsFiles,
+				"Styles":                cssFiles,
+				"Dashboard":             GetValue(db, KEY_ADMIN_DASHBOARD),
+				"Objects":               handledObjects,
+				"WithoutBuiltinScripts": GetBoolValue(db, KEY_ADMIN_WITHOUT_BUILTIN_SCRIPTS),
 			})
 			return
 		}
