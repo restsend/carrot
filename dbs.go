@@ -36,6 +36,7 @@ func InitDatabase(logWrite io.Writer, driver, dsn string) (*gorm.DB, error) {
 	cfg := &gorm.Config{
 		Logger:                 newLogger,
 		SkipDefaultTransaction: true,
+		TranslateError:         true,
 	}
 
 	return createDatabaseInstance(cfg, driver, dsn)
