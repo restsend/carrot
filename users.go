@@ -77,32 +77,37 @@ func CurrentTimezone(c *gin.Context) *time.Location {
 	return tz
 }
 
-func AuthRequired(c *gin.Context) {
-	if CurrentUser(c) != nil {
-		c.Next()
-		return
+func ExtractUserForm(c *gin.Context) *User {
+	user := CurrentUser(c)
+	if user != nil {
+		return user
 	}
-
 	token := c.GetHeader("Authorization")
 	if token == "" {
 		token = c.Query("token")
 	}
 
 	if token == "" {
-		AbortWithJSONError(c, http.StatusUnauthorized, ErrUnauthorized)
-		return
+		return nil
 	}
 
 	db := c.MustGet(DbField).(*gorm.DB)
-	// split bearer
 	token = strings.TrimPrefix(token, "Bearer ")
 	user, err := DecodeHashToken(db, token, false)
 	if err != nil {
-		AbortWithJSONError(c, http.StatusUnauthorized, err)
-		return
+		return nil
 	}
 	c.Set(UserField, user)
-	c.Next()
+	return user
+}
+
+func AuthRequired(c *gin.Context) {
+	user := ExtractUserForm(c)
+	if user != nil {
+		c.Next()
+		return
+	}
+	AbortWithJSONError(c, http.StatusUnauthorized, ErrUnauthorized)
 }
 
 func CurrentUser(c *gin.Context) *User {

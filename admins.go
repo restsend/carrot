@@ -282,7 +282,7 @@ func GetCarrotAdminObjects() []AdminObject {
 
 func WithAdminAuth() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		user := CurrentUser(ctx)
+		user := ExtractUserForm(ctx)
 		if user == nil {
 			db := ctx.MustGet(DbField).(*gorm.DB)
 			signUrl := GetValue(db, KEY_SITE_SIGNIN_URL)
