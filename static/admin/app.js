@@ -654,8 +654,11 @@ const adminapp = () => ({
         Alpine.store('loading', true)
         Alpine.store('confirmAction', new ConfirmAction())
         Alpine.store('editobj', new EditObject({}))
-
-        this.$router.config({ mode: 'hash', base: '/admin/' })
+        let base = window.location.pathname
+        if (!base.endsWith('/')) {
+            base = base.substring(0, base.lastIndexOf('/') + 1)
+        }
+        this.$router.config({ mode: 'hash', base })
         let resp = await fetch('./admin.json', {
             method: 'POST',
             cache: "no-store",
